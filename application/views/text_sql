@@ -1,0 +1,15 @@
+
+ALTER TABLE `master_customer_tbl` ADD `m_cust_balance` DOUBLE NOT NULL COMMENT 'customer current balance' AFTER `m_cust_crateOP`, ADD `m_cust_10bal` INT NOT NULL COMMENT '10kg crate balance' AFTER `m_cust_balance`, ADD `m_cust_20bal` INT NOT NULL COMMENT '20kg crate balance' AFTER `m_cust_10bal`, ADD `m_cust_25bal` INT NOT NULL COMMENT '25kg crate balance' AFTER `m_cust_20bal`;
+
+ALTER TABLE `master_users_tbl` ADD `m_user_balance` DOUBLE NOT NULL COMMENT 'user current balance' AFTER `m_user_crateOP`, ADD `m_user_10bal` INT NOT NULL COMMENT '10kg crate balance' AFTER `m_user_balance`, ADD `m_user_20bal` INT NOT NULL COMMENT '20kg crate balance' AFTER `m_user_10bal`, ADD `m_user_25bal` INT NOT NULL COMMENT '25kg crate balance' AFTER `m_user_20bal`;
+
+ALTER TABLE `master_purchase_tbl` ADD `m_purcs_available` INT NOT NULL COMMENT 'qty avalilable' AFTER `m_purcs_lot`;
+
+
+
+UPDATE `staff_itemissue_tbl` SET `si_issue_lotno`='40' WHERE `si_issue_lotno`=41 and `si_issue_date` ='2023-12-28';
+
+
+UPDATE `master_customer_tbl` SET `m_cust_loginid`=`m_cust_mobile` ,`m_cust_password`='ak@1234' WHERE 1;
+
+ALTER TABLE `master_city_tbl` CHANGE `m_city_country` `m_city_line` BIGINT(20) NOT NULL;

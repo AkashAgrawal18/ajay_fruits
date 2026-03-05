@@ -1,0 +1,150 @@
+<!-- ========================Header==============Fix========= -->
+<?php $this->view('head'); ?>
+<?php $this->view('header'); ?>
+
+<?php
+if ($type == 1) {
+    $paglink = 'user_list';
+    $pgname = 'Staff';
+} else  if ($type == 2) {
+    $paglink = 'supplier_list';
+    $pgname = 'Supplier';
+} else if ($type == 3) {
+    $paglink = 'loader_list';
+    $pgname = 'Loader';
+} else if ($type == 4) {
+    $paglink = 'general_list';
+    $pgname = 'General';
+} else if ($type == 5) {
+    $paglink = 'investment_list';
+    $pgname = 'Investment';
+}
+?>
+<!-- ========== Page Content ========== -->
+<section class="py-1" style="background: #bbf;">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-6">
+                <h6 class="m-0 text-white">
+                    Home >> <span class="text-primary"><?= $pgname ?> List</span>
+                </h6>
+            </div>
+            <div class="col-6 text-end">
+               <button onclick="history.back()" class="btn btn-danger btn-sm">
+                    <i class="bi bi-box-arrow-left me-2"></i>Exit
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+<section class="py-4 d-flex align-items-center" style="background:#f3f3ff;min-height:70vh;">
+    <div class="container-fluid">
+
+        <div class="row justify-content-evenly g-2 mb-2">
+            <div class="col-12">
+                <form action="<?= base_url('Accounts/') . $paglink ?>" method="POST" class="row align-items-center">
+
+                    <div class="col-2">
+                        <div class="form-group">
+                            <label for="">From date</label>
+                            <input type="date" name="from_date" id="from_date" class="form-control" value="<?= $from_date ?>">
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <div class="form-group">
+                            <label for="">To date</label>
+                            <input type="date" name="to_date" id="to_date" class="form-control" value="<?= $to_date ?>">
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <div class="form-group">
+                            <label for="">Search</label>
+                            <input type="text" name="search_in" id="search_in" class="form-control" placeholder="Enter Name,mobile,city..." title="Enter Name/mobile/city to search" value="<?= $search_in ?>">
+                        </div>
+                    </div>
+                    <div class="col-4 mt-4">
+                        <button class="btn btn-info" type="submit"><i class="bi bi-search mx-1"></i> Search</button>
+                        <a class="btn btn-danger" href="<?= base_url('Accounts/') . $paglink ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
+                        <a class="btn btn-primary" href="<?= base_url('Accounts/add_user/') . $type ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
+
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="row justify-content-evenly g-0">
+            <div class="col-12">
+                <div class="table-responsive bg-light" style="height: 64vh;">
+                    <table id="user_tbl" class="my_custom_datatable table table-striped table-bordered dt-responsive nowra w-100">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Mobile No.</th>
+                                <th>City/State</th>
+                                <th>Address</th>
+                                <th>Trade Mark</th>
+                                <th>Contact Person</th>
+                                <th>Balance</th>
+                                <?php if ($type == 1) { ?>
+                                <th>Group name</th>
+                                <?php } ?>
+                                <th>Joining Date</th>
+                                <th>Status</th>
+                                <th width="10%">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $i = 1;
+                            if (!empty($mech_value)) {
+                                foreach ($mech_value as $value) {
+                                    $original_date = $value->m_user_added_on;
+                                    $new_date = date("d-m-Y", strtotime($original_date));
+                                    $query = $this->db->select('GROUP_CONCAT(m_group_name) as group_name')->where_in('m_group_id', explode(',', $value->m_user_group))->get('master_group_tbl')->result();
+                            ?>
+                                    <tr>
+                                        <td><?php echo $i; ?></td>
+                                        <td><?php echo $value->m_user_name; ?></td>
+                                        <td><?php echo $value->m_user_mobile; ?></td>
+                                        <td><?php echo $value->m_city_name . '-' . $value->m_state_name; ?></td>
+                                        <td><?php echo $value->m_user_address; ?></td>
+                                        <td><?php echo $value->m_user_trademark; ?></td>
+                                        <td><?php echo $value->m_user_contractPerd; ?></td>
+                                        <td><?php echo $value->m_user_balance; ?></td>
+                                        <?php if ($type == 1) { ?>
+                                            <td><?php echo $query[0]->group_name; ?></td>
+                                        <?php } ?>
+
+                                        <td><?php echo $new_date; ?></td>
+                                        <td><?php if ($value->m_user_status == 1) echo "Active";
+                                            else {
+                                                echo "In-Active";
+                                            } ?></td>
+
+                                        <td class="wd-30">
+                                            <div class="d-flex">
+                                                <a href="<?php echo base_url('Accounts/add_user/' . $type . '?id=') . $value->m_user_id . '&type=' . $type; ?>" class="btn btn-info btn-sm p-1 me-1" title="Edit" data-toggle="tooltip"><i class="bi bi-pencil-square"></i></a>
+                                                 <button class="btn btn-danger btn-sm delete-user p-1" data-value="<?php echo $value->m_user_id; ?>" title="Delete" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                            <?php
+                                    $i++;
+                                }
+                            }
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<!-- ========== Page Content ========== -->
+
+<!-- ========================Footer================Fix======= -->
+<?php $this->view('footer'); ?>
+<?php $this->view('js/user_js') ?>
+<?php $this->view('js/custom_js'); ?>
+<!-- ========================Footer================Fix======= -->
