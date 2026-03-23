@@ -1016,7 +1016,7 @@ class Sales extends CI_Controller
 
       $url = "https://www.ajayfruits.in/Sales/download_pdf?date=" . $sal_date . "&id=" . $cust_id;
       $customer_name = !empty($data->cust_detail->m_cust_hndiname) ? $data->cust_detail->m_cust_hndiname : $data->cust_detail->m_cust_name;
-      $message = "*अजय कुशवाहा एंड कंपनी*\n\n*नाम - " . $customer_name . "*\nदिनाक- " . date('d/m/Y', strtotime($sal_date)) . "\nबिल no-" . $data->invoice_no . "\n\n🔹 *विवरण*\n\n";
+      $message = "*अजय कुशवाहा एंड कंपनी* \n अंजोरा -491001 \n जिला- दुर्ग ( C.G)\n\n*नाम - " . $customer_name . "*\nदिनाक- " . date('d/m/Y', strtotime($sal_date)) . "\nबिल no-" . $data->invoice_no . "\n\n🔹 *विवरण*\n\n";
 
       $cret10 = $cret20 = $cret25 = 0;
       $oldcrate = $totalcrate = $todaycrate = $balcrate = "";
@@ -1052,6 +1052,7 @@ class Sales extends CI_Controller
         $todaycrate .= $kry->m_itgrp_title . "- " . $kry->total_qty . ',';
       }
       $message .= "\n\n📦 *खाली केरेट विवरण:*\n\n🔹 *पुराना बाकी:* " . $oldcrate . "\n🔹 *टोटल बाकी:* " . $totalcrate . "\n🔹 *आज जमा:* " . $todaycrate . "\n🔹 *टोटल बाकी:* " . $balcrate;
+      $message .= "\n किसी भी प्रकार की बिल में गलती होने पर इसी फोन न पर सूचित करे (8329044323) \n\n (दुर्ग न्यायालय के अंतर्गत ) \n\n";
       $message .= "\n\n 🚀 *बिल डाउनलोड करें:* [📥 Download PDF] $url";
       return $message;
     }

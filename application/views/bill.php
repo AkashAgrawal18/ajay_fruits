@@ -9,10 +9,10 @@
     <title>AK Fruits</title>
     <style>
         .bill-area {
-            width: 200px;
+            /* width: 200px; */
             /* background-color: #d4cbcb; */
             margin: auto;
-            padding: 10px 5px;
+            padding: 5px 5px 5px 25px;
         }
 
         .bill-area h1 {
@@ -257,6 +257,9 @@
                     </tr>
                     <tr>
                         <td colspan="4" class="border-none p-0">Today Receive: <?= $customer_today_balance['amount_rcvd'] ?></td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="border-none p-0">Today Discount: <?= $customer_today_balance['discount_amt'] ?></td>
                     </tr>
                     <tr>
                         <td colspan="4" class="border-none p-0">Total Balance:<?= ($customer_old_balance['balance_amount'] + $customer_today_balance['balance_amount']) ?></td>

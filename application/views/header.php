@@ -5,7 +5,8 @@
         <div class="container-fluid">
             <div class="d-flex gap-1 align-items-center justify-content-between">
                 <div>
-                    <!-- <img src="<? // base_url('uploads/') . get_settings('m_app_logo') ?>" alt="" style="height: 30px" /> -->
+                    <!-- <img src="<? // base_url('uploads/') . get_settings('m_app_logo') 
+                                    ?>" alt="" style="height: 30px" /> -->
                     <div class="btn-group">
                         <button type="button" class="btn btn-light btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                             Item
@@ -55,7 +56,7 @@
                             Administration
                         </button>
                         <ul class="dropdown-menu">
-                             <li><a class="dropdown-item" href="<?= base_url('Sales/send_bill_indiviouly') ?>">Send Summary</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('Sales/send_bill_indiviouly') ?>">Send Summary</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Sales/Reminder_list') ?>">Reminder List</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Sales/purchase_item_list') ?>">Purchase Item list</a></li>
                         </ul>
@@ -69,12 +70,82 @@
                             <li><a class="dropdown-item" href="<?= base_url('Master/state_list') ?>">State List</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Welcome/application_setting') ?>">System Settings </a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Welcome/db_backup') ?>">Download Database Backup </a></li>
-                           
+
                         </ul>
                     </div>
                 </div>
-                <div class="d-flex">
+                <div class="d-flex align-items-center flex-wrap">
+                    <div class="global-account-search d-flex align-items-center gap-2 me-3" style="min-width: 360px;">
+                        <?php
+                        $customers = $this->Main_model->get_cust_active_list();
+                        $users = $this->Main_model->get_active_users(0);
+                        $expenses = $this->Master_model->get_all_expenses();
+                        function userTypeLabel($type)
+                        {
+                            switch ($type) {
+                                case 1:
+                                    return 'Staff';
+                                case 2:
+                                    return 'Supplier';
+                                case 3:
+                                    return 'Loader';
+                                case 4:
+                                    return 'General';
+                                case 5:
+                                    return 'Investment';
+                                default:
+                                    return 'User';
+                            }
+                        }
+                        function expenseTypeLabel($type, $group)
+                        {
+                            if ($type == 2 && $group != 0) {
+                                return 'Fright';
+                            } else if ($type == 2) {
+                                return 'Expense';
+                            } else if ($type == 3) {
+                                return 'Bank';
+                            } else if ($type == 4) {
+                                return 'Cash';
+                            } else {
+                                return 'Group';
+                            }
+                        }
+                        ?>
 
+                        <form id="global-ledger-search" class="d-flex align-items-center gap-1" onsubmit="return false;">
+                            <input type="text" id="global_account_input" list="global_accounts" class="form-control form-control-sm" placeholder="Search customer/user" autocomplete="off" style="min-width:180px;" />
+                            <datalist id="global_accounts">
+                                <?php if (!empty($customers)) {
+                                    foreach ($customers as $cust) {
+                                        $label = htmlspecialchars($cust->m_cust_name . ' | ' . $cust->m_cust_mobile . ' (' . $cust->m_cust_id . ')');
+                                        echo '<option value="' . $label . '" data-id="' . $cust->m_cust_id . '" data-type="customer">' . $label . '</option>';
+                                    }
+                                }
+                                if (!empty($users)) {
+                                    foreach ($users as $user) {
+                                        $type = userTypeLabel($user->m_user_type);
+                                        $label = htmlspecialchars($user->m_user_name . ' | ' . $user->m_user_mobile . ' (' . $user->m_user_id . ')');
+                                        echo '<option value="' . $label . '" data-id="' . $user->m_user_id . '" data-type="' . strtolower($type) . '">' . $label . '</option>';
+                                    }
+                                }
+                                if (!empty($expenses)) {
+                                    foreach ($expenses as $expense) {
+                                        $type = expenseTypeLabel($expense->m_group_type,$expense->m_group_group);
+                                        $label = htmlspecialchars($expense->m_group_name . ' (' . $expense->m_group_id . ')');
+                                        echo '<option value="' . $label . '" data-id="' . $expense->m_group_id . '" data-type="' . strtolower($type) . '">' . $label . '</option>';
+                                    }
+                                }
+
+                                ?>
+                            </datalist>
+                            <input type="date" id="global_from_date" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" title="From Date" />
+                            <input type="date" id="global_to_date" class="form-control form-control-sm" value="<?= date('Y-m-d') ?>" title="To Date" />
+                            <button id="global_search_btn" class="btn btn-sm btn-primary" type="button">Search</button>
+                            <input type="hidden" id="global_account_id" value="" />
+                            <input type="hidden" id="global_account_type" value="" />
+                        </form>
+                    </div>
 
                     <div title="Total SMS Left" class="d-inline-flex justify-content-start p-2 gap-1 align-items-center rounded-pill me-3" style="align-self: center;background:#f4f4f4;">
                         <i class="bi bi-envelope-plus-fill"></i>
@@ -95,7 +166,8 @@
 
                     <a href="<?= base_url() ?>">
                         <div class="d-inline-flex justify-content-start p-2 gap-1 align-items-center rounded-pill me-3" style="align-self: center;background:#f4f4f4;">
-                            <!-- <img src="<? // base_url('uploads/') . get_settings('m_app_logo') ?>" alt="" class="rounded-circle" style="aspect-ratio: 1/1;height:30px;"> -->
+                            <!-- <img src="<? // base_url('uploads/') . get_settings('m_app_logo') 
+                                            ?>" alt="" class="rounded-circle" style="aspect-ratio: 1/1;height:30px;"> -->
                             <div>
                                 <h6 class="m-0 text-dark pe-3"><?= $login_detail->m_admin_name ?></h6>
                             </div>
@@ -105,6 +177,119 @@
             </div>
         </div>
     </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const accountInput = document.getElementById('global_account_input');
+            const datalist = document.getElementById('global_accounts');
+            const accountIdInput = document.getElementById('global_account_id');
+            const accountTypeInput = document.getElementById('global_account_type');
+            const fromDateInput = document.getElementById('global_from_date');
+            const toDateInput = document.getElementById('global_to_date');
+            const searchBtn = document.getElementById('global_search_btn');
+
+            function clearHiddenFields() {
+                accountIdInput.value = '';
+                accountTypeInput.value = '';
+            }
+
+            function setHiddenFromSelection(value) {
+                const option = Array.from(datalist.options).find(opt => opt.value === value);
+                if (option) {
+                    accountIdInput.value = option.getAttribute('data-id');
+                    accountTypeInput.value = option.getAttribute('data-type');
+                } else {
+                    clearHiddenFields();
+                }
+            }
+
+            accountInput.addEventListener('input', function() {
+                setHiddenFromSelection(this.value);
+            });
+
+            searchBtn.addEventListener('click', function() {
+                const accountName = accountInput.value.trim();
+                const accountId = accountIdInput.value.trim();
+                const accountType = accountTypeInput.value.trim();
+                const fromDate = fromDateInput.value;
+                const toDate = toDateInput.value;
+
+                if (!accountName || !accountId || !accountType) {
+                    alert('Please select an account from the list to search.');
+                    accountInput.focus();
+                    return;
+                }
+
+                if (!fromDate || !toDate) {
+                    alert('Please fill both From Date and To Date.');
+                    return;
+                }
+
+                if (fromDate > toDate) {
+                    alert('From Date cannot be later than To Date.');
+                    return;
+                }
+
+                let targetUrl = '';
+                switch (accountType.toLowerCase()) {
+                    case 'customer':
+                        targetUrl = '<?= base_url('Reports/customer_cash_ledger') ?>';
+                        break;
+                    case 'supplier':
+                        targetUrl = '<?= base_url('Reports/supplier_cash_ledger') ?>';
+                        break;
+                    case 'staff':
+                    case 'agent':
+                    case 'loader':
+                        targetUrl = '<?= base_url('Reports/staffcomm_ledger') ?>';
+                        break;
+                    case 'general':
+                        targetUrl = '<?= base_url('Reports/general_leger/1') ?>';
+                        break;
+                    case 'investment':
+                        targetUrl = '<?= base_url('Reports/general_leger/2') ?>';
+                        break;
+                    case 'expense':
+                        targetUrl = '<?= base_url('Reports/expense_ledger') ?>';
+                        break;
+                    case 'bank':
+                        targetUrl = '<?= base_url('Reports/cash_ledger/2') ?>';
+                        break;
+                    case 'cash':
+                        targetUrl = '<?= base_url('Reports/cash_ledger/1') ?>';
+                        break;
+                    case 'fright':
+                        targetUrl = '<?= base_url('Reports/fright_ledger') ?>';
+                        break;
+                    default:
+                        targetUrl = '<?= base_url('Reports/account_ledger') ?>';
+                        break;
+                }
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = targetUrl;
+
+                const fields = {
+                    account_name: accountId,
+                    from_date: fromDate,
+                    to_date: toDate,
+                };
+
+                Object.keys(fields).forEach(function(key) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = fields[key];
+                    form.appendChild(input);
+                });
+
+                document.body.appendChild(form);
+                form.submit();
+            });
+        });
+    </script>
+
     <!--navigation Panel-->
     <nav class="py-2">
         <div class="container-fluid">

@@ -140,7 +140,8 @@ class Master_model extends CI_model
   public function get_all_group($type)
   {
     if($type == 2){
-      $this->db->select('master_group_tbl.*,group.m_group_name as expense_group')->join('master_group_tbl as group','group.m_group_id = master_group_tbl.m_group_group','left');
+      $this->db->select('master_group_tbl.*,group.m_group_name as expense_group')
+      ->join('master_group_tbl as group','group.m_group_id = master_group_tbl.m_group_group','left');
     }else {
       $this->db->select('*');
     }
@@ -153,13 +154,22 @@ class Master_model extends CI_model
   public function get_all_active_group($type)
   {
     if($type == 2){
-      $this->db->select('master_group_tbl.*,group.m_group_name as expense_group')->join('master_group_tbl as group','group.m_group_id = master_group_tbl.m_group_group','left');
+      $this->db->select('master_group_tbl.*,group.m_group_name as expense_group')
+      ->join('master_group_tbl as group','group.m_group_id = master_group_tbl.m_group_group','left');
     }else {
       $this->db->select('*');
     }
     $this->db->where('master_group_tbl.m_group_type',$type);
     $this->db->where('master_group_tbl.m_group_status',1);
     $this->db->order_by('master_group_tbl.m_group_name');
+    $res = $this->db->get('master_group_tbl')->result();
+    return $res;
+  }
+  public function get_all_expenses()
+  {
+    $this->db->select('m_group_id,m_group_name,m_group_type,m_group_group');
+    $this->db->where('m_group_type !=',1);
+    $this->db->where('m_group_status',1);
     $res = $this->db->get('master_group_tbl')->result();
     return $res;
   }
