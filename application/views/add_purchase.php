@@ -35,6 +35,7 @@
                 $purcs_date = $edit_value[0]->m_purcs_date;
                 $purcs_truckno = $edit_value[0]->m_purcs_truckno;
                 $purcs_suplier = $edit_value[0]->m_purcs_suplier;
+                $purcs_billno = $edit_value[0]->m_purcs_billno;
                 $purcs_user = $edit_value[0]->m_purcs_user;
                 $purcs_comm = $edit_value[0]->m_purcs_comm;
                 $purcs_comrate = $edit_value[0]->m_purcs_comrate;
@@ -51,6 +52,7 @@
                 $purcs_date = date('Y-m-d');
                 $purcs_truckno = '';
                 $purcs_suplier = '';
+                $purcs_billno = '';
                 $purcs_user = '';
                 $purcs_comm = 0;
                 $purcs_comrate = 0;
@@ -66,7 +68,7 @@
 
 
             <div class="row mb-1 g-3">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="row">
                         <div class="col-3">
                             <label>Date<span class="text-danger">*</span></label>
@@ -86,12 +88,26 @@
                 <div class="col-md-3">
 
                     <div class="row">
-                        <div class="col-4">
+                        <div class="col-3">
                             <label>Truck No<span class="text-danger">*</span></label>
                         </div>
-                        <div class="col-8">
+                        <div class="col-9">
                             <div class="form-group">
                                 <input type="text" name="m_purcs_truckno" id="m_purcs_truckno" class="form-control" placeholder="Enter Truck No" value="<?= $purcs_truckno ?>">
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="col-md-3">
+
+                    <div class="row">
+                        <div class="col-3">
+                            <label>Bill No<span class="text-danger">*</span></label>
+                        </div>
+                        <div class="col-9">
+                            <div class="form-group">
+                                <input type="text" name="m_purcs_billno" id="m_purcs_billno" class="form-control" placeholder="Enter Bill No" value="<?= $purcs_billno ?>">
                             </div>
                         </div>
                     </div>

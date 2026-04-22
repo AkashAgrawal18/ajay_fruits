@@ -3,19 +3,19 @@
 <?php $this->view('header'); ?>
 
 <?php
-if ($type == 1) {
+if ($pgtype == 1) {
     $paglink = 'user_list';
     $pgname = 'Staff';
-} else  if ($type == 2) {
+} else  if ($pgtype == 2) {
     $paglink = 'supplier_list';
     $pgname = 'Supplier';
-} else if ($type == 3) {
+} else if ($pgtype == 3) {
     $paglink = 'loader_list';
     $pgname = 'Loader';
-} else if ($type == 4) {
+} else if ($pgtype == 4) {
     $paglink = 'general_list';
     $pgname = 'General';
-} else if ($type == 5) {
+} else if ($pgtype == 5) {
     $paglink = 'investment_list';
     $pgname = 'Investment';
 }
@@ -65,7 +65,7 @@ if ($type == 1) {
                     <div class="col-4 mt-4">
                         <button class="btn btn-info" type="submit"><i class="bi bi-search mx-1"></i> Search</button>
                         <a class="btn btn-danger" href="<?= base_url('Accounts/') . $paglink ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
-                        <a class="btn btn-primary" href="<?= base_url('Accounts/add_user/') . $type ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
+                        <a class="btn btn-primary" href="<?= base_url('Accounts/add_user?pgtype=') . $pgtype ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
 
                     </div>
                 </form>
@@ -86,7 +86,7 @@ if ($type == 1) {
                                 <th>Trade Mark</th>
                                 <th>Contact Person</th>
                                 <th>Balance</th>
-                                <?php if ($type == 1) { ?>
+                                <?php if ($pgtype == 1) { ?>
                                 <th>Group name</th>
                                 <?php } ?>
                                 <th>Joining Date</th>
@@ -112,7 +112,7 @@ if ($type == 1) {
                                         <td><?php echo $value->m_user_trademark; ?></td>
                                         <td><?php echo $value->m_user_contractPerd; ?></td>
                                         <td><?php echo $value->m_user_balance; ?></td>
-                                        <?php if ($type == 1) { ?>
+                                        <?php if ($pgtype == 1) { ?>
                                             <td><?php echo $query[0]->group_name; ?></td>
                                         <?php } ?>
 
@@ -124,7 +124,7 @@ if ($type == 1) {
 
                                         <td class="wd-30">
                                             <div class="d-flex">
-                                                <a href="<?php echo base_url('Accounts/add_user/' . $type . '?id=') . $value->m_user_id . '&type=' . $type; ?>" class="btn btn-info btn-sm p-1 me-1" title="Edit" data-toggle="tooltip"><i class="bi bi-pencil-square"></i></a>
+                                                <a href="<?php echo base_url('Accounts/add_user?type=' . $pgtype . '&id=') . $value->m_user_id; ?>" class="btn btn-info btn-sm p-1 me-1" title="Edit" data-toggle="tooltip"><i class="bi bi-pencil-square"></i></a>
                                                  <button class="btn btn-danger btn-sm delete-user p-1" data-value="<?php echo $value->m_user_id; ?>" title="Delete" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
                                             </div>
                                         </td>

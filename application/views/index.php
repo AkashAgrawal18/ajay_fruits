@@ -20,121 +20,37 @@
     </div>
 </section>
 
-<section class="m-2 d-flex align-items-center">
-    <div class="row align-items-stretch g-4 py-2 w-100">
+<!-- <section class="m-2 d-flex align-items-center">
+    <div class="row align-items-stretch g-4 py-2 w-100"> -->
 
-        <!-- <div class="col-6">
+        <!-- <div class="col-9">
             <div class="row">
-                <div class="col-3 ">
-                    <a href="<?= base_url('Accounts/supplier_list') ?>" class="text-decoration-none">
-                        <div class="card card-cover overflow-hidden text-white bg-dark rounded-4 shadow-lg" style="background: linear-gradient(135deg, #7a7af9,#080808);">
-                            <div class="d-flex flex-column pt-4 pb-3 text-center px-3 text-white text-shadow-1" style="min-height: 7.2rem; max-height: 7.5rem;">
-                                <h5 class="fw-bold"><?= $dashcounts->total_supplier ?></h4>
-                                    <h6 class="fw-bold mb-0">Total Suppiler</h6>
-                                    <small class="mb-0"></small>
-
-                            </div>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="col-3 ">
-                    <a href="<?= base_url('Accounts/cust_list') ?>" class="text-decoration-none">
-                        <div class="card card-cover overflow-hidden text-white bg-dark rounded-4 shadow-lg" style="background: linear-gradient(135deg, #7a7af9,#080808);">
-                            <div class="d-flex flex-column pt-4 pb-3 text-center px-3 text-white text-shadow-1" style="min-height: 7.2rem; max-height: 7.5rem;">
-                                <h5 class="fw-bold"><?= $dashcounts->total_cust ?></h4>
-                                    <h6 class="fw-bold mb-0">Total Customer</h6>
-                                    <small class="mb-0"></small>
-
-                            </div>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="col-6">
-                    <a href="<?= base_url('Reports/cust_blncrate_report') ?>" class="text-decoration-none">
-                        <div class="card card-cover overflow-hidden text-white bg-dark rounded-4 shadow-lg" style="background: linear-gradient(135deg, #7a7af9,#080808);">
-                            <div class="d-flex flex-column pt-4 pb-3 text-center px-3 text-white text-shadow-1" style="min-height: 7.2rem; max-height: 7.5rem;">
-                                <div class="d-flex mb-2 justify-content-around align-items-stretch">
-                                    <div class="text-center">
-                                        <h5 class="m-0"><?= $dashcounts->crate10_outstand ?></h4>
-                                            <small>10 kg</small>
-                                    </div>
-                                    <div style="width: 2px;background:white;"></div>
-                                    <div class="text-center">
-                                        <h5 class="m-0"><?= $dashcounts->crate20_outstand ?></h4>
-                                            <small>20 kg</small>
-                                    </div>
-                                    <div style="width: 2px;background:white;"></div>
-                                    <div class="text-center">
-                                        <h5 class="m-0"><?= $dashcounts->crate25_outstand ?></h4>
-                                            <small>25 kg</small>
-                                    </div>
-                                </div>
-                                <h6 class="fw-bold">Customer Crate Outstanding</h6>
-
-                            </div>
-                        </div>
-                    </a>
-                </div>
-
-                <div class="col-6">
-                    <a href="<?= base_url('Reports/supplier_blncrate_report') ?>" class="text-decoration-none">
-                        <div class="card card-cover overflow-hidden text-white bg-dark rounded-4 shadow-lg" style="background: linear-gradient(135deg, #7a7af9,#080808);">
-                            <div class="d-flex flex-column pt-4 pb-3 text-center px-3 text-white text-shadow-1" style="min-height: 7.2rem; max-height: 7.5rem;">
-                                <div class="d-flex mb-2 justify-content-around align-items-stretch">
-                                    <div class="text-center">
-                                        <h5 class="m-0"><?= $dashcounts->spcrt10_outstand ?></h4>
-                                            <small>10 kg</small>
-                                    </div>
-                                    <div style="width: 2px;background:white;"></div>
-                                    <div class="text-center">
-                                        <h5 class="m-0"><?= $dashcounts->spcrt20_outstand ?></h4>
-                                            <small>20 kg</small>
-                                    </div>
-                                    <div style="width: 2px;background:white;"></div>
-                                    <div class="text-center">
-                                        <h5 class="m-0"><?= $dashcounts->spcrt25_outstand ?></h4>
-                                            <small>25 kg</small>
-                                    </div>
-                                </div>
-                                <h6 class="fw-bold">Supplier Crate Balance</h6>
-
-                            </div>
-                        </div>
-                    </a>
-                </div>
-            </div>
-        </div> -->
-
-        <div class="col-9">
-            <div class="row">
-                <?php if (isset($dashcounts->account_dels)) {
-                    foreach ($dashcounts->account_dels as $key => $value) {
-                        echo '<div class="col-2">
-             <a href="#" class="text-decoration-none">
-            <div class="card card-cover overflow-hidden text-white bg-dark rounded-4 shadow-lg" style="background: linear-gradient(135deg, #7a7af9,#080808);">
-               <div class="d-flex flex-column pt-4 pb-3 text-center px-3 text-white text-shadow-1" style="min-height: 7.2rem; max-height: 7.5rem;">
-                   <h6 class="fw-bold">₹ ' . $value->opening_bal . '</h6>
-                       <small class="fw-bold mb-0">' . $value->acct_name . '</small>
-                         </div>
-                     </div>
-                 </a>
-            </div>
-            ';
-                    }
-                } ?>
+                <?php // if (isset($dashcounts->account_dels)) {
+            //         foreach ($dashcounts->account_dels as $key => $value) {
+            //             echo '<div class="col-2">
+            //  <a href="#" class="text-decoration-none">
+            // <div class="card card-cover overflow-hidden text-white bg-dark rounded-4 shadow-lg" style="background: linear-gradient(135deg, #7a7af9,#080808);">
+            //    <div class="d-flex flex-column pt-4 pb-3 text-center px-3 text-white text-shadow-1" style="min-height: 7.2rem; max-height: 7.5rem;">
+            //        <h6 class="fw-bold">₹ ' . $value->opening_bal . '</h6>
+            //            <small class="fw-bold mb-0">' . $value->acct_name . '</small>
+            //              </div>
+            //          </div>
+            //      </a>
+            // </div>
+            // ';
+            //         }
+            //     } ?>
 
 
             </div>
-        </div>
-        <div class="col-3">
+        </div> -->
+        <!-- <div class="col-3">
             <div class="row">
                 <div class="col-6">
-                    <a href="<?= base_url('Reports/supplier_blncrate_report') ?>" class="text-decoration-none">
+                    <a href="<? //= base_url('Reports/supplier_blncrate_report') ?>" class="text-decoration-none">
                         <div class="card card-cover overflow-hidden text-white bg-dark rounded-4 shadow-lg" style="background: linear-gradient(135deg, #7a7af9,#080808);">
                             <div class="d-flex flex-column pt-4 pb-3 text-center px-3 text-white text-shadow-1" style="min-height: 7.2rem; max-height: 7.5rem;">
-                                <h6 class="fw-bold">₹ <?= $dashcounts->spcash_outstan ?></h6>
+                                <h6 class="fw-bold">₹ <? //= $dashcounts->spcash_outstan ?></h6>
                                     <smallIND_money_format( class="fw-bold) mb-0">Total Payable</smallIND_money_format>
                                     <small class="mb-0">To Supplier</small>
 
@@ -144,10 +60,10 @@
                 </div>
 
                 <div class="col-6">
-                    <a href="<?= base_url('Reports/cust_blncrate_report') ?>" class="text-decoration-none">
+                    <a href="<? //= base_url('Reports/cust_blncrate_report') ?>" class="text-decoration-none">
                         <div class="card card-cover overflow-hidden text-white bg-dark rounded-4 shadow-lg" style="background: linear-gradient(135deg, #7a7af9,#080808);">
                             <div class="d-flex flex-column pt-4 pb-3 text-center px-3 text-white text-shadow-1" style="min-height: 7.2rem; max-height: 7.5rem;">
-                                <h6 class="fw-bold">₹ <?= $dashcounts->cash_outstan ?></h6>
+                                <h6 class="fw-bold">₹ <? //= $dashcounts->cash_outstan ?></h6>
                                     <small class="fw-bold mb-0" style="font-size: 0.99rem;">Total Receivable</small>
                                     <small class="mb-0">From Customer</small>
 
@@ -156,11 +72,11 @@
                     </a>
                 </div>
             </div>
-        </div>
+        </div> -->
 
-    </div>
+    <!-- </div>
 
-</section>
+</section> -->
 
 
 <section class="py-4 d-flex align-items-center" style="background:#f3f3ff;">

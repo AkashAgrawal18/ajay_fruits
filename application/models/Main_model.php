@@ -1041,6 +1041,7 @@ class Main_model extends CI_model
         "m_sale_date" => $this->input->post('m_sale_date'),
         "m_sale_trackno" => $this->input->post('m_sale_trackno'),
         "m_sale_customer" => $this->input->post('m_sale_customer'),
+        "m_sale_voucher" => $this->input->post('m_sale_voucher'),
         "m_sale_comrate" => $this->input->post('m_sale_comrate'),
         "m_sale_comm" => $this->input->post('m_sale_comm'),
         "m_sale_fright" => $this->input->post('m_sale_fright'),
@@ -1328,6 +1329,7 @@ class Main_model extends CI_model
       $insert_data = array(
         "m_purcs_date" => $this->input->post('m_purcs_date'),
         "m_purcs_suplier" => $this->input->post('m_purcs_suplier'),
+        "m_purcs_billno" => $this->input->post('m_purcs_billno'),
         "m_purcs_comrate" => $this->input->post('m_purcs_comrate'),
         "m_purcs_comm" => $this->input->post('m_purcs_comm'),
         "m_purcs_fright" => $this->input->post('m_purcs_fright'),

@@ -217,6 +217,9 @@
                 } else {
                     $(this).prop("disabled", true).hide();
                 }
+                if($(this).val() === 'all') {
+                    $(this).prop("disabled", false).show();
+                }
             });
 
             // Reset the selection
@@ -230,7 +233,7 @@
                 // Select all options except the "all" option itself
                 var allValues = [];
                 $('#cust_id option').each(function() {
-                    if ($(this).val() !== 'all') {
+                    if ($(this).val() !== 'all' && !$(this).prop('disabled')) {
                         allValues.push($(this).val());
                     }
                 });

@@ -1,21 +1,21 @@
 <?php include("head.php"); ?>
 <?php include("header.php"); ?>
 <!-- ========== Page Content ========== -->
-
 <?php
-if ($type == 1) {
+// echo $pgtype; die;
+if ($pgtype == 1) {
     $paglink = 'user_list';
     $pgname = 'Staff';
-} else  if ($type == 2) {
+} else  if ($pgtype == 2) {
     $paglink = 'supplier_list';
     $pgname = 'Supplier';
-} else if ($type == 3) {
+} else if ($pgtype == 3) {
     $paglink = 'loader_list';
     $pgname = 'Loader';
-} else if ($type == 4) {
+} else if ($pgtype == 4) {
     $paglink = 'general_list';
     $pgname = 'General';
-} else if ($type == 5) {
+} else if ($pgtype == 5) {
     $paglink = 'investment_list';
     $pgname = 'Investment';
 }
@@ -55,7 +55,7 @@ if ($type == 1) {
             $city = $edit_value->m_user_city;
             $address = $edit_value->m_user_address;
             $trademark = $edit_value->m_user_trademark;
-            $type = $edit_value->m_user_type;
+            $pgtype = $edit_value->m_user_type;
             $group = explode(',', $edit_value->m_user_group);
             $login_allow = $edit_value->m_user_login_allow;
             $loginid = $edit_value->m_user_loginid;
@@ -96,7 +96,7 @@ if ($type == 1) {
                     <div class="col-12">
                         <label for="" class="mb-0 form-label small">Account Name <span class="text-danger">*</span></label>
                         <input type="hidden" name="m_user_id" id="m_user_id" value="<?= $id ?>">
-                        <input type="hidden" name="m_user_type" id="m_user_type" value="<?= $type ?>">
+                        <input type="hidden" name="m_user_type" id="m_user_type" value="<?= $pgtype ?>">
                         <input type="text" name="m_user_name" id="m_user_name" value="<?= $name ?>" class="form-control" placeholder="Enter Account Name" required>
                     </div>
                     <div class="col-6">
@@ -157,7 +157,7 @@ if ($type == 1) {
                         <label for="" class="mb-0 form-label small">Mobile Number <span class="text-danger">*</span></label>
                         <input type="tel" maxlength="10" minlength="10" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_user_mobile" id="m_user_mobile" value="<?= $mobile ?>" placeholder="1234512345" required>
                     </div>
-                    <?php if ($type == 1) { ?>
+                    <?php if ($pgtype == 1) { ?>
                         <div class="col-6">
                             <label for="" class="mb-0 form-label small">Group</label>
                             <select name="m_user_group[]" id="group" class="form-control select2" multiple>
@@ -259,7 +259,7 @@ if ($type == 1) {
                         <label for="" class="mb-0 form-label small">Aadhar number</label>
                         <input type="tel" maxlength="12" minlength="12" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_user_adharno" id="m_user_adharno" value="<?= $adharno ?>" placeholder="123412341234">
                     </div>
-                    <?php if ($type == 1) { ?>
+                    <?php if ($pgtype == 1) { ?>
                         <div class="col-6">
                             <label for="" class="mb-0 form-label small">Login Allow</label>
                             <select name="m_user_login_allow" id="m_user_login_allow" class="form-control">

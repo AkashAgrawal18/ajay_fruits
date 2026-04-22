@@ -13,14 +13,14 @@ class Accounts extends CI_Controller
   {
     $data = $this->login_details();
     $data['pagename'] = "All Staff Accounts";
-    $data['type'] = 1;
+    $data['pgtype'] = 1;
     $data['from_date'] = $this->input->post('from_date');
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
 
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['type'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
    
     $this->load->view('user_list', $data);
   }
@@ -29,14 +29,14 @@ class Accounts extends CI_Controller
   {
     $data = $this->login_details();
     $data['pagename'] = "All Supplier Accounts";
-    $data['type'] = 2;
+    $data['pgtype'] = 2;
     $data['from_date'] = $this->input->post('from_date');
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
 
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['type'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
    
     $this->load->view('user_list', $data);
   }
@@ -45,14 +45,14 @@ class Accounts extends CI_Controller
   {
     $data = $this->login_details();
     $data['pagename'] = "All Loader Accounts";
-    $data['type'] = 3;
+    $data['pgtype'] = 3;
     $data['from_date'] = $this->input->post('from_date');
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
     
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['type'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
   
     $this->load->view('user_list', $data);
   }
@@ -60,14 +60,14 @@ class Accounts extends CI_Controller
   {
     $data = $this->login_details();
     $data['pagename'] = "All General Accounts";
-    $data['type'] = 4;
+    $data['pgtype'] = 4;
     $data['from_date'] = $this->input->post('from_date');
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
     
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['type'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
    
     $this->load->view('user_list', $data);
   }
@@ -75,23 +75,23 @@ class Accounts extends CI_Controller
   {
     $data = $this->login_details();
     $data['pagename'] = "All Investment Accounts";
-    $data['type'] = 5;
+    $data['pgtype'] = 5;
     $data['from_date'] = $this->input->post('from_date');
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
     
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['type'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
   
     $this->load->view('user_list', $data);
   }
 
-  public function add_user($type)
+  public function add_user()
   {
     $data = $this->login_details();
     $data['id'] = $this->input->get('id');
-    $data['type'] = $type;
+    $data['pgtype'] = $this->input->get('pgtype');
     if (!empty($data['id'])) {
       $data['pagename'] = "Edit Details";
     } else {

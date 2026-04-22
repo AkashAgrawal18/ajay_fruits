@@ -987,14 +987,13 @@ class Sales extends CI_Controller
         $message = $this->bill_msg($sal_date, $value['customer_id']);
         if (!empty($message)) {
           $this->Api_Model->send_whatsapp_message($value['m_cust_mobile'], $message);
-          $delay = rand(2, 6);
+          $delay = rand(20,60);
           sleep($delay);
         }
       }
     }
   }
-
-
+ 
   public function send_bill_cron_temp()
   {
     $curr_date = date('Y-m-d');

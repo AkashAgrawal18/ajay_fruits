@@ -1,44 +1,44 @@
 <script type="text/javascript">
  $(document).ready(function() {
-  $('input[type="date"]').on('blur', function() {
-    let selectedfiled = $(this);
-    let selectedDate = $(this).val();
+  // $('input[type="date"]').on('blur', function() {
+  //   let selectedfiled = $(this);
+  //   let selectedDate = $(this).val();
     
-    // Function to perform AJAX request
-    function performAjax(date, password = '') {
-      return $.ajax({
-        url: "<?= base_url('Login/change_date') ?>",
-        type: "POST",
-        data: {
-          date: date,
-          password: password
-        },
-        dataType: "json"
-      });
-    }
+  //   // Function to perform AJAX request
+  //   function performAjax(date, password = '') {
+  //     return $.ajax({
+  //       url: "<?= base_url('Login/change_date') ?>",
+  //       type: "POST",
+  //       data: {
+  //         date: date,
+  //         password: password
+  //       },
+  //       dataType: "json"
+  //     });
+  //   }
 
-    // First AJAX call to check if password is required
-    performAjax(selectedDate).done(function(response) {
-      if (response.status === 'password_required') {
-        let userPassword = prompt("Enter password to proceed:");
+  //   // First AJAX call to check if password is required
+  //   performAjax(selectedDate).done(function(response) {
+  //     if (response.status === 'password_required') {
+  //       let userPassword = prompt("Enter password to proceed:");
         
-        if (userPassword) {
-          // If password is entered, make second AJAX call
-          performAjax(selectedDate, userPassword).done(function(res) {
-            if (res.status == "error") {
-              $(selectedfiled).val('');
-            }
-          }).fail(function() {
-            $(selectedfiled).val('');
-          });
-        } else {
-          $(selectedfiled).val('');
-        }
-      }
-    }).fail(function() {
-      $(selectedfiled).val('');
-    });
-  });
+  //       if (userPassword) {
+  //         // If password is entered, make second AJAX call
+  //         performAjax(selectedDate, userPassword).done(function(res) {
+  //           if (res.status == "error") {
+  //             $(selectedfiled).val('');
+  //           }
+  //         }).fail(function() {
+  //           $(selectedfiled).val('');
+  //         });
+  //       } else {
+  //         $(selectedfiled).val('');
+  //       }
+  //     }
+  //   }).fail(function() {
+  //     $(selectedfiled).val('');
+  //   });
+  // });
 });
 
 

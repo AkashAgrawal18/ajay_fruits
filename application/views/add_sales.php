@@ -35,6 +35,7 @@
                 $sale_date = $edit_value[0]->m_sale_date;
                 $sale_trackno = $edit_value[0]->m_sale_trackno;
                 $sale_customer = $edit_value[0]->m_sale_customer;
+                $sale_voucher = $edit_value[0]->m_sale_voucher;
                 $sale_user = $edit_value[0]->m_sale_user;
                 $sale_comm = $edit_value[0]->m_sale_comm;
                 $sale_comrate = $edit_value[0]->m_sale_comrate;
@@ -48,6 +49,7 @@
                 $sale_date = date('Y-m-d');
                 $sale_trackno = '';
                 $sale_customer = '';
+                $sale_voucher = '';
                 $sale_user = '';
                 $sale_comm = 0;
                 $sale_comrate = 0;
@@ -59,108 +61,80 @@
 
 
             <div class="row mb-1 g-3">
-                <div class="col-md-3">
-                    <div class="row">
-                        <div class="col-3">
-                            <label>Date<span class="text-danger">*</span></label>
-                        </div>
-                        <div class="col-9">
-                            <div class="form-group">
-                                <input type="hidden" name="m_sale_spo" id="m_sale_spo" value="<?= $sale_spo ?>">
-                                <input type="hidden" name="precust" id="precust" value="<?= $sale_customer ?>">
-                                <input type="hidden" name="m_sale_customer" id="m_sale_customer" value="<?= $sale_customer ?>">
-                                <input type="date" max="<?= date('Y-m-d') ?>" name="m_sale_date" id="m_sale_date" class="form-control" required="" value="<?= $sale_date ?>">
-                            </div>
-                        </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Date<span class="text-danger">*</span></label>
+                        <input type="hidden" name="m_sale_spo" id="m_sale_spo" value="<?= $sale_spo ?>">
+                        <input type="hidden" name="precust" id="precust" value="<?= $sale_customer ?>">
+                        <input type="hidden" name="m_sale_customer" id="m_sale_customer" value="<?= $sale_customer ?>">
+                        <input type="date" max="<?= date('Y-m-d') ?>" name="m_sale_date" id="m_sale_date" class="form-control" required="" value="<?= $sale_date ?>">
                     </div>
-
                 </div>
 
-                <div class="col-md-3">
-
-                    <div class="row">
-                        <div class="col-4">
-                            <label>Truck No<span class="text-danger">*</span></label>
-                        </div>
-                        <div class="col-8">
-                            <div class="form-group">
-                                <input type="text" name="m_sale_trackno" id="m_sale_trackno" class="form-control" placeholder="Enter Truck No" value="<?= $sale_trackno ?>">
-                            </div>
-                        </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Truck No<span class="text-danger">*</span></label>
+                        <input type="text" name="m_sale_trackno" id="m_sale_trackno" class="form-control" placeholder="Enter Truck No" value="<?= $sale_trackno ?>">
                     </div>
-
                 </div>
-
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Voucher No</label>
+                        <input type="text" name="m_sale_voucher" id="m_sale_voucher" class="form-control" placeholder="Enter Voucher No" value="<?= $sale_voucher ?>">
+                    </div>
+                </div>
                 <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Customer Name <span class="text-danger">*</span></label>
+                        <select name="m_sale_customer" id="m_sale_customer" class="form-select select2" required autofocus>
+                            <option value="">--Select--</option>
+                            <?php
+                            if (!empty($custo_list)) {
+                                foreach ($custo_list as $vat) {
 
-                    <div class="row">
-                        <div class="col-4">
-                            <label>Customer Name <span class="text-danger">*</span></label>
-                        </div>
-                        <div class="col-8">
-                            <div class="form-group">
-                                <select name="m_sale_customer" id="m_sale_customer" class="form-select select2" required autofocus>
-                                    <option value="">--Select--</option>
-                                    <?php
-                                    if (!empty($custo_list)) {
-                                        foreach ($custo_list as $vat) {
-
-                                            if ($sale_customer == $vat->m_cust_id) {
-                                                $option1 = "selected";
-                                            } else {
-                                                $option1 = "";
-                                            }
-
-                                    ?>
-                                            <option value="<?php echo $vat->m_cust_id; ?>" <?= $option1 ?>><?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile; ?>
-                                        <?php
-                                        }
+                                    if ($sale_customer == $vat->m_cust_id) {
+                                        $option1 = "selected";
+                                    } else {
+                                        $option1 = "";
                                     }
 
-                                        ?>
+                            ?>
+                                    <option value="<?php echo $vat->m_cust_id; ?>" <?= $option1 ?>><?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile; ?>
+                                <?php
+                                }
+                            }
 
-                                </select>
-                            </div>
-                        </div>
+                                ?>
+
+                        </select>
                     </div>
-
-
                 </div>
 
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Agent Name </label>
+                        <select name="m_sale_user" id="m_sale_user" class="form-select select2">
+                            <option value="">--Select--</option>
+                            <?php
+                            if (!empty($staff_list)) {
+                                foreach ($staff_list as $vat) {
 
-                    <div class="row">
-                        <div class="col-4">
-                            <label>Agent Name </label>
-                        </div>
-                        <div class="col-8">
-                            <div class="form-group">
-                                <select name="m_sale_user" id="m_sale_user" class="form-select select2">
-                                    <option value="">--Select--</option>
-                                    <?php
-                                    if (!empty($staff_list)) {
-                                        foreach ($staff_list as $vat) {
-
-                                            if ($sale_user == $vat->m_user_id) {
-                                                $option1 = "selected";
-                                            } else {
-                                                $option1 = "";
-                                            }
-
-                                    ?>
-                                            <option value="<?php echo $vat->m_user_id; ?>" <?= $option1 ?>><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>
-                                        <?php
-                                        }
+                                    if ($sale_user == $vat->m_user_id) {
+                                        $option1 = "selected";
+                                    } else {
+                                        $option1 = "";
                                     }
 
-                                        ?>
+                            ?>
+                                    <option value="<?php echo $vat->m_user_id; ?>" <?= $option1 ?>><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>
+                                <?php
+                                }
+                            }
 
-                                </select>
-                            </div>
-                        </div>
+                                ?>
+
+                        </select>
                     </div>
-
-
                 </div>
 
                 <div class="col-md-12 mb-2">

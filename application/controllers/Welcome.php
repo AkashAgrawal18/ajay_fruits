@@ -16,7 +16,7 @@ class Welcome extends CI_Controller
     $data['pagename'] = "Dashboard";
     $data['date'] =  $this->input->post('date') ?: date('Y-m-d');
     $data['day_report'] = $this->Report_model->dashboard_staff_summary($data['date']);
-    $data['dashcounts'] = $this->Report_model->dashboard_counts($data['date']);
+    // $data['dashcounts'] = $this->Report_model->dashboard_counts($data['date']);
     $data['pie_data'] = $this->Report_model->get_piechart_data($data['date']);
   //  echo "<pre>"; print_r($data['pie_data']); die ;
     $this->load->view('index', $data);

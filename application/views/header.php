@@ -25,11 +25,11 @@
                         </button>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="<?= base_url('Accounts/add_cust') ?>">Customer Account</a></li>
-                            <li><a class="dropdown-item" href="<?= base_url('Accounts/add_user/2') ?>">Supplier Account</a></li>
-                            <li><a class="dropdown-item" href="<?= base_url('Accounts/add_user/3') ?>">Loader Account</a></li>
-                            <li><a class="dropdown-item" href="<?= base_url('Accounts/add_user/1') ?>">Staff Account</a></li>
-                            <li><a class="dropdown-item" href="<?= base_url('Accounts/add_user/4') ?>">General Account</a></li>
-                            <li><a class="dropdown-item" href="<?= base_url('Accounts/add_user/5') ?>">Investment Account</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('Accounts/add_user?pgtype=2') ?>">Supplier Account</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('Accounts/add_user?pgtype=3') ?>">Loader Account</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('Accounts/add_user?pgtype=1') ?>">Staff Account</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('Accounts/add_user?pgtype=4') ?>">General Account</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('Accounts/add_user?pgtype=5') ?>">Investment Account</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Master/expense_account_list') ?>">Expense Account</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Master/bank_account_list') ?>">Bank Account</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Master/cash_account_list') ?>">Cash Account</a></li>

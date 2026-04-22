@@ -130,7 +130,7 @@
                                 <th>SNO</th>
                                 <th>DATE</th>
                                 <th>SUPPLIER NAME</th>
-                                <th>BILL NUMBER</th>
+                                <th>PURCHASE NUMBER</th>
                                 <th>TOTAL QTY</th>
                                 <th>BILL AMT</th>
                                 <th>EXPENSES</th>
