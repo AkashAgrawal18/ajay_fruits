@@ -420,7 +420,7 @@ class Sales extends CI_Controller
         $sumtamt += isset($indicator) ? $indicator['total_sale_amount'] : 0;
         $sumtSaleqty += isset($indicator) ? $indicator['total_sale_qty'] : 0;
         $sumtPenqty += isset($indicator) ? $indicator['total_balance_qty'] : 0;
-       
+
         $result = array(
           "si_issue_id" => $value->si_issue_id,
           "si_issue_type" => $value->si_issue_type,
@@ -900,49 +900,49 @@ class Sales extends CI_Controller
       $this->generate_pdf($html, $file_name);
     }
   }
-  public function send_reminder_msg()
-  {
-    $sal_date = date('Y-m-d');
-    $cust_ids = $this->input->post('cust_ids');
-    if (!empty($cust_ids)) {
-      foreach ($cust_ids as $cust_id) {
-        $cust_bal = $this->Main_model->get_opening_balance($cust_id, $sal_date);
-        $last_date = $this->Main_model->get_last_saledate($cust_id);
+  // public function send_reminder_msg()
+  // {
+  //   $sal_date = date('Y-m-d');
+  //   $cust_ids = $this->input->post('cust_ids');
+  //   if (!empty($cust_ids)) {
+  //     foreach ($cust_ids as $cust_id) {
+  //       $cust_bal = $this->Main_model->get_opening_balance($cust_id, $sal_date);
+  //       $last_date = $this->Main_model->get_last_saledate($cust_id);
 
-        if (!empty($cust_bal)) {
-          $oldcrate = "";
-          foreach ($cust_bal['crateitems'] as $cau => $kry) {
-            $oldcrate .= $kry['name'] . "- " . $kry['balance'] . ',';
-          }
-          $lastsale = !empty($last_date->last_sale_date) ? date('d/m/Y', strtotime($last_date->last_sale_date)) : date('d/m/Y', strtotime('2024-04-01'));
-          $lastrvd = !empty($last_date->last_recvd_date) ? date('d/m/Y', strtotime($last_date->last_recvd_date)) : date('d/m/Y', strtotime('2024-04-01'));
-          $url = "https://www.ajayfruits.in/Sales/download_pdf?date=" . $sal_date . "&id=" . $cust_id;
-          $customer_name = !empty($cust_bal['m_cust_hndiname']) ? $cust_bal['m_cust_hndiname'] : $cust_bal['cust_name'];
-          $message = "आपके तरफ़ नीचे दी गई रकम/ केरेट बकाया है\nजमा करवा कर खाता क्लियर करे\n\n*नाम - " . $customer_name . "*\n\n🔹 *विवरण*\n\nआख़िरी बार ख़रीदी: " . $lastsale . "\nआखरी बार जमा: " . $lastrvd . "\n📌 *आज टोटल रकम बाकी:*" . $cust_bal['balance_amount'] . "\n\n📦 *खाली केरेट विवरण:*\n\n🔹 *टोटल बाकी:* " . $oldcrate . "\n\n🙏🏻*अजय कुशवाहा एंड कंपनी* \n\n 🚀 *बिल डाउनलोड करें:* [📥 Download PDF] $url";
-        }
-        if (!empty($message)) {
-          $response = $this->Api_Model->send_whatsapp_message($cust_bal['cust_mobile'], $message);
-        }
-      }
-      if ($response) {
-        $info = array(
-          'status' => 'success',
-          'message' => 'Reminder Send Successfilly!'
-        );
-      } else {
-        $info = array(
-          'status' => 'error',
-          'message' => 'Failed to send Summary!'
-        );
-      }
-    } else {
-      $info = array(
-        'status' => 'error',
-        'message' => 'Customer Id Not Found!'
-      );
-    }
-    echo json_encode($info);
-  }
+  //       if (!empty($cust_bal)) {
+  //         $oldcrate = "";
+  //         foreach ($cust_bal['crateitems'] as $cau => $kry) {
+  //           $oldcrate .= $kry['name'] . "- " . $kry['balance'] . ',';
+  //         }
+  //         $lastsale = !empty($last_date->last_sale_date) ? date('d/m/Y', strtotime($last_date->last_sale_date)) : date('d/m/Y', strtotime('2024-04-01'));
+  //         $lastrvd = !empty($last_date->last_recvd_date) ? date('d/m/Y', strtotime($last_date->last_recvd_date)) : date('d/m/Y', strtotime('2024-04-01'));
+  //         $url = "https://www.ajayfruits.in/Sales/download_pdf?date=" . $sal_date . "&id=" . $cust_id;
+  //         $customer_name = !empty($cust_bal['m_cust_hndiname']) ? $cust_bal['m_cust_hndiname'] : $cust_bal['cust_name'];
+  //         $message = "आपके तरफ़ नीचे दी गई रकम/ केरेट बकाया है\nजमा करवा कर खाता क्लियर करे\n\n*नाम - " . $customer_name . "*\n\n🔹 *विवरण*\n\nआख़िरी बार ख़रीदी: " . $lastsale . "\nआखरी बार जमा: " . $lastrvd . "\n📌 *आज टोटल रकम बाकी:*" . $cust_bal['balance_amount'] . "\n\n📦 *खाली केरेट विवरण:*\n\n🔹 *टोटल बाकी:* " . $oldcrate . "\n\n🙏🏻*अजय कुशवाहा एंड कंपनी* \n\n 🚀 *बिल डाउनलोड करें:* [📥 Download PDF] $url";
+  //       }
+  //       if (!empty($message)) {
+  //         $response = $this->Api_Model->send_whatsapp_message($cust_bal['cust_mobile'], $message);
+  //       }
+  //     }
+  //     if ($response) {
+  //       $info = array(
+  //         'status' => 'success',
+  //         'message' => 'Reminder Send Successfilly!'
+  //       );
+  //     } else {
+  //       $info = array(
+  //         'status' => 'error',
+  //         'message' => 'Failed to send Summary!'
+  //       );
+  //     }
+  //   } else {
+  //     $info = array(
+  //       'status' => 'error',
+  //       'message' => 'Customer Id Not Found!'
+  //     );
+  //   }
+  //   echo json_encode($info);
+  // }
 
 
   public function send_bill()
@@ -951,11 +951,11 @@ class Sales extends CI_Controller
     $cust_ids = $this->input->post('cust_id');
     if (!empty($sal_date) and !empty($cust_ids)) {
       foreach ($cust_ids as $cust_id) {
-        $cust_dtl = $this->Main_model->get_cust_active_list($cust_id);
-        $message = $this->bill_msg($sal_date, $cust_id);
-        if (!empty($message)) {
-          $response = $this->Api_Model->send_whatsapp_message($cust_dtl[0]->m_cust_mobile, $message);
-        }
+        // $cust_dtl = $this->Main_model->get_cust_active_list($cust_id);
+        $response = $this->send_bill_whatsapp($sal_date, $cust_id);
+        // if (!empty($message)) {
+        //  $response = $this->Api_Model->send_whatsapp_message($cust_dtl[0]->m_cust_mobile, $message);
+        // } 
       }
       if ($response) {
         $info = array(
@@ -984,16 +984,17 @@ class Sales extends CI_Controller
     $cust_ids = $this->Main_model->get_custid_by_date($sal_date);
     if (!empty($cust_ids)) {
       foreach ($cust_ids as $value) {
-        $message = $this->bill_msg($sal_date, $value['customer_id']);
-        if (!empty($message)) {
-          $this->Api_Model->send_whatsapp_message($value['m_cust_mobile'], $message);
-          $delay = rand(20,60);
-          sleep($delay);
-        }
+        // $message = $this->bill_msg($sal_date, $value['customer_id']);
+        // if (!empty($message)) {
+        // $this->Api_Model->send_whatsapp_message($value['m_cust_mobile'], $message);
+        // $delay = rand(2,5);
+        // sleep($delay);
+        // }
+        $response = $this->send_bill_whatsapp($sal_date, $value['customer_id']);
       }
     }
   }
- 
+
   public function send_bill_cron_temp()
   {
     $curr_date = date('Y-m-d');
@@ -1007,54 +1008,351 @@ class Sales extends CI_Controller
     }
   }
 
-  public function bill_msg($sal_date, $cust_id)
+  //   public function bill_msg($sal_date, $cust_id)
+  //  {
+  //    $data = $this->Main_model->get_cust_day_summary($cust_id, date('Y-m-d', strtotime($sal_date)));
+  //    $customer_old_balance = $this->Main_model->get_opening_balance($cust_id, date('Y-m-d', strtotime($sal_date . '-1 day')));
+  //    if (!empty($data)) {
+  //
+  //      $url = "https://www.ajayfruits.in/Sales/download_pdf?date=" . $sal_date . "&id=" . $cust_id;
+  //      $customer_name = !empty($data->cust_detail->m_cust_hndiname) ? $data->cust_detail->m_cust_hndiname : $data->cust_detail->m_cust_name;
+  //      $message = "*अजय कुशवाहा एंड कंपनी* \n अंजोरा -491001 \n जिला- दुर्ग ( C.G)\n\n*नाम - " . $customer_name . "*\nदिनाक- " . date('d/m/Y', strtotime($sal_date)) . "\nबिल no-" . $data->invoice_no . "\n\n🔹 *विवरण*\n\n";
+  //
+  //      $cret10 = $cret20 = $cret25 = 0;
+  //      $oldcrate = $totalcrate = $todaycrate = $balcrate = "";
+  //      if (!empty($data->sale_data)) {
+  //        foreach ($data->sale_data as $key) {
+  //          if ($key->m_item_crate == 20) {
+  //            $cret10 += $key->m_sale_qty;
+  //          } else if ($key->m_item_crate == 13) {
+  //            $cret20 += $key->m_sale_qty;
+  //          } else if ($key->m_item_crate == 14) {
+  //            $cret25 += $key->m_sale_qty;
+  //          }
+  //
+  //          $message .= $key->m_item_name . "     " . $key->m_sale_qty . "*" . $key->m_sale_price . "\n";
+  //        }
+  //        $message .= "\nटोटल: " . $data->sub_total . "\nट्रांसपोर्ट: " . $data->total_expense . "\n\n💰 *टोटल:* " . $data->grand_total;
+  //      }
+  //      $message .= "\n💳 *पुराना बाकी:* " . $customer_old_balance['balance_amount'] . "\n📌 *टोटल बाकी:* " . ($customer_old_balance['balance_amount'] + $data->grand_total) . "\n💵 *आज जमा:* " . $data->total_recieve . "\n 💵 *कुल छूट:* " . $data->total_discount . "\n📌 *टोटल बाकी:* " . ($customer_old_balance['balance_amount'] + $data->grand_total - $data->total_recieve - $data->total_discount);
+  //
+  //      $balanceFields = [
+  //        '10 KG' => $cret10,
+  //        '20 KG' => $cret20,
+  //        '25 KG' => $cret25
+  //      ];
+  //      foreach ($customer_old_balance['crateitems'] as $cau => $kry) {
+  //        $oldcrate .= $kry['name'] . "- " . $kry['balance'] . ',';
+  //        $totalcrate .= $kry['name'] . "- " . ($kry['balance'] + $balanceFields[$kry['name']]) . ',';
+  //        if ($kry['name'] == $data->crate_data[$cau]->m_itgrp_title) {
+  //          $balcrate .= $kry['name'] . "- " . ($kry['balance'] + $balanceFields[$kry['name']] - $data->crate_data[$cau]->total_qty) . ',';
+  //       }
+  //      }
+  //      foreach ($data->crate_data as $kry) {
+  //        $todaycrate .= $kry->m_itgrp_title . "- " . $kry->total_qty . ',';
+  //      }
+  //      $message .= "\n\n📦 *खाली केरेट विवरण:*\n\n🔹 *पुराना बाकी:* " . $oldcrate . "\n🔹 *टोटल बाकी:* " . $totalcrate . "\n🔹 *आज जमा:* " . $todaycrate . "\n🔹 *टोटल बाकी:* " . $balcrate;
+  //      $message .= "\n किसी भी प्रकार की बिल में गलती होने पर इसी फोन न पर सूचित करे (8329044323) \n\n (दुर्ग न्यायालय के अंतर्गत ) \n\n";
+  //      $message .= "\n\n 🚀 *बिल डाउनलोड करें:* [📥 Download PDF] $url";
+  //      return $message;
+  //    }
+  //  } 
+
+
+
+  public function send_bill_whatsapp($sal_date, $cust_id)
   {
     $data = $this->Main_model->get_cust_day_summary($cust_id, date('Y-m-d', strtotime($sal_date)));
-    $customer_old_balance = $this->Main_model->get_opening_balance($cust_id, date('Y-m-d', strtotime($sal_date . '-1 day')));
-    if (!empty($data)) {
+    $customer_old_balance = $this->Main_model->get_opening_balance($cust_id, date('Y-m-d', strtotime($sal_date . ' -1 day')));
 
-      $url = "https://www.ajayfruits.in/Sales/download_pdf?date=" . $sal_date . "&id=" . $cust_id;
-      $customer_name = !empty($data->cust_detail->m_cust_hndiname) ? $data->cust_detail->m_cust_hndiname : $data->cust_detail->m_cust_name;
-      $message = "*अजय कुशवाहा एंड कंपनी* \n अंजोरा -491001 \n जिला- दुर्ग ( C.G)\n\n*नाम - " . $customer_name . "*\nदिनाक- " . date('d/m/Y', strtotime($sal_date)) . "\nबिल no-" . $data->invoice_no . "\n\n🔹 *विवरण*\n\n";
+    if (empty($data)) return false;
 
-      $cret10 = $cret20 = $cret25 = 0;
-      $oldcrate = $totalcrate = $todaycrate = $balcrate = "";
-      if (!empty($data->sale_data)) {
-        foreach ($data->sale_data as $key) {
-          if ($key->m_item_crate == 20) {
-            $cret10 += $key->m_sale_qty;
-          } else if ($key->m_item_crate == 13) {
-            $cret20 += $key->m_sale_qty;
-          } else if ($key->m_item_crate == 14) {
-            $cret25 += $key->m_sale_qty;
-          }
+    // 🔗 URL variables
+    $url_date = date('Y-m-d', strtotime($sal_date));
+    $url_id   = $cust_id;
 
-          $message .= $key->m_item_name . "     " . $key->m_sale_qty . "*" . $key->m_sale_price . "\n";
-        }
-        $message .= "\nटोटल: " . $data->sub_total . "\nट्रांसपोर्ट: " . $data->total_expense . "\n\n💰 *टोटल:* " . $data->grand_total;
+    // 👤 Customer Name & Mobile
+    $customer_name = !empty($data->cust_detail->m_cust_hndiname)
+      ? $data->cust_detail->m_cust_hndiname
+      : $data->cust_detail->m_cust_name;
+
+    // Ensure mobile has country code (India = 91)
+    $raw_mobile      = preg_replace('/\D/', '', $data->cust_detail->m_cust_mobile);
+    $customer_mobile = (strlen($raw_mobile) == 10) ? '91' . $raw_mobile : $raw_mobile;
+
+    // 📦 Item Details
+    $item_details = "";
+    $cret10 = $cret20 = $cret25 = 0;
+
+    if (!empty($data->sale_data)) {
+      foreach ($data->sale_data as $key) {
+        if ($key->m_item_crate == 20)     $cret10 += $key->m_sale_qty;
+        elseif ($key->m_item_crate == 13) $cret20 += $key->m_sale_qty;
+        elseif ($key->m_item_crate == 14) $cret25 += $key->m_sale_qty;
+
+        $item_details .= $key->m_item_name . " " . $key->m_sale_qty . "*" . $key->m_sale_price . "  ";
       }
-      $message .= "\n💳 *पुराना बाकी:* " . $customer_old_balance['balance_amount'] . "\n📌 *टोटल बाकी:* " . ($customer_old_balance['balance_amount'] + $data->grand_total) . "\n💵 *आज जमा:* " . $data->total_recieve . "\n 💵 *कुल छूट:* " . $data->total_discount . "\n📌 *टोटल बाकी:* " . ($customer_old_balance['balance_amount'] + $data->grand_total - $data->total_recieve - $data->total_discount);
-
-      $balanceFields = [
-        '10 KG' => $cret10,
-        '20 KG' => $cret20,
-        '25 KG' => $cret25
-      ];
-      foreach ($customer_old_balance['crateitems'] as $cau => $kry) {
-        $oldcrate .= $kry['name'] . "- " . $kry['balance'] . ',';
-        $totalcrate .= $kry['name'] . "- " . ($kry['balance'] + $balanceFields[$kry['name']]) . ',';
-        if ($kry['name'] == $data->crate_data[$cau]->m_itgrp_title) {
-          $balcrate .= $kry['name'] . "- " . ($kry['balance'] + $balanceFields[$kry['name']] - $data->crate_data[$cau]->total_qty) . ',';
-        }
-      }
-      foreach ($data->crate_data as $kry) {
-        $todaycrate .= $kry->m_itgrp_title . "- " . $kry->total_qty . ',';
-      }
-      $message .= "\n\n📦 *खाली केरेट विवरण:*\n\n🔹 *पुराना बाकी:* " . $oldcrate . "\n🔹 *टोटल बाकी:* " . $totalcrate . "\n🔹 *आज जमा:* " . $todaycrate . "\n🔹 *टोटल बाकी:* " . $balcrate;
-      $message .= "\n किसी भी प्रकार की बिल में गलती होने पर इसी फोन न पर सूचित करे (8329044323) \n\n (दुर्ग न्यायालय के अंतर्गत ) \n\n";
-      $message .= "\n\n 🚀 *बिल डाउनलोड करें:* [📥 Download PDF] $url";
-      return $message;
     }
+    $item_details = trim($item_details);
+
+    // 💰 Calculations
+    $old_balance = $customer_old_balance['balance_amount'] ?? 0;
+    $grand_total = $data->grand_total ?? 0;
+    $today_paid  = $data->total_recieve ?? 0;
+    $discount    = $data->total_discount ?? 0;
+
+    $total_balance = $old_balance + $grand_total;
+    $final_balance = $total_balance - $today_paid - $discount;
+
+    // 📦 Crate Calculations
+    $balanceFields = [
+      '10 KG' => $cret10,
+      '20 KG' => $cret20,
+      '25 KG' => $cret25
+    ];
+
+    $oldcrate_parts   = [];
+    $totalcrate_parts = [];
+    $balcrate_parts   = [];
+    $todaycrate_parts = [];
+
+    $crate_data_map = [];
+    if (!empty($data->crate_data)) {
+      foreach ($data->crate_data as $kry) {
+        $crate_data_map[$kry->m_itgrp_title] = $kry->total_qty;
+      }
+    }
+
+    if (!empty($customer_old_balance['crateitems'])) {
+      foreach ($customer_old_balance['crateitems'] as $kry) {
+        $name     = $kry['name'];
+        $balance  = $kry['balance'];
+        $today    = $balanceFields[$name] ?? 0;
+        $returned = $crate_data_map[$name] ?? 0;
+
+        $oldcrate_parts[]   = $name . "- " . $balance;
+        $totalcrate_parts[] = $name . "- " . ($balance + $today);
+        $balcrate_parts[]   = $name . "- " . ($balance + $today - $returned);
+      }
+    }
+
+    if (!empty($data->crate_data)) {
+      foreach ($data->crate_data as $kry) {
+        $todaycrate_parts[] = $kry->m_itgrp_title . "- " . $kry->total_qty;
+      }
+    }
+
+    $oldcrate   = implode(', ', $oldcrate_parts);
+    $totalcrate = implode(', ', $totalcrate_parts);
+    $todaycrate = implode(', ', $todaycrate_parts);
+    $balcrate   = implode(', ', $balcrate_parts);
+
+    // 📲 WhatsApp Template Payload — corrected format
+    $phone_number_id = "1075803802285561";
+    $apikey          = "bd492389-3e22-11f1-894a-02c8a5e042bd";
+
+    $payload = [
+      "messaging_product" => "whatsapp",
+      "recipient_type"    => "individual",
+      "to"                => $customer_mobile,
+      "type"              => "template",
+      "template"          => [
+        "name"       => "daily_customer_summary",
+        "language"   => ["code" => "en"],
+        "components" => [
+          [
+            "type"       => "body",
+            "parameters" => [
+              ["type" => "text", "text" => $this->safe($customer_name)],
+              ["type" => "text", "text" => $this->safe(date('d/m/Y', strtotime($sal_date)))],
+              ["type" => "text", "text" => $this->safe($data->invoice_no)],
+              ["type" => "text", "text" => $this->safe($item_details)],
+              ["type" => "text", "text" => $this->safe($data->sub_total)],
+              ["type" => "text", "text" => $this->safe($data->total_expense)],
+              ["type" => "text", "text" => $this->safe($grand_total)],
+              ["type" => "text", "text" => $this->safe($old_balance)],
+              ["type" => "text", "text" => $this->safe($total_balance)],
+              ["type" => "text", "text" => $this->safe($today_paid)],
+              ["type" => "text", "text" => $this->safe($discount)],
+              ["type" => "text", "text" => $this->safe($final_balance)],
+              ["type" => "text", "text" => $this->safe($oldcrate)],
+              ["type" => "text", "text" => $this->safe($totalcrate)],
+              ["type" => "text", "text" => $this->safe($todaycrate)],
+              ["type" => "text", "text" => $this->safe($balcrate)],
+
+            ]
+          ],
+          [
+            "type"       => "button",
+            "sub_type"   => "url",
+            "index"      => "0",
+            "parameters" => [
+              ["type" => "text", "text" => "?date=" . $this->safe($url_date) . "&id=" . $this->safe($url_id)]  // 1 param only
+            ]
+          ]
+        ]
+      ]
+    ];
+
+    log_message('error', 'WhatsApp Payload: ' . json_encode($payload));
+
+    return $this->send_api_request($payload, $phone_number_id, $apikey);  // ← Pass id & key
+  }
+
+  public function send_reminder_msg()
+  {
+    $sal_date = date('Y-m-d');
+    $cust_ids = $this->input->post('cust_ids');
+
+    if (empty($cust_ids)) {
+      echo json_encode([
+        'status' => 'error',
+        'message' => 'Customer Id Not Found!'
+      ]);
+      return;
+    }
+
+    $final_response = true;
+
+    foreach ($cust_ids as $cust_id) {
+
+      $cust_bal = $this->Main_model->get_opening_balance($cust_id, $sal_date);
+      $last_date = $this->Main_model->get_last_saledate($cust_id);
+
+      if (empty($cust_bal)) continue;
+
+      // 👤 Name
+      $customer_name = !empty($cust_bal['m_cust_hndiname'])
+        ? $cust_bal['m_cust_hndiname']
+        : $cust_bal['cust_name'];
+
+      // 📅 Dates
+      $lastsale = !empty($last_date->last_sale_date)
+        ? date('d/m/Y', strtotime($last_date->last_sale_date))
+        : '-';
+
+      $lastrvd = !empty($last_date->last_recvd_date)
+        ? date('d/m/Y', strtotime($last_date->last_recvd_date))
+        : '-';
+
+      // 📦 Crate
+      $oldcrate = "";
+      foreach ($cust_bal['crateitems'] as $kry) {
+        $oldcrate .= $kry['name'] . "- " . $kry['balance'] . ',';
+      }
+      $oldcrate = rtrim($oldcrate, ',');
+
+      $phone_number_id = "1075803802285561";
+      $apikey          = "bd492389-3e22-11f1-894a-02c8a5e042bd";
+
+      $payload = [
+        "messaging_product" => "whatsapp",
+        "recipient_type"    => "individual",
+        "to"                => "91" . $cust_bal['cust_mobile'],
+        "type"              => "template",
+        "template"          => [
+          "name"       => "reminder_template",
+          "language"   => ["code" => "hi"],
+          "components" => [
+            [
+              "type"       => "body",
+              "parameters" => [
+                 ["type" => "text", "text" => $this->safe($customer_name)], //1
+                ["type" => "text", "text" => $this->safe($lastsale)], //2
+                ["type" => "text", "text" => $this->safe($lastrvd)], //3
+                ["type" => "text", "text" => $this->safe($cust_bal['balance_amount'])], //4
+                ["type" => "text", "text" => $this->safe($oldcrate)], //5
+
+              ]
+            ],
+            [
+              "type"       => "button",
+              "sub_type"   => "url",
+              "index"      => "0",
+              "parameters" => [
+                ["type" => "text", "text" => "?date=" . $this->safe($sal_date) . "&id=" . $this->safe($cust_id)]  // 1 param only
+              ]
+            ]
+          ]
+        ]
+      ];
+
+      log_message('error', 'WhatsApp Payload: ' . json_encode($payload));
+
+      $response = $this->send_api_request($payload, $phone_number_id, $apikey);
+
+      if (!$response) $final_response = false;
+    }
+
+    echo json_encode([
+      'status' => $final_response ? 'success' : 'error',
+      'message' => $final_response ? 'Reminder Sent Successfully!' : 'Failed to send some messages!'
+    ]);
+  }
+
+
+
+  private function send_api_request($data, $phone_number_id, $apikey)
+  {
+    $url = "https://partnersv1.pinbot.ai/v3/" . $phone_number_id . "/messages";
+
+    $headers = [
+      "Content-Type: application/json",
+      "apikey: " . $apikey
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+    $response   = curl_exec($ch);
+    $http_code  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($ch);
+    curl_close($ch);
+
+    log_message('error', 'WhatsApp HTTP Code: ' . $http_code);
+    log_message('error', 'WhatsApp Response: ' . $response);
+
+    if ($curl_error) return false;
+
+    return $response;
+  }
+
+  public function test_whatsapp()
+  {
+    $phone_number_id = "1075803802285561";  // ← Fixed: updated from console.pinbot.ai
+    $apikey          = "bd492389-3e22-11f1-894a-02c8a5e042bd";
+
+    $cust_list = $this->Main_model->get_cust_active_list();
+    foreach ($cust_list as $cust_id) {
+      $payload = [
+        "messaging_product" => "whatsapp",
+        "recipient_type"    => "individual",
+        "to"                => "91" . $cust_id->m_cust_mobile, // सही नंबर डालो
+        "type"              => "template",
+        "template"          => [
+          "name"       => "information",
+          "language"   => ["code" => "hi"],
+          "components" => [
+            [
+              "type"       => "body",       // ← Fixed: added required body component
+              "parameters" => []
+            ]
+          ]
+        ]
+      ];
+
+      $response = $this->send_api_request($payload, $phone_number_id, $apikey);
+      echo "<pre>";
+      echo $response;
+      echo "</pre>";
+    }
+    die;
   }
 
   public function generate_pdf($html, $file_name)
@@ -1120,6 +1418,11 @@ class Sales extends CI_Controller
         $this->db->set('m_user_balance', $supp_balance['balance_amount'])->where('m_user_id', $supp->m_user_id)->update('master_users_tbl');
       }
     }
+  }
+
+  public function safe($val)
+  {
+    return (!empty($val)) ? (string)$val : "-";
   }
 
   //==========================Details===========================//

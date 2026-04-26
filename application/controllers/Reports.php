@@ -487,7 +487,7 @@ class Reports extends CI_Controller
         </div>';
 
 
-        $all_value = $this->Main_model->get_received_list($type, $data['from_date'], $data['todate'], $data['customers'], null,null, null, null, $data['orderby']);
+        $all_value = $this->Main_model->get_received_list($type, $data['from_date'], $data['todate'], $data['customers'], null, null, null, null, $data['orderby']);
         $tbody = '';
         $sum_tqty = 0;
         $sum_gndamt = 0;
@@ -564,17 +564,17 @@ class Reports extends CI_Controller
                     if ($cust->m_payment_method == 16) {
                         $cashac = '<td>' .  $cust->m_payment_amount . '</td>
                     <td></td>';
-                    $sum_cash += $cust->m_payment_amount;
+                        $sum_cash += $cust->m_payment_amount;
                     } else {
                         $cashac =   '<td></td>
                     <td>' .  $cust->m_payment_amount . '</td>';
-                    $sum_acc += $cust->m_payment_amount;
+                        $sum_acc += $cust->m_payment_amount;
                     }
                     $filed = '<td>' . $cust->method_name . '</td>' .
                         $cashac
                         . '<td>' .  $cust->m_payment_amount . '</td>';
 
-                        $tfoot = '<tr>
+                    $tfoot = '<tr>
                         <th colspan="5">Total</th>
                         <th>' . $sum_cash . '</th>
                         <th>' . $sum_acc . '</th>
@@ -589,7 +589,7 @@ class Reports extends CI_Controller
                      </tr>';
                 }
 
-               
+
 
                 $tbody .= '<tr>
         <td>' . ($key + 1) . '</td>
@@ -2390,138 +2390,6 @@ class Reports extends CI_Controller
         $this->load->view('truck_report', $data);
     }
 
-
-    // public function staff_performance_report()
-    // {
-    //     $data = $this->login_details();
-    //     $data['pagename'] = "Staff Performance Report";
-    //     $data['from_date'] = $this->input->post('from_date') ?: date('Y-m-d');
-    //     $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
-    //     $data['agent'] = $this->input->post('agent');
-    //     $data['cratetype'] = $this->input->post('cratetype');
-    //     $data['orderby'] = $this->input->post('orderby');
-
-    //     $agent_dtl = $this->Main_model->get_user_dtl($data['agent']);
-    //     $agent_name = empty($data['agent']) ? 'All/Admin' : $agent_dtl->m_user_name;
-    //     $data['subhead'] = '<div class="col-12">
-    //     <h4 class="text-center"> ' . $agent_dtl->m_user_name . ' Performance Report From ' . date('d-m-Y', strtotime($data['from_date'])) . ' To ' . date('d-m-Y', strtotime($data['todate'])) . '</h4>
-    //     </div>';
-
-    //     $data['tableheader'] = array('Sno', 'Customer', 'Sale', 'Payment Recieved', 'Crate Recieved');
-
-    //     $all_data = $this->Report_model->get_staff_performance_report($data['from_date'], $data['todate'], $data['agent'], $agent_dtl->m_user_group);
-    //     // echo '<pre>';
-    //     // print_r($all_data);
-    //     // die;
-    //     $tbody = '';
-
-    //     if (!empty($all_data)) {
-
-    //         foreach ($all_data as $cua => $key) {
-    //             $sales_div = '';
-    //             $recieved_div = '';
-    //             $create_div = '';
-    //             if (!empty($key['sales'])) {
-    //                 $cust_name = $key['sales'][0]->m_cust_name;
-    //                 $cust_id = $key['sales'][0]->m_cust_id;
-    //                 $cust_mobile = $key['sales'][0]->m_cust_mobile;
-
-    //                 foreach ($key['sales'] as $salk) {
-    //                     $salitem = '';
-    //                     $sitem = explode(',', $salk->sale_itemname);
-    //                     $sqty =  explode(',', $salk->sale_qty);
-    //                     $sprice =  explode(',', $salk->sale_price);
-    //                     $stotal =  explode(',', $salk->sale_total);
-    //                     $sctype =  explode(',', $salk->sale_cratetype);
-    //                     $sunit =  explode(',', $salk->sale_unitname);
-
-    //                     if (!empty($sitem)) {
-    //                         foreach ($sitem as $cou => $kry) {
-    //                             $salitem .= '<p class="m-0">' . $kry . ' - ' . $sqty[$cou] . '  ' . $sunit[$cou] . ' @ ' . $sprice[$cou] . ' = ' . $stotal[$cou] . '</p>';
-    //                         }
-    //                     }
-
-    //                     $sales_div .= '<div class="d-flex bd-highlight">
-    //                     <div class="flex-grow-1 bd-highlight">
-    //                         <p class="m-0">Date. ' .  date('d-m-Y', strtotime($salk->m_sale_date)) . '</p>
-    //                         ' . $salitem . '
-    //                         </div>
-    //                         <div class="flex-grow-1 bd-highlight text-end">
-    //                         <p class="m-0">Sale No. ' . $salk->m_sale_spo . '</p>
-    //                         <p class="m-0">Sub Total. ₹' . $salk->sub_total . '</p>
-    //                         <p class="m-0">Expense. ₹' . $salk->total_expense . '</p>
-    //                         <p class="m-0">Net Total. ₹' . ($salk->sub_total + $salk->total_expense) . '</p>
-    //                     </div>
-    //                     </div> <hr>';
-    //                 }
-    //             }
-    //             if (!empty($key['crates'])) {
-    //                 $cust_name = $key['crates'][0]->m_cust_name;
-    //                 $cust_id = $key['crates'][0]->m_cust_id;
-    //                 $cust_mobile = $key['crates'][0]->m_cust_mobile;
-
-    //                 foreach ($key['crates'] as $crtk) {
-    //                     $crttem = '';
-    //                     $crtname = explode(',', $crtk->crate_name);
-    //                     $crtqty =  explode(',', $crtk->crate_qty);
-
-
-    //                     if (!empty($crtname)) {
-    //                         foreach ($crtname as $cou => $kry) {
-    //                             $crttem .= '<p class="m-0">' . $kry . ' - ' . $crtqty[$cou] . '</p>';
-    //                         }
-    //                     }
-
-    //                     $create_div .= '<div class="d-flex bd-highlight">
-    //                     <div class="flex-grow-1 bd-highlight">
-    //                         <p class="m-0">Date. ' .  date('d-m-Y', strtotime($crtk->m_recvd_date)) . '</p>
-    //                         ' . $crttem . '
-    //                         </div>
-    //                         <div class="flex-grow-1 bd-highlight text-end">
-    //                         <p class="m-0">Voucher No. ' . $crtk->m_recvd_voucher . '</p>
-    //                         <p class="m-0">Total. ' . $crtk->tqty . '</p>
-
-    //                     </div>
-    //                     </div> <hr>';
-    //                 }
-    //             }
-    //             if (!empty($key['recieved_amt'])) {
-    //                 $cust_name = $key['recieved_amt'][0]->m_cust_name;
-    //                 $cust_id = $key['recieved_amt'][0]->m_cust_id;
-    //                 $cust_mobile = $key['recieved_amt'][0]->m_cust_mobile;
-
-    //                 foreach ($key['recieved_amt'] as $rak) {
-
-    //                     $recieved_div .= '<div class="d-flex bd-highlight">
-    //                     <div class="flex-grow-1 bd-highlight">
-    //                         <p class="m-0">Date. ' .  date('d-m-Y', strtotime($rak->m_recvd_date)) . '</p>
-    //                         <p class="m-0">Amount. ₹' . $rak->m_recvd_amount . '</p>
-    //                         </div>
-    //                         <div class="flex-grow-1 bd-highlight text-end">
-    //                         <p class="m-0">Voucher No. ' . $rak->m_recvd_voucher . '</p>
-    //                         <p class="m-0">Method. ' . $rak->method_name . '</p>
-
-    //                     </div>
-    //                     </div> <hr>';
-    //                 }
-    //             }
-    //             $tbody .= '<tr><th scope="row">' . ($cua + 1) . '</th> 
-    //             <th class=""><p class="m-0">Name :-' . $cust_name . '</p>
-    //             <p class="m-0">Mobile :-' . $cust_mobile . '</p> </th>
-    //             <td class="">' . $sales_div . '</td>
-    //             <td class="">' . $recieved_div . '</td>
-    //             <td class="">' . $create_div . '</td>';
-    //         }
-    //     }
-
-    //     $data['Mainarray'] =  $tbody;
-
-    //     $data['tablefoot'] = '';
-
-
-    //     $this->load->view('print_report_list', $data);
-    // }
-
     public function staff_performance_new_report()
     {
 
@@ -2571,12 +2439,12 @@ class Reports extends CI_Controller
 
                 foreach ($all_data['data'] as $cua => $salei) {
                     $salitem = '';
-                    $sitem = explode(',', $salei->sale_itemname);
-                    $sqty =  explode(',', $salei->sale_qty);
-                    $sprice =  explode(',', $salei->sale_price);
-                    $stotal =  explode(',', $salei->sale_total);
-                    $sctype =  explode(',', $salei->sale_cratetype);
-                    $sunit =  explode(',', $salei->sale_unitname);
+                    $sitem = !empty($salei->sale_itemname) ? explode(',', $salei->sale_itemname) : [];
+                    $sqty =  !empty($salei->sale_qty) ? explode(',', $salei->sale_qty) : [];
+                    $sprice =  !empty($salei->sale_price) ? explode(',', $salei->sale_price) : [];
+                    $stotal =  !empty($salei->sale_total) ? explode(',', $salei->sale_total) : [];
+                    $sctype = !empty($salei->sale_cratetype) ? explode(',', $salei->sale_cratetype) : [];
+                    $sunit =  !empty($salei->sale_unitname) ? explode(',', $salei->sale_unitname) : [];
 
                     $sumtol += $salei->sub_total;
                     $sumexp += $salei->total_expense;
@@ -2703,6 +2571,18 @@ class Reports extends CI_Controller
 
 
         $this->load->view('afc_account', $data);
+    }
+
+    public function staff_daily_summary()
+    {
+
+        $data = $this->login_details();
+
+        $date = date('Y-m-d', strtotime('2026-02-01'));
+        $staff_id = 3;
+        $all_data = $this->Report_model->get_staff_daily_customer_report($staff_id, $date);
+        echo '<pre>';
+        print_r($all_data);
     }
 
     //==========================Stock List===========================//

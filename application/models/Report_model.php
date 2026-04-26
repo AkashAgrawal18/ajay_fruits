@@ -1847,133 +1847,367 @@ class Report_model extends CI_model
     return $result;
   }
 
+  // public function get_staff_performance_new_report($from_date, $to_date, $staff_id, $staff_group, $report_type)
+  // {
 
-  public function get_staff_performance_report($from_date, $to_date, $staff_id, $staff_group)
-  {
+  //   $main_result = array();
+  //   $item_name = '';
+  //   $cust_list = $this->Main_model->get_cust_list(null, null, null, null, $staff_group);
+  //   if (!empty($cust_list)) {
+  //     foreach ($cust_list as $key) {
 
-    $main_result = array();
+  //       if (!empty($from_date)) {
+  //         $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d")>=', $from_date);
+  //       }
+  //       if (!empty($to_date)) {
+  //         $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d")<=', $to_date);
+  //       }
+
+  //       $sale_datil = $this->db->select('m_sale_spo,m_sale_trackno,sum(m_sale_qty) as total_qty,sum(m_sale_total) as sub_total,m_sale_date,sum(m_sale_weight) as total_weight,sum(m_sale_crate) as total_crate,m_sale_comrate,m_sale_comm,m_sale_fright,m_sale_hamali,m_sale_others,(m_sale_comm + m_sale_fright + m_sale_hamali + m_sale_others) as total_expense,m_sale_note,m_sale_user,m_sale_customer,Group_concat(m_sale_qty) as sale_qty,Group_concat(m_sale_price) as sale_price,Group_concat(m_sale_total) as sale_total,Group_concat(m_sale_weight) as sale_weight,Group_concat(m_sale_crate) as sale_crate,Group_concat(m_item_name) as sale_itemname,Group_concat(crate.m_itgrp_title) as sale_cratetype,Group_concat(unit.m_itgrp_title) as sale_unitname,m_cust_name,m_cust_id,m_cust_mobile')
+  //         ->join('master_customer_tbl mut', 'mut.m_cust_id = master_sales_tbl.m_sale_customer', 'left')
+  //         ->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
+  //         ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')
+  //         ->join('master_itemgroup_tbl as unit', 'unit.m_itgrp_id = mit.m_item_unit', 'left')
+  //         ->where('m_sale_user', $staff_id)->where('m_sale_customer', $key->m_cust_id)->order_by('m_sale_date')->group_by('m_sale_spo')->get('master_sales_tbl')->result();
+
+
+
+  //       $this->db->where('m_recvd_date >=', $from_date);
+  //       $this->db->where('m_recvd_date <=', $to_date);
+  //       $cratequery = $this->db->select('sum(m_recvd_qty) as tqty,m_recvd_voucher,m_recvd_date,m_recvd_remark,Group_concat(m_recvd_crate) as crate_id,Group_concat(crate.m_itgrp_title) as crate_name,Group_concat(m_recvd_qty) as crate_qty,m_cust_name,m_cust_id,m_cust_mobile')
+  //         ->join('master_customer_tbl mut', 'mut.m_cust_id = master_recieved_tbl.m_recvd_customer', 'left')->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate', 'left')->where('m_recvd_type', 2)->where('m_recvd_user', $staff_id)->where('m_recvd_customer', $key->m_cust_id)->group_by('m_recvd_voucher')->order_by('m_recvd_date')->get('master_recieved_tbl')->result();
+
+  //       $this->db->where('m_recvd_date >=', $from_date);
+  //       $this->db->where('m_recvd_date <=', $to_date);
+
+  //       $cashquery = $this->db->select('m_recvd_amount,m_recvd_method,m_group_name as method_name,m_recvd_voucher,m_recvd_date,m_recvd_remark,m_cust_name,m_cust_id,m_cust_mobile')
+  //         ->join('master_customer_tbl mut', 'mut.m_cust_id = master_recieved_tbl.m_recvd_customer', 'left')->join('master_group_tbl method', 'method.m_group_id = master_recieved_tbl.m_recvd_method', 'left')->where('m_recvd_user', $staff_id)->where('m_recvd_account', 1)->where('m_recvd_type', 1)->where('m_recvd_customer', $key->m_cust_id)->order_by('m_recvd_date')->get('master_recieved_tbl')->result();
+
+  //       if ($report_type == 1) {
+  //         if (!empty($sale_datil)) {
+  //           foreach ($sale_datil as $key) {
+  //             $item_name .= $key->sale_itemname . ',';
+  //             $main_result[] = $key;
+  //           }
+  //         }
+  //       } else if ($report_type == 2) {
+  //         if (!empty($cashquery)) {
+  //           foreach ($cashquery as $key) {
+  //             $item_name .= $key->method_name . ',';
+  //             $main_result[] = $key;
+  //           }
+  //         }
+  //       } else {
+  //         if (!empty($cratequery)) {
+  //           foreach ($cratequery as $key) {
+  //             $item_name .= $key->crate_name . ',';
+  //             $main_result[] = $key;
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+
+  //   $result = array(
+  //     'items' => $item_name == '' ? '' : array_unique(array_filter(explode(',', $item_name))),
+  //     'data' => $main_result,
+  //   );
+  //   return $result;
+
+  //   // echo '<pre>';
+  //   // print_r($result);
+  //   // die;
+
+  // }
+
+public function get_staff_performance_new_report($from_date, $to_date, $staff_id, $staff_group, $report_type)
+{
+    // Get all customer IDs in ONE query
     $cust_list = $this->Main_model->get_cust_list(null, null, null, null, $staff_group);
-    if (!empty($cust_list)) {
-      foreach ($cust_list as $key) {
-        $result = array();
-        if (!empty($from_date)) {
-          $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d")>=', $from_date);
-        }
-        if (!empty($to_date)) {
-          $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d")<=', $to_date);
-        }
 
-        $sale_datil = $this->db->select('m_sale_spo,m_sale_trackno,sum(m_sale_qty) as total_qty,sum(m_sale_total) as sub_total,m_sale_date,sum(m_sale_weight) as total_weight,sum(m_sale_crate) as total_crate,m_sale_comrate,m_sale_comm,m_sale_fright,m_sale_hamali,m_sale_others,(m_sale_comm + m_sale_fright + m_sale_hamali + m_sale_others) as total_expense,m_sale_note,m_sale_user,m_sale_customer,Group_concat(m_sale_qty) as sale_qty,Group_concat(m_sale_price) as sale_price,Group_concat(m_sale_total) as sale_total,Group_concat(m_sale_weight) as sale_weight,Group_concat(m_sale_crate) as sale_crate,Group_concat(m_item_name) as sale_itemname,Group_concat(crate.m_itgrp_title) as sale_cratetype,Group_concat(unit.m_itgrp_title) as sale_unitname,m_cust_name,m_cust_id,m_cust_mobile')
-          ->join('master_customer_tbl mut', 'mut.m_cust_id = master_sales_tbl.m_sale_customer', 'left')
-          ->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
-          ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')
-          ->join('master_itemgroup_tbl as unit', 'unit.m_itgrp_id = mit.m_item_unit', 'left')
-          ->where('m_sale_user', $staff_id)->where('m_sale_customer', $key->m_cust_id)->order_by('m_sale_date')->group_by('m_sale_spo')->get('master_sales_tbl')->result();
-
-        if (!empty($sale_datil)) {
-          $result['sales'] = $sale_datil;
-        }
-
-        $this->db->where('m_recvd_date >=', $from_date);
-        $this->db->where('m_recvd_date <=', $to_date);
-        $cratequery = $this->db->select('sum(m_recvd_qty) as tqty,m_recvd_voucher,m_recvd_date,m_recvd_remark,Group_concat(m_recvd_crate) as crate_id,Group_concat(crate.m_itgrp_title) as crate_name,Group_concat(m_recvd_qty) as crate_qty,m_cust_name,m_cust_id,m_cust_mobile')
-          ->join('master_customer_tbl mut', 'mut.m_cust_id = master_recieved_tbl.m_recvd_customer', 'left')->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate', 'left')->where('m_recvd_type', 2)->where('m_recvd_user', $staff_id)->where('m_recvd_customer', $key->m_cust_id)->group_by('m_recvd_voucher')->order_by('m_recvd_date')->get('master_recieved_tbl')->result();
-
-        if (!empty($cratequery)) {
-          $result['crates'] = $cratequery;
-        }
-
-        $this->db->where('m_recvd_date >=', $from_date);
-        $this->db->where('m_recvd_date <=', $to_date);
-
-        $cashquery = $this->db->select('m_recvd_amount,m_recvd_method,m_group_name as method_name,m_recvd_voucher,m_recvd_date,m_recvd_remark,m_cust_name,m_cust_id,m_cust_mobile')
-          ->join('master_customer_tbl mut', 'mut.m_cust_id = master_recieved_tbl.m_recvd_customer', 'left')->join('master_group_tbl method', 'method.m_group_id = master_recieved_tbl.m_recvd_method', 'left')->where('m_recvd_user', $staff_id)->where('m_recvd_account', 1)->where('m_recvd_type', 1)->where('m_recvd_customer', $key->m_cust_id)->order_by('m_recvd_date')->get('master_recieved_tbl')->result();
-
-        if (!empty($cashquery)) {
-          $result['recieved_amt'] = $cashquery;
-        }
-
-        if (!empty($result)) {
-          $main_result[] = $result;
-        }
-      }
+    if (empty($cust_list)) {
+        return ['items' => '', 'data' => []];
     }
 
-    return $main_result;
-  }
+    // Extract all customer IDs as a flat array for WHERE IN
+    $cust_ids = array_column((array) $cust_list, 'm_cust_id');
 
-  public function get_staff_performance_new_report($from_date, $to_date, $staff_id, $staff_group, $report_type)
-  {
-
-    $main_result = array();
-    $item_name = '';
-    $cust_list = $this->Main_model->get_cust_list(null, null, null, null, $staff_group);
-    if (!empty($cust_list)) {
-      foreach ($cust_list as $key) {
-
-        if (!empty($from_date)) {
-          $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d")>=', $from_date);
-        }
-        if (!empty($to_date)) {
-          $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d")<=', $to_date);
-        }
-
-        $sale_datil = $this->db->select('m_sale_spo,m_sale_trackno,sum(m_sale_qty) as total_qty,sum(m_sale_total) as sub_total,m_sale_date,sum(m_sale_weight) as total_weight,sum(m_sale_crate) as total_crate,m_sale_comrate,m_sale_comm,m_sale_fright,m_sale_hamali,m_sale_others,(m_sale_comm + m_sale_fright + m_sale_hamali + m_sale_others) as total_expense,m_sale_note,m_sale_user,m_sale_customer,Group_concat(m_sale_qty) as sale_qty,Group_concat(m_sale_price) as sale_price,Group_concat(m_sale_total) as sale_total,Group_concat(m_sale_weight) as sale_weight,Group_concat(m_sale_crate) as sale_crate,Group_concat(m_item_name) as sale_itemname,Group_concat(crate.m_itgrp_title) as sale_cratetype,Group_concat(unit.m_itgrp_title) as sale_unitname,m_cust_name,m_cust_id,m_cust_mobile')
-          ->join('master_customer_tbl mut', 'mut.m_cust_id = master_sales_tbl.m_sale_customer', 'left')
-          ->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
-          ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')
-          ->join('master_itemgroup_tbl as unit', 'unit.m_itgrp_id = mit.m_item_unit', 'left')
-          ->where('m_sale_user', $staff_id)->where('m_sale_customer', $key->m_cust_id)->order_by('m_sale_date')->group_by('m_sale_spo')->get('master_sales_tbl')->result();
-
-
-
-        $this->db->where('m_recvd_date >=', $from_date);
-        $this->db->where('m_recvd_date <=', $to_date);
-        $cratequery = $this->db->select('sum(m_recvd_qty) as tqty,m_recvd_voucher,m_recvd_date,m_recvd_remark,Group_concat(m_recvd_crate) as crate_id,Group_concat(crate.m_itgrp_title) as crate_name,Group_concat(m_recvd_qty) as crate_qty,m_cust_name,m_cust_id,m_cust_mobile')
-          ->join('master_customer_tbl mut', 'mut.m_cust_id = master_recieved_tbl.m_recvd_customer', 'left')->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate', 'left')->where('m_recvd_type', 2)->where('m_recvd_user', $staff_id)->where('m_recvd_customer', $key->m_cust_id)->group_by('m_recvd_voucher')->order_by('m_recvd_date')->get('master_recieved_tbl')->result();
-
-        $this->db->where('m_recvd_date >=', $from_date);
-        $this->db->where('m_recvd_date <=', $to_date);
-
-        $cashquery = $this->db->select('m_recvd_amount,m_recvd_method,m_group_name as method_name,m_recvd_voucher,m_recvd_date,m_recvd_remark,m_cust_name,m_cust_id,m_cust_mobile')
-          ->join('master_customer_tbl mut', 'mut.m_cust_id = master_recieved_tbl.m_recvd_customer', 'left')->join('master_group_tbl method', 'method.m_group_id = master_recieved_tbl.m_recvd_method', 'left')->where('m_recvd_user', $staff_id)->where('m_recvd_account', 1)->where('m_recvd_type', 1)->where('m_recvd_customer', $key->m_cust_id)->order_by('m_recvd_date')->get('master_recieved_tbl')->result();
-
-        if ($report_type == 1) {
-          if (!empty($sale_datil)) {
-            foreach ($sale_datil as $key) {
-              $item_name .= $key->sale_itemname . ',';
-              $main_result[] = $key;
-            }
-          }
-        } else if ($report_type == 2) {
-          if (!empty($cashquery)) {
-            foreach ($cashquery as $key) {
-              $item_name .= $key->method_name . ',';
-              $main_result[] = $key;
-            }
-          }
-        } else {
-          if (!empty($cratequery)) {
-            foreach ($cratequery as $key) {
-              $item_name .= $key->crate_name . ',';
-              $main_result[] = $key;
-            }
-          }
-        }
-      }
+    // Run ONE query for the required report type (no loop)
+    switch ($report_type) {
+        case 1:
+            [$main_result, $name_field] = $this->_query_sales_bulk($from_date, $to_date, $staff_id, $cust_ids);
+            break;
+        case 2:
+            [$main_result, $name_field] = $this->_query_cash_bulk($from_date, $to_date, $staff_id, $cust_ids);
+            break;
+        default:
+            [$main_result, $name_field] = $this->_query_crate_bulk($from_date, $to_date, $staff_id, $cust_ids);
+            break;
     }
 
-    $result = array(
-      'items' => $item_name == '' ? '' : array_unique(array_filter(explode(',', $item_name))),
-      'data' => $main_result,
-    );
-    return $result;
+    // Collect and deduplicate item names
+    $all_names = [];
+    foreach ($main_result as $row) {
+        if (!empty($row->$name_field)) {
+            foreach (explode(',', $row->$name_field) as $name) {
+                $name = trim($name);
+                if ($name !== '') $all_names[$name] = true;
+            }
+        }
+    }
 
-    // echo '<pre>';
-    // print_r($result);
-    // die;
+    return [
+        'items' => empty($all_names) ? '' : array_keys($all_names),
+        'data'  => $main_result,
+    ];
+}
 
-  }
+// ─── Single bulk query for Sales ────────────────────────────────────────────
+
+private function _query_sales_bulk($from_date, $to_date, $staff_id, array $cust_ids)
+{
+    if (!empty($from_date)) $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d") >=', $from_date);
+    if (!empty($to_date))   $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d") <=', $to_date);
+
+    $result = $this->db
+        ->select('m_sale_spo, m_sale_trackno,
+                  SUM(m_sale_qty)    AS total_qty,
+                  SUM(m_sale_total)  AS sub_total,
+                  m_sale_date,
+                  SUM(m_sale_weight) AS total_weight,
+                  SUM(m_sale_crate)  AS total_crate,
+                  m_sale_comrate, m_sale_comm, m_sale_fright, m_sale_hamali, m_sale_others,
+                  (m_sale_comm + m_sale_fright + m_sale_hamali + m_sale_others) AS total_expense,
+                  m_sale_note, m_sale_user, m_sale_customer,
+                  GROUP_CONCAT(m_sale_qty)              AS sale_qty,
+                  GROUP_CONCAT(m_sale_price)            AS sale_price,
+                  GROUP_CONCAT(m_sale_total)            AS sale_total,
+                  GROUP_CONCAT(m_sale_weight)           AS sale_weight,
+                  GROUP_CONCAT(m_sale_crate)            AS sale_crate,
+                  GROUP_CONCAT(m_item_name)             AS sale_itemname,
+                  GROUP_CONCAT(crate.m_itgrp_title)     AS sale_cratetype,
+                  GROUP_CONCAT(unit.m_itgrp_title)      AS sale_unitname,
+                  m_cust_name, m_cust_id, m_cust_mobile')
+        ->join('master_customer_tbl mut',       'mut.m_cust_id    = master_sales_tbl.m_sale_customer', 'left')
+        ->join('master_item_tbl mit',           'mit.m_item_id    = master_sales_tbl.m_sale_item',     'left')
+        ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate',                 'left')
+        ->join('master_itemgroup_tbl as unit',  'unit.m_itgrp_id  = mit.m_item_unit',                  'left')
+        ->where('m_sale_user', $staff_id)
+        ->where_in('m_sale_customer', $cust_ids)   // ← WHERE IN replaces the loop
+        ->order_by('m_sale_date')
+        ->group_by('m_sale_spo')
+        ->get('master_sales_tbl')
+        ->result();
+
+    return [$result, 'sale_itemname'];
+}
+
+// ─── Single bulk query for Crate returns ────────────────────────────────────
+
+private function _query_crate_bulk($from_date, $to_date, $staff_id, array $cust_ids)
+{
+    $result = $this->db
+        ->select('SUM(m_recvd_qty) AS tqty,
+                  m_recvd_voucher, m_recvd_date, m_recvd_remark,
+                  GROUP_CONCAT(m_recvd_crate)        AS crate_id,
+                  GROUP_CONCAT(crate.m_itgrp_title)  AS crate_name,
+                  GROUP_CONCAT(m_recvd_qty)           AS crate_qty,
+                  m_cust_name, m_cust_id, m_cust_mobile')
+        ->join('master_customer_tbl mut',       'mut.m_cust_id    = master_recieved_tbl.m_recvd_customer', 'left')
+        ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate',    'left')
+        ->where('m_recvd_date >=',  $from_date)
+        ->where('m_recvd_date <=',  $to_date)
+        ->where('m_recvd_type',     2)
+        ->where('m_recvd_user',     $staff_id)
+        ->where_in('m_recvd_customer', $cust_ids)  // ← WHERE IN replaces the loop
+        ->group_by('m_recvd_voucher')
+        ->order_by('m_recvd_date')
+        ->get('master_recieved_tbl')
+        ->result();
+
+    return [$result, 'crate_name'];
+}
+
+// ─── Single bulk query for Cash received ────────────────────────────────────
+
+private function _query_cash_bulk($from_date, $to_date, $staff_id, array $cust_ids)
+{
+    $result = $this->db
+        ->select('m_recvd_amount, m_recvd_method,
+                  m_group_name AS method_name,
+                  m_recvd_voucher, m_recvd_date, m_recvd_remark,
+                  m_cust_name, m_cust_id, m_cust_mobile')
+        ->join('master_customer_tbl mut', 'mut.m_cust_id     = master_recieved_tbl.m_recvd_customer', 'left')
+        ->join('master_group_tbl method', 'method.m_group_id = master_recieved_tbl.m_recvd_method',   'left')
+        ->where('m_recvd_date >=',   $from_date)
+        ->where('m_recvd_date <=',   $to_date)
+        ->where('m_recvd_user',      $staff_id)
+        ->where('m_recvd_account',   1)
+        ->where('m_recvd_type',      1)
+        ->where_in('m_recvd_customer', $cust_ids)  // ← WHERE IN replaces the loop
+        ->order_by('m_recvd_date')
+        ->get('master_recieved_tbl')
+        ->result();
+
+    return [$result, 'method_name'];
+}
+
+public function get_staff_daily_customer_report($staff_id, $date)
+{
+    // ── 1. Get staff group ───────────────────────────────────────────────────
+    $staff = $this->db
+        ->select('m_user_group')
+        ->where('m_user_id', $staff_id)
+        ->get('master_users_tbl')
+        ->row();
+
+    if (empty($staff)) {
+        return ['crate_types' => [], 'grand' => [], 'data' => []];
+    }
+
+    $cust_list = $this->Main_model->get_cust_list(null, null, null, null, $staff->m_user_group);
+
+    if (empty($cust_list)) {
+        return ['crate_types' => [], 'grand' => [], 'data' => []];
+    }
+
+    $cust_ids = array_column((array) $cust_list, 'm_cust_id');
+
+    // ── 2. Sales ─────────────────────────────────────────────────────────────
+    $sales = $this->db
+        ->select('
+            m_sale_customer,
+            m_cust_name,
+            SUM(m_sale_total)   AS sale_total,
+            SUM(m_sale_fright)  AS sale_fright
+        ')
+        ->join('master_customer_tbl mut', 'mut.m_cust_id = master_sales_tbl.m_sale_customer', 'left')
+        ->where('m_sale_date',  $date)
+        ->where('m_sale_user',  $staff_id)
+        ->where_in('m_sale_customer', $cust_ids)
+        ->group_by('m_sale_customer')
+        ->get('master_sales_tbl')
+        ->result();
+
+    // ── 3. Cash received ─────────────────────────────────────────────────────
+    $cash = $this->db
+        ->select('m_recvd_customer, SUM(m_recvd_amount) AS cash_received')
+        ->where('m_recvd_date',    $date)
+        ->where('m_recvd_user',    $staff_id)
+        ->where('m_recvd_account', 1)
+        ->where('m_recvd_type',    1)
+        ->where_in('m_recvd_customer', $cust_ids)
+        ->group_by('m_recvd_customer')
+        ->get('master_recieved_tbl')
+        ->result();
+
+    // ── 4. Crate returns ─────────────────────────────────────────────────────
+    $crates = $this->db
+        ->select('
+            m_recvd_customer,
+            crate.m_itgrp_title AS crate_type,
+            SUM(m_recvd_qty)    AS crate_qty
+        ')
+        ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate', 'left')
+        ->where('m_recvd_date', $date)
+        ->where('m_recvd_type', 2)
+        ->where('m_recvd_user', $staff_id)
+        ->where_in('m_recvd_customer', $cust_ids)
+        ->group_by('m_recvd_customer, m_recvd_crate')
+        ->get('master_recieved_tbl')
+        ->result();
+
+    // ── 5. Build lookup maps + collect ACTIVE customer IDs ──────────────────
+    $sales_map = [];
+    foreach ($sales as $row) {
+        $sales_map[$row->m_sale_customer] = $row;
+    }
+
+    $cash_map = [];
+    foreach ($cash as $row) {
+        $cash_map[$row->m_recvd_customer] = (float) $row->cash_received;
+    }
+
+    $crate_map       = [];
+    $all_crate_types = [];
+    foreach ($crates as $row) {
+        $type = trim($row->crate_type);
+        $crate_map[$row->m_recvd_customer][$type] = (float) $row->crate_qty;
+        $all_crate_types[$type] = true;
+    }
+    $all_crate_types = array_keys($all_crate_types);
+    sort($all_crate_types);
+
+    // ── Key change: only customers with activity today ───────────────────────
+    $active_cust_ids = array_unique(array_merge(
+        array_keys($sales_map),
+        array_keys($cash_map),
+        array_keys($crate_map)
+    ));
+
+    if (empty($active_cust_ids)) {
+        return ['crate_types' => [], 'grand' => [], 'data' => []];
+    }
+
+    // ── 6. Build output rows (only active customers) ─────────────────────────
+    $data  = [];
+    $grand = [
+        'sale_total'    => 0,
+        'cash_received' => 0,
+        'net_balance'   => 0,
+        'crate_totals'  => array_fill_keys($all_crate_types, 0),
+        'total_crates'  => 0,
+    ];
+
+    // Index cust_list by ID for O(1) lookup
+    $cust_map = [];
+    foreach ($cust_list as $cust) {
+        $cust_map[$cust->m_cust_id] = $cust;
+    }
+
+    foreach ($active_cust_ids as $cid) {
+        $cust        = $cust_map[$cid] ?? null;
+        $sale_row    = $sales_map[$cid] ?? null;
+
+        $old_balance   = $cust ? (float) $cust->m_cust_balance : 0;
+        $sale_total    = $sale_row ? (float) $sale_row->sale_total  : 0;
+        $sale_fright   = $sale_row ? (float) $sale_row->sale_fright : 0;
+        $cash_received = $cash_map[$cid] ?? 0;
+        $crate_row     = $crate_map[$cid] ?? [];
+        $total_crate   = array_sum($crate_row);
+
+        $row_total   = $old_balance + $sale_total + $sale_fright;
+        $net_balance = $row_total - $cash_received;
+
+        $grand['sale_total']    += ($sale_total + $sale_fright);
+        $grand['cash_received'] += $cash_received;
+        $grand['net_balance']   += $net_balance;
+        $grand['total_crates']  += $total_crate;
+        foreach ($all_crate_types as $ct) {
+            $grand['crate_totals'][$ct] += $crate_row[$ct] ?? 0;
+        }
+
+        $data[] = (object) [
+            'cust_id'       => $cid,
+            'cust_name'     => $cust->m_cust_name ?? ($sale_row->m_cust_name ?? ''),
+            'old_balance'   => $old_balance,
+            'sale_total'    => $sale_total,
+            'has_fright'    => $sale_fright > 0,
+            'sale_fright'   => $sale_fright,
+            'row_total'     => $row_total,
+            'cash_received' => $cash_received,
+            'net_balance'   => $net_balance,
+            'crates'        => $crate_row,
+            'total_crates'  => $total_crate,
+        ];
+    }
+
+    return [
+        'crate_types' => $all_crate_types,
+        'grand'       => $grand,
+        'data'        => $data,
+    ];
+}
 
   public function dashboard_staff_summary($date)
   {
