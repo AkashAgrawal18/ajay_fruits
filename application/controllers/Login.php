@@ -69,45 +69,53 @@ public function customer_login(){
 }
 
 public function change_date() {
-  $selected_date = $this->input->post('date');
-  $password = $this->input->post('password');
+    $selected_date = $this->input->post('date');
+    $password      = $this->input->post('password');
 
-  // Define financial year range
-  $current_date = date('Y-m-d'); // Corrected variable name
-  if(date('m') > 3){
-      $crter = date('Y');
-  } else {
-      $crter = date('Y', strtotime('-1 year', strtotime($current_date))); // Corrected date string
-  }
-  
-  $financial_start = date($crter.'-04-01'); // April 1st
- 
-  // Check if selected date falls in the last financial year
-  if (strtotime($selected_date) < strtotime($financial_start)) {
-      if (!$password) {
-          echo json_encode(['status' => 'password_required', 'message' => 'Password required to change date']);
-          exit; // Ensure script exits to prevent loops
-      }
+    if (!$selected_date) {
+        echo json_encode(['status' => 'error', 'message' => 'Date is required']);
+        exit;
+    }
 
-      // Validate password (ensure session is properly managed)
-      $user_id = $this->session->userdata('user_id');
-      if (!$user_id) {
-          echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
-          exit;
-      }
+    // Determine financial year start
+    $financial_start = $this->_get_financial_year_start();
 
-      $is_valid = $this->Login_model->validate_password($user_id, $password);
-      if (!$is_valid) {
-          echo json_encode(['status' => 'error', 'message' => 'Invalid password']);
-          exit;
-      }
-  }
+    // Check if date lock is enabled from DB
+    $lock_enabled = get_settings('date_lock_enabled'); // returns 0 or 1
 
-  // Proceed with date change
-  echo json_encode(['status' => 'success', 'message' => 'Date changed successfully']);
-  exit;
+    // If lock is OFF or date is within current financial year → allow freely
+    if (!$lock_enabled || strtotime($selected_date) >= strtotime($financial_start)) {
+        echo json_encode(['status' => 'success', 'message' => 'Date changed successfully']);
+        exit;
+    }
+
+    // Lock is ON and date is in previous financial year → require password
+    if (!$password) {
+        echo json_encode(['status' => 'password_required', 'message' => 'Password required to change date to a previous financial year']);
+        exit;
+    }
+
+    $user_id = $this->session->userdata('user_id');
+    if (!$user_id) {
+        echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
+        exit;
+    }
+
+    $is_valid = get_settings('date_lock_password') === $password; // Validate password from DB
+    if (!$is_valid) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid password']);
+        exit;
+    }
+
+    echo json_encode(['status' => 'success', 'message' => 'Date changed successfully']);
+    exit;
 }
 
+// Private helper to avoid repeated date logic
+private function _get_financial_year_start() {
+    $year = (date('m') > 3) ? date('Y') : date('Y', strtotime('-1 year'));
+    return date($year . '-04-01');
+}
 
 
 public function logout()

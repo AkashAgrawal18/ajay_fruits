@@ -2643,6 +2643,8 @@ class Main_model extends CI_model
       "m_app_name" => $this->input->post('m_app_name'),
       "m_app_title" => $this->input->post('m_app_title'),
       "m_app_email" => $this->input->post('m_app_mail'),
+      "date_lock_enabled" => $this->input->post('date_lock_enabled'),
+      "date_lock_password" => $this->input->post('date_lock_password'),
       "m_app_mobile" => $this->input->post('m_app_contact'),
       "m_app_alt_mobile" => $this->input->post('m_app_alt_contact'),
       "m_app_address" => $this->input->post('m_app_address'),

@@ -1,46 +1,49 @@
 <script type="text/javascript">
- $(document).ready(function() {
-  // $('input[type="date"]').on('blur', function() {
-  //   let selectedfiled = $(this);
-  //   let selectedDate = $(this).val();
-    
-  //   // Function to perform AJAX request
-  //   function performAjax(date, password = '') {
-  //     return $.ajax({
-  //       url: "<?= base_url('Login/change_date') ?>",
-  //       type: "POST",
-  //       data: {
-  //         date: date,
-  //         password: password
-  //       },
-  //       dataType: "json"
-  //     });
-  //   }
+$(document).ready(function () {
 
-  //   // First AJAX call to check if password is required
-  //   performAjax(selectedDate).done(function(response) {
-  //     if (response.status === 'password_required') {
-  //       let userPassword = prompt("Enter password to proceed:");
-        
-  //       if (userPassword) {
-  //         // If password is entered, make second AJAX call
-  //         performAjax(selectedDate, userPassword).done(function(res) {
-  //           if (res.status == "error") {
-  //             $(selectedfiled).val('');
-  //           }
-  //         }).fail(function() {
-  //           $(selectedfiled).val('');
-  //         });
-  //       } else {
-  //         $(selectedfiled).val('');
-  //       }
-  //     }
-  //   }).fail(function() {
-  //     $(selectedfiled).val('');
-  //   });
-  // });
+    function performAjax(date, password = '') {
+        return $.ajax({
+            url: "<?= base_url('Login/change_date') ?>",
+            type: "POST",
+            data: { date, password },
+            dataType: "json"
+        });
+    }
+
+    function clearField($field) {
+        $field.val('');
+    }
+
+    $(document).on('blur', 'input[type="date"]', function () {
+        const $field       = $(this);
+        const selectedDate = $field.val();
+
+        if (!selectedDate) return; // skip if empty
+
+        performAjax(selectedDate)
+            .done(function (response) {
+                if (response.status === 'password_required') {
+                    const userPassword = prompt(response.message || "Enter password to proceed:");
+
+                    if (!userPassword) {
+                        clearField($field);
+                        return;
+                    }
+
+                    performAjax(selectedDate, userPassword)
+                        .done(function (res) {
+                            if (res.status === 'error') clearField($field);
+                        })
+                        .fail(function () { clearField($field); });
+
+                } else if (response.status === 'error') {
+                    clearField($field);
+                }
+            })
+            .fail(function () { clearField($field); });
+    });
+
 });
-
 
 
   /* var cls_table = $(".dash_datatable").DataTable({

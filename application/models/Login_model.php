@@ -24,19 +24,6 @@ class Login_model extends CI_model
 		}
 	}
 
-	public function validate_password($user_id, $password)
-	{
-		$this->db->select('m_admin_branch');
-        $this->db->where('m_admin_id', $user_id);
-        $this->db->where('m_admin_branch', $password);
-        $query = $this->db->get('master_admin_tbl');
-
-        if ($query->num_rows() > 0) {
-            $user = $query->row();
-            return true ;
-        }
-        return false;
-	}
 
 	public function validate_customer()
 	{

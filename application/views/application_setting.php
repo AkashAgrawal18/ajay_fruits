@@ -59,17 +59,24 @@
                 <input value="<?php echo $login_detail->m_admin_login_id  ?>" type="text" name="m_admin_login_id" placeholder="App Login Id" class="form-control">
               </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <div class="form-group">
-                <label class="control-label">Application Password</label>
+                <label class="control-label">Login Password</label>
                 <input value="<?php echo $login_detail->m_admin_pass  ?>" type="text" name="m_admin_pass" placeholder="App Password" class="form-control">
               </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <div class="form-group">
-                <label class="control-label">Application Date Password</label>
-                <input value="<?php echo $login_detail->m_admin_branch  ?>" type="text" name="m_admin_branch" placeholder="App Date Password" class="form-control">
+                <label class="control-label">Date Password</label>
+                <input value="<?php echo $app_details[0]->date_lock_password  ?>" type="text" name="date_lock_password" placeholder="App Date Password" class="form-control">
               </div>
+            </div>
+            <div class="col-md-2">
+              <div class="form-check form-switch mt-4">
+                <input class="form-check-input" value="1" type="checkbox" name="date_lock_enabled" role="switch" id="flexSwitchCheckChecked" <?php if($app_details[0]->date_lock_enabled == 1) echo 'checked'; ?> >
+                <label class="form-check-label small" for="flexSwitchCheckChecked">Is Date Lock</label>
+              </div>
+
             </div>
 
 
