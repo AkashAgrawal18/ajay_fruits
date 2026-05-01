@@ -887,6 +887,15 @@ class Sales extends CI_Controller
     $data['cust_list'] = $this->Main_model->get_cust_active_list();
     $this->load->view('reminder_list', $data);
   }
+  public function send_individual_statement()
+  {
+    $data = $this->login_details();
+    $data['pagename'] = "Send Customer Statement";
+    $data['pgtype'] = 3;
+    $data['group_dtl'] = $this->Master_model->get_all_group(1);
+    $data['cust_list'] = $this->Main_model->get_cust_active_list();
+    $this->load->view('reminder_list', $data);
+  }
 
   public function download_pdf()
   {
@@ -900,50 +909,238 @@ class Sales extends CI_Controller
       $this->generate_pdf($html, $file_name);
     }
   }
-  // public function send_reminder_msg()
-  // {
-  //   $sal_date = date('Y-m-d');
-  //   $cust_ids = $this->input->post('cust_ids');
-  //   if (!empty($cust_ids)) {
-  //     foreach ($cust_ids as $cust_id) {
-  //       $cust_bal = $this->Main_model->get_opening_balance($cust_id, $sal_date);
-  //       $last_date = $this->Main_model->get_last_saledate($cust_id);
 
-  //       if (!empty($cust_bal)) {
-  //         $oldcrate = "";
-  //         foreach ($cust_bal['crateitems'] as $cau => $kry) {
-  //           $oldcrate .= $kry['name'] . "- " . $kry['balance'] . ',';
-  //         }
-  //         $lastsale = !empty($last_date->last_sale_date) ? date('d/m/Y', strtotime($last_date->last_sale_date)) : date('d/m/Y', strtotime('2024-04-01'));
-  //         $lastrvd = !empty($last_date->last_recvd_date) ? date('d/m/Y', strtotime($last_date->last_recvd_date)) : date('d/m/Y', strtotime('2024-04-01'));
-  //         $url = "https://www.ajayfruits.in/Sales/download_pdf?date=" . $sal_date . "&id=" . $cust_id;
-  //         $customer_name = !empty($cust_bal['m_cust_hndiname']) ? $cust_bal['m_cust_hndiname'] : $cust_bal['cust_name'];
-  //         $message = "आपके तरफ़ नीचे दी गई रकम/ केरेट बकाया है\nजमा करवा कर खाता क्लियर करे\n\n*नाम - " . $customer_name . "*\n\n🔹 *विवरण*\n\nआख़िरी बार ख़रीदी: " . $lastsale . "\nआखरी बार जमा: " . $lastrvd . "\n📌 *आज टोटल रकम बाकी:*" . $cust_bal['balance_amount'] . "\n\n📦 *खाली केरेट विवरण:*\n\n🔹 *टोटल बाकी:* " . $oldcrate . "\n\n🙏🏻*अजय कुशवाहा एंड कंपनी* \n\n 🚀 *बिल डाउनलोड करें:* [📥 Download PDF] $url";
-  //       }
-  //       if (!empty($message)) {
-  //         $response = $this->Api_Model->send_whatsapp_message($cust_bal['cust_mobile'], $message);
-  //       }
-  //     }
-  //     if ($response) {
-  //       $info = array(
-  //         'status' => 'success',
-  //         'message' => 'Reminder Send Successfilly!'
-  //       );
-  //     } else {
-  //       $info = array(
-  //         'status' => 'error',
-  //         'message' => 'Failed to send Summary!'
-  //       );
-  //     }
-  //   } else {
-  //     $info = array(
-  //       'status' => 'error',
-  //       'message' => 'Customer Id Not Found!'
-  //     );
-  //   }
-  //   echo json_encode($info);
-  // }
+  public function download_customer_statement()
+  {
 
+    $data['pagename'] = "Customer Cash Ledger";
+    $data['exporttype'] = 2;
+    $data['pagelink'] = "export_customer_cash_ledger";
+
+    $data['account_name'] = $this->input->get('account_name');
+    $cust_dtl = $this->Main_model->get_cust_dtl($data['account_name']);
+
+    $data['from_date'] = $this->input->get('from_date') ?: $cust_dtl->m_cust_added_on;
+    $data['todate'] = $this->input->get('to_date') ?: date('Y-m-d');
+    $data['subhead'] = '<div class="col-6">
+                                <h4 class="m-0"><strong>' . $cust_dtl->m_cust_name . '</strong></h4>
+                                <h4>' . $cust_dtl->m_city_name . '</h4>
+                            </div>
+                            <div class="col-6 text-end">
+                                <h4 class="m-0"></h4>
+                                <h4 class="fw-bold"> ' . date('d/m/Y', strtotime($data['from_date'])) . ' TO ' . date('d/m/Y', strtotime($data['todate'])) . '</h4>
+                            </div>';
+
+    $data['tableheader'] = '<tr><th scope="col">Sno</th>
+                                    <th scope="col">DATE</th>
+                                    <th scope="col">PARTICULARE</th>
+                                    <th scope="col">DEBIT</th>
+                                    <th scope="col">CREDIT</th>
+                                    <th scope="col">BALANCE</th>
+                                </tr>';
+
+    $all_value = $this->Report_model->customer_detailed_leger($data['from_date'], $data['todate'], $data['account_name']);
+    $opening_balance = $this->Main_model->get_opening_balance($data['account_name'], date('Y-m-d', strtotime($data['from_date'] . '-1day')));
+    $closing_balance = $this->Main_model->get_opening_balance($data['account_name'], $data['todate']);
+    $balance = $opening_balance['balance_amount'];
+
+    if ($balance > 0) {
+      $total_debit = $balance;
+      $total_credit = 0;
+    } else {
+      $total_debit = 0;
+      $total_credit = $balance;
+    }
+
+
+    $tbody = '<tr>
+        <th scope="row"></th>
+        <th scope="row">' . date('d/m/Y', strtotime($data['from_date'])) . '</th>
+        <th> Opening Balance </th>
+        <th>' . $total_debit . '</th>
+        <th>' . abs($total_credit) . '</th>
+        <th>' . $balance . '</th>
+        </tr>';
+    if (!empty($all_value)) {
+      foreach ($all_value as $contt => $key) {
+        $tbody .= '<tr>
+                            <th scope="row">' . ($contt + 1) . '</th>
+                            <th scope="row">' . date('d/m/Y', strtotime($key['date'])) . '</th>';
+        if ($key['type'] == 1) {
+          $total_credit += $key['debited'];
+          $balance -= $key['debited'];
+          $tbody .= '<td class="">
+                                    <div class="d-flex bd-highlight">
+                                        <div class="flex-grow-1 bd-highlight">
+                                        Recipt No. ' . $key['recipt_no'] . '
+                                        </div>
+                                        <div class="bd-highlight">' . $key['expense'] . '</div>
+                                    </div>
+                                    <p class="m-0">Remark :-' . $key['note'] . '</p>
+                                </td>
+                                <td></td>
+                                <td>' . $key['debited'] . '</td>
+                                <td>' . $balance . '</td>';
+        } else if ($key['type'] == 2) {
+          $text = '';
+          foreach ($key['particular'] as $ket) {
+            $text .= $ket->m_crate_name . ' : ' . $ket->m_recvd_qty . ', ';
+          }
+          $tbody .= '<td class="">
+                                    <div class="d-flex bd-highlight">
+                                        <div class="flex-grow-1 bd-highlight">
+                                            <p class="m-0">Create Receive No. ' . $key['recipt_no'] . '</p>
+                                            <p class="m-0">Remark :-' . $key['note'] . '</p>
+                                        </div>
+                                        <div class="bd-highlight">
+                                            <p class="m-0 text-end">Qty = ' . $key['total_qty'] . '</p>
+                                            <p class="m-0 text-end">' . $text . '</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>' . $key['debited'] . '</td>
+                                <td></td> 
+                                <td>' . $balance . '</td>';
+        } else  if ($key['type'] == 4) {
+          if ($key['expense'] == 1) {
+            $total_credit += $key['debited'];
+            $balance -= $key['debited'];
+            $amtdb = '';
+            $amtcdt = $key['debited'];
+          } else {
+            $total_debit += $key['debited'];
+            $balance += $key['debited'];
+            $amtdb = $key['debited'];
+            $amtcdt = '';
+          }
+
+          $tbody .= '<td class="">
+                                    <div class="d-flex bd-highlight">
+                                        <div class="flex-grow-1 bd-highlight">
+                                        Voucher No. ' . $key['recipt_no'] . '
+                                        </div>
+                                        <div class="bd-highlight">' . $key['note'] . '</div>
+                                    </div>
+                                </td>
+                                <td>' . $amtdb . '</td>
+                                <td>' .  $amtcdt . '</td>
+                                <td>' . $balance . '</td>';
+        } else {
+
+          $total_debit += $key['debited'];
+          $balance += $key['debited'];
+          $tbody .= ' <td class="">
+                                    <div class="d-flex bd-highlight">
+                                        <div class="flex-grow-1 bd-highlight">
+                                            <p class="m-0">Credit Sale No. ' . $key['recipt_no'] . '</p>';
+          foreach ($key['particular'] as $ket) {
+            $tbody .= '<p class="m-0">' . $ket->m_item_name . '</p>';
+          }
+
+          $tbody .= '</div>
+                                    <div class="bd-highlight">
+                                        <p class="m-0 text-end">Qty:' . $key['total_qty'] . ', Expense = ₹' . $key['expense'] . '</p>';
+          foreach ($key['particular'] as $ket) {
+            $tbody .= ' <p class="m-0 text-end">' . $ket->m_sale_qty . ' ' . $ket->unitname . ' @ ' . $ket->m_sale_price . ' = ' . $ket->m_sale_total . '</p>';
+          }
+
+          $tbody .= '</div>
+                                    </div>
+                                    <p class="m-0">Note :-' . $key['note'] . '</p>
+                                </td>
+                                <td>' . $key['debited'] . '</td>
+                                <td></td> 
+                                <td>' . $balance . '</td>';
+        }
+        $tbody .= '</tr>';
+      }
+    }
+
+    $tbody .= ' <tr>
+        <th colspan="3"></th>
+        <th>' . $total_debit . '</th>
+        <th>' . $total_credit . '</th>
+        <th></th>
+        </tr>';
+
+    $data['Mainarray'] =  $tbody;
+
+    $crtabi = '';
+    if (count($closing_balance['crateitems']) > 0) {
+      foreach ($closing_balance['crateitems'] as $kryr) {
+        $crtabi .=  $kryr['name'] . ' : ' . $kryr['balance'] . ',';
+      }
+    }
+
+    $data['mainfooter'] = '<div class="">
+        <table class="table border-0 m-0">
+            <tbody>
+                <tr>
+                    <td colspan="2" class="border-0">
+                        <p class="m-0">Balance Create : ' . $closing_balance['balance_crate'] . '</p>
+                        <p class="m-0">' . $crtabi . '</p>
+                    </td>
+                    <td colspan="2">
+                        <div class="text-end">
+                            <h4><strong>CLOSING BALANCE: ' .  $closing_balance['balance_amount'] . '</strong></h4>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        </div>';
+
+    $data['cust_dtl'] = $cust_dtl;
+    $data['closing_balance'] = $closing_balance;
+    $data['crtabi'] = $crtabi;
+
+    $html = $this->load->view('customer_statement_pdf', $data, true);
+    $file_name = 'Statement_' . $data['account_name'] . date('dmy') . '.pdf';
+    $this->generate_pdf($html, $file_name);
+  }
+
+  public function send_statement()
+  {
+    $from_date = $this->input->post('from_date') ?: date('Y-m-d');
+    $to_date = $this->input->post('to_date') ?: date('Y-m-d');
+    $cust_ids = $this->input->post('cust_id');
+    if (!empty($from_date) and !empty($to_date) and !empty($cust_ids)) {
+      foreach ($cust_ids as $cust_id) {
+        $cust_bal = $this->Main_model->get_opening_balance($cust_id, $to_date);
+        $url = "https://www.ajayfruits.in/Sales/download_customer_statement?account_name=" . $cust_id . "&from_date=" . $from_date . "&to_date=" . $to_date;
+        $customer_name = !empty($cust_bal['m_cust_hndiname']) ? $cust_bal['m_cust_hndiname'] : $cust_bal['cust_name'];
+        $oldcrate = "";
+        foreach ($cust_bal['crateitems'] as $cau => $kry) {
+          $oldcrate .= $kry['name'] . "- " . $kry['balance'] . ',';
+        }
+
+        $message = "📄 *खाता स्टेटमेंट विवरण*\n\n" . "*नाम - " . $customer_name . "*\n\n" . "🔹 *स्टेटमेंट अवधि*\n" . "From: " . $from_date . "\n" . "To: " . $to_date . "\n\n" . "📊 *खाते का सारांश*\n" . "कुल बैलेंस:* " . $cust_bal['balance_amount'] . "\n\n" . "📦 *केरेट स्टेटमेंट*\n🔹 *टोटल बाकी केरेट:* " . $oldcrate . "\n\n" . "🙏🏻 *अजय कुशवाहा एंड कंपनी*\n\n" . "🚀 *पूरा स्टेटमेंट डाउनलोड करें:* [📥 Download PDF] " . $url;
+       
+        if (!empty($message)) {
+          $cust_dtl = $this->Main_model->get_cust_active_list($cust_id);
+          $response = $this->Api_Model->send_whatsapp_message($cust_dtl[0]->m_cust_mobile, $message);
+        }
+      }
+     
+      if ($response) {
+        $info = array(
+          'status' => 'success',
+          'message' => 'Summary Send Successfilly!'
+        );
+      } else {
+        $info = array(
+          'status' => 'error',
+          'message' => 'Failed to send Summary!'
+        );
+      }
+    } else {
+      $info = array(
+        'status' => 'error',
+        'message' => 'Customer Id Not Found!'
+      );
+    }
+    echo json_encode($info);
+  }
 
   public function send_bill()
   {
@@ -1007,58 +1204,6 @@ class Sales extends CI_Controller
       }
     }
   }
-
-  //   public function bill_msg($sal_date, $cust_id)
-  //  {
-  //    $data = $this->Main_model->get_cust_day_summary($cust_id, date('Y-m-d', strtotime($sal_date)));
-  //    $customer_old_balance = $this->Main_model->get_opening_balance($cust_id, date('Y-m-d', strtotime($sal_date . '-1 day')));
-  //    if (!empty($data)) {
-  //
-  //      $url = "https://www.ajayfruits.in/Sales/download_pdf?date=" . $sal_date . "&id=" . $cust_id;
-  //      $customer_name = !empty($data->cust_detail->m_cust_hndiname) ? $data->cust_detail->m_cust_hndiname : $data->cust_detail->m_cust_name;
-  //      $message = "*अजय कुशवाहा एंड कंपनी* \n अंजोरा -491001 \n जिला- दुर्ग ( C.G)\n\n*नाम - " . $customer_name . "*\nदिनाक- " . date('d/m/Y', strtotime($sal_date)) . "\nबिल no-" . $data->invoice_no . "\n\n🔹 *विवरण*\n\n";
-  //
-  //      $cret10 = $cret20 = $cret25 = 0;
-  //      $oldcrate = $totalcrate = $todaycrate = $balcrate = "";
-  //      if (!empty($data->sale_data)) {
-  //        foreach ($data->sale_data as $key) {
-  //          if ($key->m_item_crate == 20) {
-  //            $cret10 += $key->m_sale_qty;
-  //          } else if ($key->m_item_crate == 13) {
-  //            $cret20 += $key->m_sale_qty;
-  //          } else if ($key->m_item_crate == 14) {
-  //            $cret25 += $key->m_sale_qty;
-  //          }
-  //
-  //          $message .= $key->m_item_name . "     " . $key->m_sale_qty . "*" . $key->m_sale_price . "\n";
-  //        }
-  //        $message .= "\nटोटल: " . $data->sub_total . "\nट्रांसपोर्ट: " . $data->total_expense . "\n\n💰 *टोटल:* " . $data->grand_total;
-  //      }
-  //      $message .= "\n💳 *पुराना बाकी:* " . $customer_old_balance['balance_amount'] . "\n📌 *टोटल बाकी:* " . ($customer_old_balance['balance_amount'] + $data->grand_total) . "\n💵 *आज जमा:* " . $data->total_recieve . "\n 💵 *कुल छूट:* " . $data->total_discount . "\n📌 *टोटल बाकी:* " . ($customer_old_balance['balance_amount'] + $data->grand_total - $data->total_recieve - $data->total_discount);
-  //
-  //      $balanceFields = [
-  //        '10 KG' => $cret10,
-  //        '20 KG' => $cret20,
-  //        '25 KG' => $cret25
-  //      ];
-  //      foreach ($customer_old_balance['crateitems'] as $cau => $kry) {
-  //        $oldcrate .= $kry['name'] . "- " . $kry['balance'] . ',';
-  //        $totalcrate .= $kry['name'] . "- " . ($kry['balance'] + $balanceFields[$kry['name']]) . ',';
-  //        if ($kry['name'] == $data->crate_data[$cau]->m_itgrp_title) {
-  //          $balcrate .= $kry['name'] . "- " . ($kry['balance'] + $balanceFields[$kry['name']] - $data->crate_data[$cau]->total_qty) . ',';
-  //       }
-  //      }
-  //      foreach ($data->crate_data as $kry) {
-  //        $todaycrate .= $kry->m_itgrp_title . "- " . $kry->total_qty . ',';
-  //      }
-  //      $message .= "\n\n📦 *खाली केरेट विवरण:*\n\n🔹 *पुराना बाकी:* " . $oldcrate . "\n🔹 *टोटल बाकी:* " . $totalcrate . "\n🔹 *आज जमा:* " . $todaycrate . "\n🔹 *टोटल बाकी:* " . $balcrate;
-  //      $message .= "\n किसी भी प्रकार की बिल में गलती होने पर इसी फोन न पर सूचित करे (8329044323) \n\n (दुर्ग न्यायालय के अंतर्गत ) \n\n";
-  //      $message .= "\n\n 🚀 *बिल डाउनलोड करें:* [📥 Download PDF] $url";
-  //      return $message;
-  //    }
-  //  } 
-
-
 
   public function send_bill_whatsapp($sal_date, $cust_id)
   {
@@ -1251,13 +1396,13 @@ class Sales extends CI_Controller
         "to"                => "91" . $cust_bal['cust_mobile'],
         "type"              => "template",
         "template"          => [
-          "name"       => "reminder_template",
+          "name"       => "reminder_msg",
           "language"   => ["code" => "hi"],
           "components" => [
             [
               "type"       => "body",
               "parameters" => [
-                 ["type" => "text", "text" => $this->safe($customer_name)], //1
+                ["type" => "text", "text" => $this->safe($customer_name)], //1
                 ["type" => "text", "text" => $this->safe($lastsale)], //2
                 ["type" => "text", "text" => $this->safe($lastrvd)], //3
                 ["type" => "text", "text" => $this->safe($cust_bal['balance_amount'])], //4
@@ -1290,8 +1435,6 @@ class Sales extends CI_Controller
     ]);
   }
 
-
-
   private function send_api_request($data, $phone_number_id, $apikey)
   {
     $url = "https://partnersv1.pinbot.ai/v3/" . $phone_number_id . "/messages";
@@ -1323,37 +1466,37 @@ class Sales extends CI_Controller
     return $response;
   }
 
-  public function test_whatsapp()
-  {
-    $phone_number_id = "1075803802285561";  // ← Fixed: updated from console.pinbot.ai
-    $apikey          = "bd492389-3e22-11f1-894a-02c8a5e042bd";
+  // public function test_whatsapp()
+  // {
+  //   $phone_number_id = "1075803802285561";  // ← Fixed: updated from console.pinbot.ai
+  //   $apikey          = "bd492389-3e22-11f1-894a-02c8a5e042bd";
 
-    $cust_list = $this->Main_model->get_cust_active_list();
-    foreach ($cust_list as $cust_id) {
-      $payload = [
-        "messaging_product" => "whatsapp",
-        "recipient_type"    => "individual",
-        "to"                => "91" . $cust_id->m_cust_mobile, // सही नंबर डालो
-        "type"              => "template",
-        "template"          => [
-          "name"       => "information",
-          "language"   => ["code" => "hi"],
-          "components" => [
-            [
-              "type"       => "body",       // ← Fixed: added required body component
-              "parameters" => []
-            ]
-          ]
-        ]
-      ];
+  //   $cust_list = $this->Main_model->get_cust_active_list();
+  //   foreach ($cust_list as $cust_id) {
+  //     $payload = [
+  //       "messaging_product" => "whatsapp",
+  //       "recipient_type"    => "individual",
+  //       "to"                => "91" . $cust_id->m_cust_mobile, // सही नंबर डालो
+  //       "type"              => "template",
+  //       "template"          => [
+  //         "name"       => "information",
+  //         "language"   => ["code" => "hi"],
+  //         "components" => [
+  //           [
+  //             "type"       => "body",       // ← Fixed: added required body component
+  //             "parameters" => []
+  //           ]
+  //         ]
+  //       ]
+  //     ];
 
-      $response = $this->send_api_request($payload, $phone_number_id, $apikey);
-      echo "<pre>";
-      echo $response;
-      echo "</pre>";
-    }
-    die;
-  }
+  //     $response = $this->send_api_request($payload, $phone_number_id, $apikey);
+  //     echo "<pre>";
+  //     echo $response;
+  //     echo "</pre>";
+  //   }
+  //   die;
+  // }
 
   public function generate_pdf($html, $file_name)
   {
@@ -1387,6 +1530,7 @@ class Sales extends CI_Controller
       }
     }
   }
+
   public function update_cust_crtbal_cron()
   {
     $cust_list = $this->Main_model->get_cust_active_list();
@@ -1397,6 +1541,7 @@ class Sales extends CI_Controller
       }
     }
   }
+
   public function update_supplier_balcron()
   {
     $supplier_list = $this->Main_model->get_active_users(2);

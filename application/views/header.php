@@ -33,9 +33,7 @@
                             <li><a class="dropdown-item" href="<?= base_url('Master/expense_account_list') ?>">Expense Account</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Master/bank_account_list') ?>">Bank Account</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Master/cash_account_list') ?>">Cash Account</a></li>
-
                             <li><a class="dropdown-item" href="<?= base_url('Master/group_list') ?>">Groups</a></li>
-                            <li><a class="dropdown-item" href="<?= base_url('Reports/stock_list') ?>">Stock List</a></li>
 
                         </ul>
                     </div>

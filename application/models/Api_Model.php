@@ -113,7 +113,7 @@ class Api_Model extends CI_model
 							"name" => "25 KG",
 							"balance" => $key->m_cust_25bal
 						]
-						],
+					],
 					// "crate_given" => (int)($get_ledge['crate_given']),
 					// "crate_recieved" => (int)($get_ledge['crate_recieved']),
 					"balance_crate" => (int)($key->m_cust_10bal + $key->m_cust_20bal + $key->m_cust_25bal),
@@ -1728,6 +1728,7 @@ class Api_Model extends CI_model
 
 	function send_whatsapp_message($mobile, $message)
 	{
+
 		$api_key = "895e94ca55a647c0ab22698999d0a3fc";
 		$url = "https://web.cloudwhatsapp.com/wapp/api/send";
 

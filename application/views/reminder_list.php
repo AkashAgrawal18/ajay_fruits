@@ -136,7 +136,7 @@
                     </form>
                 </div>
             </div>
-        <?php } else { ?>
+        <?php } else if ($pgtype == 2) { ?>
             <div class="card p-3">
                 <form action="" id="frm-send-summary" method="post">
                     <div class="row">
@@ -187,6 +187,69 @@
 
                         <div class="col-3">
                             <button class="btn btn-success mt-4" type="submit" id="btn-send-summary">Submit</button>
+                        </div>
+                        <div class="col-12 mt-3" id="selected-custo">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        <?php } else { ?>
+            <div class="card p-3">
+                <form action="" id="frm-send-statement" method="post">
+                    <div class="row">
+                        <div class="col-3">
+                            <div class="form-group">
+                                <label>Date <span class="text-danger">*</span></label>
+                                <input type="date" name="from_date" id="from_date" class="form-control" required autofocus value="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d') ?>">
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="form-group">
+                                <label>Date <span class="text-danger">*</span></label>
+                                <input type="date" name="to_date" id="to_date" class="form-control" required autofocus value="<?= date('Y-m-d') ?>" max="<?= date('Y-m-d') ?>">
+                            </div>
+                        </div>
+
+                        <div class="col-3">
+                            <div class="form-group">
+                                <label for="">Group (optional)</label>
+                                <select name="group_id" id="group_id" class="form-select select2">
+                                    <option value="">All Group</option>
+                                    <option value="0">Admin</option>
+                                    <?php
+                                    if (!empty($group_dtl)) {
+                                        foreach ($group_dtl as $vat) {
+                                            $option1 = ($group_id == $vat->m_group_id) ? "selected" : "";
+                                    ?>
+                                            <option value="<?php echo $vat->m_group_id; ?>" <?= $option1 ?>><?= $vat->m_group_name; ?></option>
+                                    <?php
+                                        }
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-3">
+                            <div class="form-group">
+                                <label for="">Customer</label>
+                                <select name="cust_id[]" id="cust_id" class="form-select select2" multiple required>
+                                    <option value="all">Select all</option>
+                                    <?php
+                                    if (!empty($cust_list)) {
+                                        foreach ($cust_list as $vat) {
+                                    ?>
+                                            <option value="<?php echo $vat->m_cust_id; ?>" data-group="<?= $vat->m_cust_group ?>"> <?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile; ?></option>
+                                    <?php
+                                        }
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-3">
+                            <button class="btn btn-success mt-4" type="submit" id="btn-send-statement">Submit</button>
                         </div>
                         <div class="col-12 mt-3" id="selected-custo">
                         </div>
