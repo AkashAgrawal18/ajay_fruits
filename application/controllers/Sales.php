@@ -193,10 +193,7 @@ class Sales extends CI_Controller
             'message' => 'Sale Details Updated Successfully'
           );
         } else {
-          $info = array(
-            'status' => 'error',
-            'message' => 'Sale Already Exist'
-          );
+          $info = $data;
         }
       } else {
         $info = array(
@@ -375,7 +372,7 @@ class Sales extends CI_Controller
   {
     $data = $this->login_details();
 
-    $data['pagename'] = "All Purchase Item list";
+    $data['pagename'] = "Stock in & out Report";
     $curdate = date('Y-m-d');
     $data['from_date'] = $this->input->post('from_date') ?: date('Y-m-d');
     $data['to_date'] = $this->input->post('to_date') ?: $curdate;

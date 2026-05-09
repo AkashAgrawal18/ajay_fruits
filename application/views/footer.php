@@ -5,7 +5,7 @@
 <script src="<?= base_url('assets/lib/sweet-alerts/js/sweetalert.min.js') ?>"></script>
 <script src="<?= base_url('assets/lib/sweet-alerts/js/custom-sweetalerts.js') ?>"></script>
 <script src="<?= base_url('assets/lib/select2/dist/js/select2.min.js'); ?>"></script>
-
+<script src="<?= base_url('assets/js/tablesearch.js') ?>"></script>
 
 <script type="text/javascript">
     $(document).ready(function() {

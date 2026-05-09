@@ -87,7 +87,7 @@
     <div class="row align-items-stretch g-4 py-2 w-100">
         <div class="col-md-2">
             <a href="<?= base_url('Sales/send_individual_statement') ?>" class="text-decoration-none">
-                <div class="card card-cover text-white" style="background: linear-gradient(135deg, #a6a6ff, #010081);">
+                <div class="card card-cover text-white" style="background: linear-gradient(135deg, #8080ee, #010081);">
                     <div class="d-flex flex-column text-center text-white py-2">
                         <h6 class="fw-bold mb-0">Send Statement</h6>
                     </div>
@@ -96,7 +96,7 @@
         </div>
         <div class="col-md-2">
             <a href="<?= base_url('Sales/send_bill_indiviouly') ?>" class="text-decoration-none">
-                <div class="card card-cover text-white" style="background: linear-gradient(135deg, #a6a6ff, #010081);">
+                <div class="card card-cover text-white" style="background: linear-gradient(135deg, #8080ee, #010081);">
                     <div class="d-flex flex-column text-center text-white py-2">
                         <h6 class="fw-bold mb-0">Send Summary</h6>
                     </div>
@@ -105,7 +105,7 @@
         </div>
         <div class="col-md-2">
             <a href="<?= base_url('Sales/Reminder_list') ?>" class="text-decoration-none">
-                <div class="card card-cover text-white" style="background: linear-gradient(135deg, #a6a6ff, #010081);">
+                <div class="card card-cover text-white" style="background: linear-gradient(135deg, #8080ee, #010081);">
                     <div class="d-flex flex-column text-center text-white py-2">
                         <h6 class="fw-bold mb-0">Outstanding Reminder</h6>
                     </div>
@@ -114,9 +114,19 @@
         </div>
         <div class="col-md-2">
             <a href="<?= base_url('Sales/purchase_item_list') ?>" class="text-decoration-none">
-                <div class="card card-cover text-white" style="background: linear-gradient(135deg, #a6a6ff, #010081);">
+                <div class="card card-cover text-white" style="background: linear-gradient(135deg, #8080ee, #010081);">
                     <div class="d-flex flex-column text-center text-white py-2">
                         <h6 class="fw-bold mb-0">Stock In & Out report </h6>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="<?= base_url('Reports/reports_list?report=linewise') ?>" class="text-decoration-none">
+
+                <div class="card card-cover text-white" style="background: linear-gradient(135deg, #ffa310, #dd8100);">
+                    <div class="d-flex flex-column text-center text-white py-2">
+                        <h6 class="fw-bold mb-0">Line Wise Sale Report</h6>
                     </div>
                 </div>
             </a>

@@ -57,7 +57,7 @@ if ($is_cust_in == false) {
             </div>
             <div class="col-6 text-end">
                 <?php if ($this->session->userdata('is_cust_in') == true) {
-                    echo '<a href="'.base_url('Login/logout_cust').'" class="btn btn-danger btn-sm">
+                    echo '<a href="' . base_url('Login/logout_cust') . '" class="btn btn-danger btn-sm">
                       <i class="bi bi-box-arrow-left me-2"></i>Exit
                   </a>';
                 } else {
@@ -86,7 +86,7 @@ if ($is_cust_in == false) {
                                     <label for="" class="mb-0 form-label small">Date From</label>
                                 </div>
                                 <div class="col-9">
-                                    <input type="date" max="<?= date('Y-m-d')?>" name="from_date" id="from_date" value="<?= date('Y-m-d') ?>" class="form-control">
+                                    <input type="date" max="<?= date('Y-m-d') ?>" name="from_date" id="from_date" value="<?= date('Y-m-d') ?>" class="form-control">
                                 </div>
                             </div>
                         </div>
@@ -96,7 +96,7 @@ if ($is_cust_in == false) {
                                     <label for="" class="mb-0 form-label small">To </label>
                                 </div>
                                 <div class="col-9">
-                                    <input type="date" max="<?= date('Y-m-d')?>" name="to_date" id="to_date" value="<?= date('Y-m-d') ?>" class="form-control">
+                                    <input type="date" max="<?= date('Y-m-d') ?>" name="to_date" id="to_date" value="<?= date('Y-m-d') ?>" class="form-control">
                                 </div>
                             </div>
                         </div>
@@ -176,233 +176,233 @@ if ($is_cust_in == false) {
 <?php } else if ($pagetype == 2) { ?>
 
     <section class="pt-3 px-4 d-flex " style="background:#f3f3ff;min-height:77vh;">
-            <form class="row g-5 bfilterform" method="post" action="<?= base_url('Reports/credit_sale') ?>" id="frm-report-list">
-                <div class="col-3">
-                    <img src="<?php echo base_url("assets/imgs/account.png"); ?>" alt="text" class="w-100">
-                </div>
+        <form class="row g-5 bfilterform" method="post" action="<?= base_url('Reports/credit_sale') ?>" id="frm-report-list">
+            <div class="col-3">
+                <img src="<?php echo base_url("assets/imgs/account.png"); ?>" alt="text" class="w-100">
+            </div>
 
-                <div class="col-9">
-                    <div class="row row-cols-5 g-2" id="report_table">
-                        <div class="col">
-                            <div class="card p-2 rounded-3 border-0 trclass cust_btn active" id="tr1" data-value="<?= base_url('Reports/credit_sale') ?>">
-                                <p class="m-0 small"><i class="bi bi-caret-right-fill"></i><small> Sale
-                                        Report</small></p>
-                            </div>
+            <div class="col-9">
+                <div class="row row-cols-5 g-2" id="report_table">
+                    <div class="col">
+                        <div class="card p-2 rounded-3 border-0 trclass cust_btn active" id="tr1" data-value="<?= base_url('Reports/credit_sale') ?>">
+                            <p class="m-0 small"><i class="bi bi-caret-right-fill"></i><small> Sale
+                                    Report</small></p>
                         </div>
-                        <div class="col">
-                            <div class="card p-2 rounded-3 border-0 trclass cust_btn" id="tr2" data-value="<?= base_url('Reports/crate_recieve/2') ?>">
-                                <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Crate Recieve Report</small>
-                                </p>
-                            </div>
+                    </div>
+                    <div class="col">
+                        <div class="card p-2 rounded-3 border-0 trclass cust_btn" id="tr2" data-value="<?= base_url('Reports/crate_recieve/2') ?>">
+                            <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Crate Recieve Report</small>
+                            </p>
                         </div>
-                        <div class="col">
-                            <div class="card p-2 rounded-3 border-0 trclass suplier_btn" id="tr3" data-value="<?= base_url('Reports/payment_report/2') ?>">
-                                <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Crate Issue Report</small>
-                                </p>
-                            </div>
+                    </div>
+                    <div class="col">
+                        <div class="card p-2 rounded-3 border-0 trclass suplier_btn" id="tr3" data-value="<?= base_url('Reports/payment_report/2') ?>">
+                            <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Crate Issue Report</small>
+                            </p>
                         </div>
-                        <div class="col">
-                            <div class="card p-2 rounded-3 border-0 trclass cust_btn" id="tr4" data-value="<?= base_url('Reports/crate_recieve/1') ?>">
-                                <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Receipt Report Cash/AC</small>
-                                </p>
-                            </div>
+                    </div>
+                    <div class="col">
+                        <div class="card p-2 rounded-3 border-0 trclass cust_btn" id="tr4" data-value="<?= base_url('Reports/crate_recieve/1') ?>">
+                            <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Receipt Report Cash/AC</small>
+                            </p>
                         </div>
-                        <div class="col">
-                            <div class="card p-2 rounded-3 border-0 trclass suplier_btn" id="tr5" data-value="<?= base_url('Reports/payment_report/1') ?>">
-                                <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Payment Report Cash/AC</small>
-                                </p>
-                            </div>
+                    </div>
+                    <div class="col">
+                        <div class="card p-2 rounded-3 border-0 trclass suplier_btn" id="tr5" data-value="<?= base_url('Reports/payment_report/1') ?>">
+                            <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Payment Report Cash/AC</small>
+                            </p>
                         </div>
-                        <div class="col">
-                            <div class="card p-2 rounded-3 border-0 trclass suplier_btn" id="tr6" data-value="<?= base_url('Reports/purchase_report') ?>">
-                                <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Purchase Report</small></p>
-                            </div>
+                    </div>
+                    <div class="col">
+                        <div class="card p-2 rounded-3 border-0 trclass suplier_btn" id="tr6" data-value="<?= base_url('Reports/purchase_report') ?>">
+                            <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Purchase Report</small></p>
                         </div>
-                        <div class="col">
-                            <div class="card p-2 rounded-3 border-0 trclass agent_btn" id="tr7" data-value="<?= base_url('Reports/staff_report') ?>">
-                                <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Staff Sale Report</small></p>
-                            </div>
+                    </div>
+                    <div class="col">
+                        <div class="card p-2 rounded-3 border-0 trclass agent_btn" id="tr7" data-value="<?= base_url('Reports/staff_report') ?>">
+                            <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Staff Sale Report</small></p>
                         </div>
-                        <div class="col">
-                            <div class="card p-2 rounded-3 border-0 trclass agent_btn" id="tr8" data-value="<?= base_url('Reports/phone_book') ?>">
-                                <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Customer Phone Book</small></p>
-                            </div>
+                    </div>
+                    <div class="col">
+                        <div class="card p-2 rounded-3 border-0 trclass agent_btn" id="tr8" data-value="<?= base_url('Reports/phone_book') ?>">
+                            <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Customer Phone Book</small></p>
                         </div>
-                        <div class="col">
-                            <div class="card p-2 rounded-3 border-0 trclass suplier_btn" id="tr9" data-value="<?= base_url('Reports/turck_report') ?>">
-                                <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Truck Profit and Loss Report</small></p>
-                            </div>
+                    </div>
+                    <div class="col">
+                        <div class="card p-2 rounded-3 border-0 trclass suplier_btn" id="tr9" data-value="<?= base_url('Reports/turck_report') ?>">
+                            <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Truck Profit and Loss Report</small></p>
                         </div>
-                        <!-- <div class="col">
+                    </div>
+                    <!-- <div class="col">
                             <div class="card p-2 rounded-3 border-0 trclass agent_btn" data-fild="1" data-value="<? //= base_url('Reports/staff_performance_report') 
                                                                                                                     ?>">
                                 <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Staff Performance Report</small></p>
                             </div>
                         </div> -->
-                        <div class="col">
-                            <div class="card p-2 rounded-3 border-0 trclass agent_btn" id="tr10" data-fild="1" data-value="<?= base_url('Reports/staff_performance_new_report') ?>">
-                                <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Line Wise Sale Report</small></p>
-                            </div>
+                    <div class="col">
+                        <div class="card p-2 rounded-3 border-0 trclass agent_btn" id="tr10" data-fild="1" data-value="<?= base_url('Reports/staff_performance_new_report') ?>">
+                            <p class=" m-0 small"><i class="bi bi-caret-right-fill"></i><small> Line Wise Sale Report</small></p>
                         </div>
-
                     </div>
-                    <div class="row g-4 mt-4">
-                        <div class="col-12">
-                            <div class="row g-4 align-items-center justify-content-between">
-                                <div class="col-2">
-                                    <label for="" class="mb-0 form-label small">Date From</label>
-                                </div>
-                                <div class="col-10">
-                                    <div class="row">
-                                        <div class="col-5">
-                                            <input type="date" max="<?= date('Y-m-d')?>" name="from_date" id="from_date" value="<?= date('Y-m-d') ?>" class="form-control">
-                                        </div>
-                                        <div class="col-2">
-                                            <label for="" class="mb-0 form-label small">To </label>
-                                        </div>
-                                        <div class="col-5">
-                                            <input type="date" max="<?= date('Y-m-d')?>" name="to_date" id="to_date" value="<?= date('Y-m-d') ?>" class="form-control">
-                                        </div>
+
+                </div>
+                <div class="row g-4 mt-4">
+                    <div class="col-12">
+                        <div class="row g-4 align-items-center justify-content-between">
+                            <div class="col-2">
+                                <label for="" class="mb-0 form-label small">Date From</label>
+                            </div>
+                            <div class="col-10">
+                                <div class="row">
+                                    <div class="col-5">
+                                        <input type="date" max="<?= date('Y-m-d') ?>" name="from_date" id="from_date" value="<?= date('Y-m-d') ?>" class="form-control">
+                                    </div>
+                                    <div class="col-2">
+                                        <label for="" class="mb-0 form-label small">To </label>
+                                    </div>
+                                    <div class="col-5">
+                                        <input type="date" max="<?= date('Y-m-d') ?>" name="to_date" id="to_date" value="<?= date('Y-m-d') ?>" class="form-control">
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="col-12" id="cust_div">
-                            <div class="row g-4 align-items-center">
-                                <div class="col">
-                                    <label for="" class="mb-0 form-label small">Customer Accounts</label>
-                                </div>
-                                <div class="col-10">
-                                    <select name="customers" id="customers" class="form-select select2">
-                                        <option value="">All</option>
-                                        <?php
-                                        foreach ($cust_dtl as $calue) {
-
-                                            // if ($city == $city_value->m_city_id) {
-                                            //     $option1 = "selected";
-                                            // } else {
-                                            // $option1 = "";
-                                            // }
-
-                                        ?>
-                                            <option value="<?php echo $calue->m_cust_id; ?>">
-                                                <?php echo $calue->m_cust_name . ' | ' . $calue->m_cust_mobile ?>
-                                            </option>
-                                        <?php
-                                        }
-
-                                        ?>
-
-                                    </select>
-                                </div>
+                    <div class="col-12" id="cust_div">
+                        <div class="row g-4 align-items-center">
+                            <div class="col">
+                                <label for="" class="mb-0 form-label small">Customer Accounts</label>
                             </div>
-                        </div>
+                            <div class="col-10">
+                                <select name="customers" id="customers" class="form-select select2">
+                                    <option value="">All</option>
+                                    <?php
+                                    foreach ($cust_dtl as $calue) {
 
-                        <div class="col-12 d-none" id="sup_div">
-                            <div class="row g-4 align-items-center">
-                                <div class="col">
-                                    <label for="" class="mb-0 form-label small">Supplier Accounts</label>
-                                </div>
-                                <div class="col-10">
-                                    <select name="suppiler" id="suppiler" class="form-select select2">
-                                        <option value="">All</option>
-                                        <?php
-                                        foreach ($supl_dtl as $calue) {
+                                        // if ($city == $city_value->m_city_id) {
+                                        //     $option1 = "selected";
+                                        // } else {
+                                        // $option1 = "";
+                                        // }
 
-                                            // if ($city == $city_value->m_city_id) {
-                                            //     $option1 = "selected";
-                                            // } else {
-                                            // $option1 = "";
-                                            // }
+                                    ?>
+                                        <option value="<?php echo $calue->m_cust_id; ?>">
+                                            <?php echo $calue->m_cust_name . ' | ' . $calue->m_cust_mobile ?>
+                                        </option>
+                                    <?php
+                                    }
 
-                                        ?>
-                                            <option value="<?php echo $calue->m_user_id; ?>">
-                                                <?php echo $calue->m_user_name . ' | ' . $calue->m_user_mobile ?>
-                                            </option>
-                                        <?php
-                                        }
+                                    ?>
 
-                                        ?>
-
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-12 d-none" id="agent_div">
-                            <div class="row g-4 align-items-center">
-                                <div class="col">
-                                    <label for="" class="mb-0 form-label small">Agent Accounts</label>
-                                </div>
-                                <div class="col-10">
-                                    <select name="agent" id="agent" class="form-select select2">
-                                        <option value="">All</option>
-                                        <?php
-                                        foreach ($agent_dtl as $calue) {
-
-                                            // if ($city == $city_value->m_city_id) {
-                                            //     $option1 = "selected";
-                                            // } else {
-                                            // $option1 = "";
-                                            // }
-
-                                        ?>
-                                            <option value="<?php echo $calue->m_user_id; ?>">
-                                                <?php echo $calue->m_user_name . ' | ' . $calue->m_user_mobile ?>
-                                            </option>
-                                        <?php
-                                        }
-
-                                        ?>
-
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-12 d-none" id="sprtype">
-                            <div class="row g-4 align-items-center">
-                                <div class="col">
-                                    <label for="report_type" class="mb-0 form-label small">Report Type</label>
-                                </div>
-                                <div class="col-10">
-                                    <select name="report_type" id="report_type" class="form-select select2">
-                                        <option value="1">Sale Report</option>
-                                        <option value="2">Amount Recieved Report</option>
-                                        <option value="3">Crate Recieved Report</option>
-
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="row g-4 align-items-center">
-                                <div class="col">
-                                    <label for="" class="mb-0 form-label small">Order By</label>
-                                </div>
-                                <div class="col-10">
-                                    <select name="orderby" id="orderby" class="form-select select2">
-                                        <option value="3">Date Wise</option>
-                                        <option value="1">Name Wise</option>
-                                        <option value="2">Amount Wise</option>
-                                        <option value="4">Date Amount Wise</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-12">
-                            <div class="d-flex gap-2 justify-content-end">
-                                <button class="btn btn-warning rounded-pill submit_btn px-5" name="summary" type="submit" value="1">Summary</button>
-                                <button class="btn btn-primary rounded-pill submit_btn px-5" name="summary" type="submit" value="2">Detail</button>
+                                </select>
                             </div>
                         </div>
                     </div>
-                </div>
 
-            </form>
+                    <div class="col-12 d-none" id="sup_div">
+                        <div class="row g-4 align-items-center">
+                            <div class="col">
+                                <label for="" class="mb-0 form-label small">Supplier Accounts</label>
+                            </div>
+                            <div class="col-10">
+                                <select name="suppiler" id="suppiler" class="form-select select2">
+                                    <option value="">All</option>
+                                    <?php
+                                    foreach ($supl_dtl as $calue) {
+
+                                        // if ($city == $city_value->m_city_id) {
+                                        //     $option1 = "selected";
+                                        // } else {
+                                        // $option1 = "";
+                                        // }
+
+                                    ?>
+                                        <option value="<?php echo $calue->m_user_id; ?>">
+                                            <?php echo $calue->m_user_name . ' | ' . $calue->m_user_mobile ?>
+                                        </option>
+                                    <?php
+                                    }
+
+                                    ?>
+
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-none" id="agent_div">
+                        <div class="row g-4 align-items-center">
+                            <div class="col">
+                                <label for="" class="mb-0 form-label small">Agent Accounts</label>
+                            </div>
+                            <div class="col-10">
+                                <select name="agent" id="agent" class="form-select select2">
+                                    <option value="">All</option>
+                                    <?php
+                                    foreach ($agent_dtl as $calue) {
+
+                                        // if ($city == $city_value->m_city_id) {
+                                        //     $option1 = "selected";
+                                        // } else {
+                                        // $option1 = "";
+                                        // }
+
+                                    ?>
+                                        <option value="<?php echo $calue->m_user_id; ?>">
+                                            <?php echo $calue->m_user_name . ' | ' . $calue->m_user_mobile ?>
+                                        </option>
+                                    <?php
+                                    }
+
+                                    ?>
+
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-none" id="sprtype">
+                        <div class="row g-4 align-items-center">
+                            <div class="col">
+                                <label for="report_type" class="mb-0 form-label small">Report Type</label>
+                            </div>
+                            <div class="col-10">
+                                <select name="report_type" id="report_type" class="form-select select2">
+                                    <option value="1">Sale Report</option>
+                                    <option value="2">Amount Recieved Report</option>
+                                    <option value="3">Crate Recieved Report</option>
+
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="row g-4 align-items-center">
+                            <div class="col">
+                                <label for="" class="mb-0 form-label small">Order By</label>
+                            </div>
+                            <div class="col-10">
+                                <select name="orderby" id="orderby" class="form-select select2">
+                                    <option value="3">Date Wise</option>
+                                    <option value="1">Name Wise</option>
+                                    <option value="2">Amount Wise</option>
+                                    <option value="4">Date Amount Wise</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button class="btn btn-warning rounded-pill submit_btn px-5" name="summary" type="submit" value="1">Summary</button>
+                            <button class="btn btn-primary rounded-pill submit_btn px-5" name="summary" type="submit" value="2">Detail</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </form>
     </section>
 
 <?php } else if ($pagetype == 3) {  ?>
@@ -440,13 +440,13 @@ if ($is_cust_in == false) {
                                 <div class="col-10">
                                     <div class="row">
                                         <div class="col-5">
-                                            <input type="date" max="<?= date('Y-m-d')?>" name="from_date" id="from_date" value="<?= date('Y-m-d') ?>" class="form-control">
+                                            <input type="date" max="<?= date('Y-m-d') ?>" name="from_date" id="from_date" value="<?= date('Y-m-d') ?>" class="form-control">
                                         </div>
                                         <div class="col-2">
                                             <label for="" class="mb-0 form-label small">To </label>
                                         </div>
                                         <div class="col-5">
-                                            <input type="date" max="<?= date('Y-m-d')?>" name="to_date" id="to_date" value="<?= date('Y-m-d') ?>" class="form-control">
+                                            <input type="date" max="<?= date('Y-m-d') ?>" name="to_date" id="to_date" value="<?= date('Y-m-d') ?>" class="form-control">
                                         </div>
                                     </div>
                                 </div>
@@ -537,7 +537,7 @@ if ($is_cust_in == false) {
 <?php $this->view('js/custom_js') ?>
 
 <script>
-    $(document).ready(function () {
+    $(document).ready(function() {
         // Restore form data if available
         if (sessionStorage.getItem("ledgerFormData")) {
             let formData = JSON.parse(sessionStorage.getItem("ledgerFormData"));
@@ -558,7 +558,7 @@ if ($is_cust_in == false) {
         }
 
         // Save form data before submission
-        $("#frm-ledger-list").on("submit", function () {
+        $("#frm-ledger-list").on("submit", function() {
             let formData = {
                 account_type: $("#account_type").val(),
                 from_date: $("#from_date").val(),
@@ -582,7 +582,7 @@ if ($is_cust_in == false) {
         }
 
         // Save form data before submission
-        $("#frm-report-list").on("submit", function () {
+        $("#frm-report-list").on("submit", function() {
             let formData = {
                 id: $(".trclass.active").attr('id'),
                 from_date: $("#from_date").val(),
@@ -603,11 +603,11 @@ if ($is_cust_in == false) {
             $("#agent").val(formData.agent || "").trigger("change");
             $("#cratetype").val(formData.cratetype || "").trigger("change");
             $("#orderby").val(formData.orderby || "").trigger("change");
-           
+
         }
 
         // Save form data before submission
-        $("#frm-balance_report").on("submit", function () {
+        $("#frm-balance_report").on("submit", function() {
             let formData = {
                 from_date: $("#from_date").val(),
                 agent: $("#agent").val(),
@@ -618,6 +618,14 @@ if ($is_cust_in == false) {
             sessionStorage.setItem("balanceFormData", JSON.stringify(formData));
         });
 
+        // URL parameter check
+        const urlParams = new URLSearchParams(window.location.search);
+        const report = urlParams.get('report');
+
+        // Trigger tr10 automatically
+        if (report == 'linewise') {
+            $('#tr10').trigger('click');
+        }
+
     });
 </script>
-

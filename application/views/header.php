@@ -56,7 +56,7 @@
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="<?= base_url('Sales/send_bill_indiviouly') ?>">Send Summary</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Sales/Reminder_list') ?>">Reminder List</a></li>
-                            <li><a class="dropdown-item" href="<?= base_url('Sales/purchase_item_list') ?>">Purchase Item list</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('Sales/purchase_item_list') ?>">Stock in & out Report</a></li>
                         </ul>
                     </div>
                     <div class="btn-group">

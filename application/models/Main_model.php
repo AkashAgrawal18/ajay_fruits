@@ -743,7 +743,7 @@ class Main_model extends CI_model
   //===================== custgrp =======================//
 
   //===================== item_issue =======================//
-  public function get_edit_item_issue($id='',$lot_no = '',$type = '')
+  public function get_edit_item_issue($id = '', $lot_no = '', $type = '')
   {
     $this->db->select('staff_itemissue_tbl.*,m_item_name,group.m_itgrp_title as groupname,crate.m_itgrp_title as cratetype,si_issue_user,unit.m_itgrp_title as unitname,m_user_name,m_user_mobile,(select m_purcs_lot from master_purchase_tbl where si_issue_lotno = m_purcs_id) as pur_lotno,(select m_purcs_available from master_purchase_tbl where si_issue_lotno = m_purcs_id) as available_stock'); //new change
     $this->db->join('master_item_tbl mit', 'mit.m_item_id = staff_itemissue_tbl.si_issue_item', 'left')
@@ -751,15 +751,15 @@ class Main_model extends CI_model
       ->join('master_itemgroup_tbl as group', 'group.m_itgrp_id = mit.m_item_group', 'left')
       ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')
       ->join('master_itemgroup_tbl as unit', 'unit.m_itgrp_id = mit.m_item_unit', 'left');
-      if(!empty($lot_no)){
-        $this->db->where('si_issue_lotno', $lot_no);
-      }
-      if(!empty($type)){
-        $this->db->where('si_issue_type', $type);
-      }
-      if(!empty($id)){
-        $this->db->where('si_issue_spo', $id);
-      }
+    if (!empty($lot_no)) {
+      $this->db->where('si_issue_lotno', $lot_no);
+    }
+    if (!empty($type)) {
+      $this->db->where('si_issue_type', $type);
+    }
+    if (!empty($id)) {
+      $this->db->where('si_issue_spo', $id);
+    }
     $this->db->where('si_issue_status', 1);
     $this->db->order_by('m_item_name');
     return $this->db->get('staff_itemissue_tbl')->result();
@@ -800,66 +800,187 @@ class Main_model extends CI_model
     return $this->db->get('staff_itemissue_tbl')->result();
   }
 
+  // public function insert_issue_item()
+  // {
+
+  //   $issue_id = $this->input->post('si_issue_id');
+  //   $issue_item = $this->input->post('si_issue_item');
+  //   $pre_qty = $this->input->post('pre_item_qty');
+  //   $issue_qty = $this->input->post('si_issue_qty');
+  //   $issue_weight = $this->input->post('si_issue_weight');
+  //   $issue_crate = $this->input->post('si_issue_crate');
+  //   $issue_price = $this->input->post('si_issue_price');
+  //   $issue_total = $this->input->post('si_issue_total');
+  //   $issue_lotno = $this->input->post('si_issue_lotno');
+
+  //   $issue_dtl = $this->db->select('si_issue_spo')->where('si_issue_type', 1)->order_by('si_issue_id', 'desc')->group_by('si_issue_spo')->get('staff_itemissue_tbl')->result();
+  //   if (!empty($issue_dtl)) {
+  //     $spo_coun = explode('/', $issue_dtl[0]->si_issue_spo);
+  //     $issue_spo = ((int) $spo_coun[0] + 1) . '/' . date('dm', strtotime($this->input->post('si_issue_date')));
+  //   } else {
+  //     $issue_spo = '1/' . date('dm', strtotime($this->input->post('si_issue_date')));
+  //   }
+
+
+  //   foreach ($issue_item as $key => $cau) {
+
+  //     $insert_data = array(
+  //       "si_issue_date" => $this->input->post('si_issue_date'),
+  //       "si_issue_trackno" => $this->input->post('si_issue_trackno'),
+  //       "si_issue_type" => $this->input->post('si_issue_type'),
+  //       "si_issue_user" => $this->input->post('si_issue_user'),
+  //       "si_issue_item" => $cau,
+  //       "si_issue_qty" => $issue_qty[$key],
+  //       "si_issue_lotno" => $issue_lotno[$key],
+  //       "si_issue_weight" => $issue_weight[$key],
+  //       "si_issue_crate" => $issue_crate[$key],
+  //       "si_issue_price" => $issue_price[$key],
+  //       "si_issue_total" => $issue_total[$key],
+
+  //     );
+
+  //     if (!empty($issue_id[$key])) {
+  //       $new_qty = ((int) $issue_qty[$key] - (int) $pre_qty[$key]);
+  //       $this->db->where('si_issue_id', $issue_id[$key])->update('staff_itemissue_tbl', $insert_data);
+  //       $this->update_cust_balance(null, null, $new_qty, $cau, $issue_lotno[$key]);
+  //       $res = 2;
+  //     } else {
+  //       if (!empty($this->input->post('si_issue_spo'))) {
+  //         $insert_data['si_issue_spo'] = $this->input->post('si_issue_spo');
+  //       } else {
+  //         $insert_data['si_issue_spo'] = $issue_spo;
+  //       }
+  //       $insert_data['si_issue_status'] = 1;
+  //       $insert_data['si_issue_added_by'] = $this->session->userdata('user_id');
+  //       $insert_data['si_issue_added_on'] = date('Y-m-d H:i');
+  //       $this->db->insert('staff_itemissue_tbl', $insert_data);
+
+  //       $this->update_cust_balance(null, null, $issue_qty[$key], $cau, $issue_lotno[$key]);
+  //       $res = 1;
+  //     }
+  //   }
+  //   return $res;
+  // }
+
   public function insert_issue_item()
   {
+    $post = $this->input->post();
 
-    $issue_id = $this->input->post('si_issue_id');
-    $issue_item = $this->input->post('si_issue_item');
-    $pre_qty = $this->input->post('pre_item_qty');
-    $issue_qty = $this->input->post('si_issue_qty');
-    $issue_weight = $this->input->post('si_issue_weight');
-    $issue_crate = $this->input->post('si_issue_crate');
-    $issue_price = $this->input->post('si_issue_price');
-    $issue_total = $this->input->post('si_issue_total');
-    $issue_lotno = $this->input->post('si_issue_lotno');
+    $issue_id     = $post['si_issue_id'] ?? [];
+    $issue_item   = $post['si_issue_item'] ?? [];
+    $pre_qty      = $post['pre_item_qty'] ?? [];
+    $issue_qty    = $post['si_issue_qty'] ?? [];
+    $issue_weight = $post['si_issue_weight'] ?? [];
+    $issue_crate  = $post['si_issue_crate'] ?? [];
+    $issue_price  = $post['si_issue_price'] ?? [];
+    $issue_total  = $post['si_issue_total'] ?? [];
+    $issue_lotno  = $post['si_issue_lotno'] ?? [];
 
-    $issue_dtl = $this->db->select('si_issue_spo')->where('si_issue_type', 1)->order_by('si_issue_id', 'desc')->group_by('si_issue_spo')->get('staff_itemissue_tbl')->result();
-    if (!empty($issue_dtl)) {
-      $spo_coun = explode('/', $issue_dtl[0]->si_issue_spo);
-      $issue_spo = ((int) $spo_coun[0] + 1) . '/' . date('dm', strtotime($this->input->post('si_issue_date')));
+    // 🔒 START TRANSACTION
+    $this->db->trans_start();
+
+    /** ---------------- SPO GENERATION ---------------- **/
+    if (empty($post['si_issue_spo'])) {
+
+      $lastSpo = $this->db->select('si_issue_spo')
+        ->where('si_issue_type', 1)
+        ->order_by('si_issue_id', 'desc')
+        ->limit(1)
+        ->get('staff_itemissue_tbl')
+        ->row();
+
+      if (!empty($lastSpo)) {
+        $spo_coun = explode('/', $lastSpo->si_issue_spo);
+        $issue_spo = ((int)$spo_coun[0] + 1) . '/' . date('dm', strtotime($post['si_issue_date']));
+      } else {
+        $issue_spo = '1/' . date('dm', strtotime($post['si_issue_date']));
+      }
     } else {
-      $issue_spo = '1/' . date('dm', strtotime($this->input->post('si_issue_date')));
+      $issue_spo = $post['si_issue_spo'];
     }
 
+    foreach ($issue_item as $key => $item) {
 
-    foreach ($issue_item as $key => $cau) {
+      $qty    = (float) ($issue_qty[$key] ?? 0);
+      $pre    = (float) ($pre_qty[$key] ?? 0);
+      $lot    = $issue_lotno[$key] ?? null;
 
-      $insert_data = array(
-        "si_issue_date" => $this->input->post('si_issue_date'),
-        "si_issue_trackno" => $this->input->post('si_issue_trackno'),
-        "si_issue_type" => $this->input->post('si_issue_type'),
-        "si_issue_user" => $this->input->post('si_issue_user'),
-        "si_issue_item" => $cau,
-        "si_issue_qty" => $issue_qty[$key],
-        "si_issue_lotno" => $issue_lotno[$key],
-        "si_issue_weight" => $issue_weight[$key],
-        "si_issue_crate" => $issue_crate[$key],
-        "si_issue_price" => $issue_price[$key],
-        "si_issue_total" => $issue_total[$key],
+      /** ---------------- STOCK CHECK ---------------- **/
+      $available_qty = $this->get_lot_available_qty($item, $lot);
 
-      );
+      // if updating → allow previous qty
+      $check_qty = !empty($issue_id[$key]) ? ($qty - $pre) : $qty;
 
+      if ($check_qty > $available_qty) {
+        $this->db->trans_rollback();
+        return [
+          'status' => false,
+          'msg' => "Insufficient stock for item {$item} (Lot: {$lot})"
+        ];
+      }
+
+      /** ---------------- DUPLICATE CHECK ---------------- **/
+        // if (empty($issue_id[$key])) {
+        //     $exists = $this->db->where([
+        //         'si_issue_date' => $post['si_issue_date'],
+        //         'si_issue_user' => $post['si_issue_user'],
+        //         'si_issue_item' => $item,
+        //         'si_issue_lotno'=> $lot,
+        //         'si_issue_qty'  => $qty
+        //     ])->get('staff_itemissue_tbl')->row();
+
+        //     if ($exists) {
+        //         continue; // skip duplicate
+        //     }
+        // }
+
+      /** ---------------- COMMON DATA ---------------- **/
+      $data = [
+        "si_issue_date"    => $post['si_issue_date'],
+        "si_issue_trackno" => $post['si_issue_trackno'],
+        "si_issue_type"    => $post['si_issue_type'],
+        "si_issue_user"    => $post['si_issue_user'],
+        "si_issue_item"    => $item,
+        "si_issue_qty"     => $qty,
+        "si_issue_lotno"   => $lot,
+        "si_issue_weight"  => $issue_weight[$key] ?? 0,
+        "si_issue_crate"   => $issue_crate[$key] ?? 0,
+        "si_issue_price"   => $issue_price[$key] ?? 0,
+        "si_issue_total"   => $issue_total[$key] ?? 0,
+      ];
+
+      /** ---------------- UPDATE ---------------- **/
       if (!empty($issue_id[$key])) {
-        $new_qty = ((int) $issue_qty[$key] - (int) $pre_qty[$key]);
-        $this->db->where('si_issue_id', $issue_id[$key])->update('staff_itemissue_tbl', $insert_data);
-        $this->update_cust_balance(null, null, $new_qty, $cau, $issue_lotno[$key]);
-        $res = 2;
-      } else {
-        if (!empty($this->input->post('si_issue_spo'))) {
-          $insert_data['si_issue_spo'] = $this->input->post('si_issue_spo');
-        } else {
-          $insert_data['si_issue_spo'] = $issue_spo;
-        }
-        $insert_data['si_issue_status'] = 1;
-        $insert_data['si_issue_added_by'] = $this->session->userdata('user_id');
-        $insert_data['si_issue_added_on'] = date('Y-m-d H:i');
-        $this->db->insert('staff_itemissue_tbl', $insert_data);
 
-        $this->update_cust_balance(null, null, $issue_qty[$key], $cau, $issue_lotno[$key]);
+        $this->db->where('si_issue_id', $issue_id[$key])
+          ->update('staff_itemissue_tbl', $data);
+
+        $new_qty = ($qty - $pre);
+
+        $this->update_cust_balance(null, null, $new_qty, $item, $lot);
+
+        $res = 2;
+      }
+      /** ---------------- INSERT ---------------- **/
+      else {
+
+        $data['si_issue_spo']      = $issue_spo;
+        $data['si_issue_status']   = 1;
+        $data['si_issue_added_by'] = $this->session->userdata('user_id');
+        $data['si_issue_added_on'] = date('Y-m-d H:i');
+
+        $this->db->insert('staff_itemissue_tbl', $data);
+
+        $this->update_cust_balance(null, null, $qty, $item, $lot);
+
         $res = 1;
       }
     }
-    return $res;
+
+    // 🔒 END TRANSACTION
+    $this->db->trans_complete();
+
+    return $res ?? 0;
   }
 
   public function lotwise_insert_issue()
@@ -938,7 +1059,7 @@ class Main_model extends CI_model
   //===================== item_issue =======================//
 
   //===================== sales =======================//
-  public function get_edit_sales($id='',$lot_no = '')
+  public function get_edit_sales($id = '', $lot_no = '')
   {
     $this->db->select('master_sales_tbl.*,m_item_name,m_item_fright,group.m_itgrp_title as groupname,crate.m_itgrp_title as cratetype,m_sale_customer,unit.m_itgrp_title as unitname,m_cust_name,m_cust_mobile,(select m_purcs_lot from master_purchase_tbl where m_sale_lot = m_purcs_id) as pur_lotno,(select m_purcs_available from master_purchase_tbl where m_sale_lot = m_purcs_id) as available_stock,m_user_name');
     $this->db->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
@@ -947,12 +1068,12 @@ class Main_model extends CI_model
       ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')
       ->join('master_itemgroup_tbl as unit', 'unit.m_itgrp_id = mit.m_item_unit', 'left')
       ->join('master_users_tbl', 'master_users_tbl.m_user_id = master_sales_tbl.m_sale_user', 'left');
-      if(!empty($lot_no)){
-        $this->db->where('m_sale_lot', $lot_no);
-      }
-      if(!empty($id)){
-        $this->db->where('m_sale_spo', $id);
-      }
+    if (!empty($lot_no)) {
+      $this->db->where('m_sale_lot', $lot_no);
+    }
+    if (!empty($id)) {
+      $this->db->where('m_sale_spo', $id);
+    }
     $this->db->order_by('m_item_name');
     return $this->db->get('master_sales_tbl')->result();
   }
@@ -1006,102 +1127,265 @@ class Main_model extends CI_model
     return $this->db->get('master_sales_tbl')->result();
   }
 
+  // public function insert_sales()
+  // {
+
+  //   $issue_id = $this->input->post('m_sale_id');
+  //   $sales = $this->input->post('m_sale_item');
+  //   $pre_qty = $this->input->post('pre_item_qty');
+  //   $issue_qty = $this->input->post('m_sale_qty');
+  //   $issue_weight = $this->input->post('m_sale_weight');
+  //   $issue_crate = $this->input->post('m_sale_crate');
+  //   $issue_price = $this->input->post('m_sale_price');
+  //   $m_sale_total = $this->input->post('m_sale_total');
+  //   $m_sale_lot = $this->input->post('m_sale_lot');
+
+  //   $sale_dtl = $this->db->select('m_sale_spo')->order_by('m_sale_id', 'desc')->group_by('m_sale_spo')->get('master_sales_tbl')->result();
+  //   if (!empty($sale_dtl)) {
+  //     $spo_coun = explode('/', $sale_dtl[0]->m_sale_spo);
+  //     $sale_spo = ((int) $spo_coun[0] + 1) . '/' . date('dm', strtotime($this->input->post('m_sale_date')));
+  //   } else {
+  //     $sale_spo = '1/' . date('dm', strtotime($this->input->post('m_sale_date')));
+  //   }
+
+  //   $saleTotalAmt = 0;
+
+  //   foreach ($sales as $key => $cau) {
+
+  //     if (!empty($issue_weight[$key]) && $issue_weight[$key] != "0.00" && $issue_weight[$key] != "0") {
+  //       $sale_total = ($issue_weight[$key] * $issue_price[$key]);
+  //     } else {
+  //       $sale_total = ($issue_qty[$key] * $issue_price[$key]);
+  //     }
+  //     $saleTotalAmt += (float) $sale_total;
+  //     $insert_data = array(
+  //       "m_sale_date" => $this->input->post('m_sale_date'),
+  //       "m_sale_trackno" => $this->input->post('m_sale_trackno'),
+  //       "m_sale_customer" => $this->input->post('m_sale_customer'),
+  //       "m_sale_voucher" => $this->input->post('m_sale_voucher'),
+  //       "m_sale_comrate" => $this->input->post('m_sale_comrate'),
+  //       "m_sale_comm" => $this->input->post('m_sale_comm'),
+  //       "m_sale_fright" => $this->input->post('m_sale_fright'),
+  //       "m_sale_hamali" => $this->input->post('m_sale_hamali'),
+  //       "m_sale_others" => $this->input->post('m_sale_others'),
+  //       "m_sale_note" => $this->input->post('m_sale_note'),
+  //       "m_sale_user" => $this->input->post('m_sale_user') ?: '',
+  //       "m_sale_item" => $cau,
+  //       "m_sale_qty" => $issue_qty[$key],
+  //       "m_sale_weight" => $issue_weight[$key],
+  //       "m_sale_crate" => $issue_crate[$key],
+  //       "m_sale_price" => $issue_price[$key],
+  //       "m_sale_total" => $sale_total,
+  //       "m_sale_lot" => $m_sale_lot[$key],
+
+  //     );
+
+  //     if (!empty($issue_id[$key])) {
+  //       $insert_data['m_sale_updatedby'] = $this->session->userdata('user_id');
+  //       $insert_data['m_sale_updatedon'] = date('Y-m-d H:i');
+  //       $new_qty = ((int) $pre_qty[$key] - (int) $issue_qty[$key]) * (-1);
+  //       $this->db->where('m_sale_id', $issue_id[$key])->update('master_sales_tbl', $insert_data);
+  //       $res = 2;
+  //       if ($this->input->post('m_sale_customer') == $this->input->post('precust')) {
+  //         $this->update_cust_balance($this->input->post('m_sale_customer'), null, $new_qty, $cau, $m_sale_lot[$key]);
+  //       } else {
+  //         $this->update_cust_balance($this->input->post('m_sale_customer'), null, (int) $issue_qty[$key], $cau, $m_sale_lot[$key]);
+  //         $this->update_cust_balance($this->input->post('precust'), null, ((int) $pre_qty[$key] * (-1)), $cau, $m_sale_lot[$key]);
+  //       }
+  //     } else {
+
+  //       if (!empty($this->input->post('m_sale_spo'))) {
+  //         $insert_data['m_sale_spo'] = $this->input->post('m_sale_spo');
+  //       } else {
+  //         $insert_data['m_sale_spo'] = $sale_spo;
+  //       }
+
+  //       $insert_data['m_sale_added_by'] = $this->session->userdata('user_id');
+
+  //       $insert_data['m_sale_added_on'] = date('Y-m-d H:i');
+  //       $this->db->insert('master_sales_tbl', $insert_data);
+  //       $res = 1;
+  //       $this->update_cust_balance($this->input->post('m_sale_customer'), null, $issue_qty[$key], $cau, $m_sale_lot[$key]); //new change
+  //     }
+  //   }
+  //   $saleTotalAmt += ((float) $this->input->post('m_sale_comm') + (float) $this->input->post('m_sale_fright') + (float) $this->input->post('m_sale_hamali') + (float) $this->input->post('m_sale_others'));
+  //   if (empty($this->input->post('m_sale_spo'))) {
+  //     $this->update_cust_balance($this->input->post('m_sale_customer'), $saleTotalAmt);
+
+  //     //   $this->Api_Model->send_sale_sms($sale_spo);
+  //   } else {
+
+  //     $new_amt = ($saleTotalAmt - (float) $this->input->post('pre_grand_total'));
+  //     if ($this->input->post('m_sale_customer') == $this->input->post('precust')) {
+  //       $this->update_cust_balance($this->input->post('m_sale_customer'), $new_amt);
+  //     } else {
+  //       $this->update_cust_balance($this->input->post('m_sale_customer'), $saleTotalAmt);
+  //       $this->update_cust_balance($this->input->post('precust'), ((float) $this->input->post('pre_grand_total') * (-1)));
+  //     }
+  //   }
+  //   return $res;
+  // }
+
   public function insert_sales()
   {
+    $post = $this->input->post();
 
-    $issue_id = $this->input->post('m_sale_id');
-    $sales = $this->input->post('m_sale_item');
-    $pre_qty = $this->input->post('pre_item_qty');
-    $issue_qty = $this->input->post('m_sale_qty');
-    $issue_weight = $this->input->post('m_sale_weight');
-    $issue_crate = $this->input->post('m_sale_crate');
-    $issue_price = $this->input->post('m_sale_price');
-    $m_sale_total = $this->input->post('m_sale_total');
-    $m_sale_lot = $this->input->post('m_sale_lot');
+    $issue_id     = $post['m_sale_id'] ?? [];
+    $sales        = $post['m_sale_item'] ?? [];
+    $pre_qty      = $post['pre_item_qty'] ?? [];
+    $issue_qty    = $post['m_sale_qty'] ?? [];
+    $issue_weight = $post['m_sale_weight'] ?? [];
+    $issue_crate  = $post['m_sale_crate'] ?? [];
+    $issue_price  = $post['m_sale_price'] ?? [];
+    $m_sale_lot   = $post['m_sale_lot'] ?? [];
 
-    $sale_dtl = $this->db->select('m_sale_spo')->order_by('m_sale_id', 'desc')->group_by('m_sale_spo')->get('master_sales_tbl')->result();
-    if (!empty($sale_dtl)) {
-      $spo_coun = explode('/', $sale_dtl[0]->m_sale_spo);
-      $sale_spo = ((int) $spo_coun[0] + 1) . '/' . date('dm', strtotime($this->input->post('m_sale_date')));
+    // 🔒 START TRANSACTION
+    $this->db->trans_start();
+
+    /** ---------------- SPO GENERATION ---------------- **/
+    if (empty($post['m_sale_spo'])) {
+      $lastSpo = $this->db->select('m_sale_spo')
+        ->order_by('m_sale_id', 'desc')
+        ->limit(1)
+        ->get('master_sales_tbl')
+        ->row();
+
+      if (!empty($lastSpo)) {
+        $spo_coun = explode('/', $lastSpo->m_sale_spo);
+        $sale_spo = ((int)$spo_coun[0] + 1) . '/' . date('dm', strtotime($post['m_sale_date']));
+      } else {
+        $sale_spo = '1/' . date('dm', strtotime($post['m_sale_date']));
+      }
     } else {
-      $sale_spo = '1/' . date('dm', strtotime($this->input->post('m_sale_date')));
+      $sale_spo = $post['m_sale_spo'];
     }
 
     $saleTotalAmt = 0;
 
-    foreach ($sales as $key => $cau) {
+    foreach ($sales as $key => $item) {
 
-      if (!empty($issue_weight[$key]) && $issue_weight[$key] != "0.00" && $issue_weight[$key] != "0") {
-        $sale_total = ($issue_weight[$key] * $issue_price[$key]);
-      } else {
-        $sale_total = ($issue_qty[$key] * $issue_price[$key]);
+      $qty    = (float) ($issue_qty[$key] ?? 0);
+      $weight = (float) ($issue_weight[$key] ?? 0);
+      $price  = (float) ($issue_price[$key] ?? 0);
+      $lot    = $m_sale_lot[$key] ?? null;
+
+      // 🛑 STOCK CHECK (LOT)
+      $available_qty = $this->get_lot_available_qty($item, $lot);
+
+      if (empty($issue_id[$key]) && $qty > $available_qty) {
+        $this->db->trans_rollback();
+        return [
+          'status' => 'error',
+          'message' => "Stock not available for item {$item} in lot {$lot}"
+        ];
+      } else if ($qty > ((int)$pre_qty[$key] + (int)$available_qty)) {
+        $this->db->trans_rollback();
+        return [
+          'status' => 'error',
+          'message' => "Stock not available for item {$item} in lot {$lot}"
+        ];
       }
-      $saleTotalAmt += (float) $sale_total;
-      $insert_data = array(
-        "m_sale_date" => $this->input->post('m_sale_date'),
-        "m_sale_trackno" => $this->input->post('m_sale_trackno'),
-        "m_sale_customer" => $this->input->post('m_sale_customer'),
-        "m_sale_voucher" => $this->input->post('m_sale_voucher'),
-        "m_sale_comrate" => $this->input->post('m_sale_comrate'),
-        "m_sale_comm" => $this->input->post('m_sale_comm'),
-        "m_sale_fright" => $this->input->post('m_sale_fright'),
-        "m_sale_hamali" => $this->input->post('m_sale_hamali'),
-        "m_sale_others" => $this->input->post('m_sale_others'),
-        "m_sale_note" => $this->input->post('m_sale_note'),
-        "m_sale_user" => $this->input->post('m_sale_user') ?: '',
-        "m_sale_item" => $cau,
-        "m_sale_qty" => $issue_qty[$key],
-        "m_sale_weight" => $issue_weight[$key],
-        "m_sale_crate" => $issue_crate[$key],
-        "m_sale_price" => $issue_price[$key],
-        "m_sale_total" => $sale_total,
-        "m_sale_lot" => $m_sale_lot[$key],
 
-      );
+      // 💰 CALCULATION
+      $sale_total = ($weight > 0) ? ($weight * $price) : ($qty * $price);
+      $saleTotalAmt += $sale_total;
 
+      // 🛑 DUPLICATION CHECK
+      if (empty($issue_id[$key])) {
+        $exists = $this->db->where([
+          'm_sale_date'     => $post['m_sale_date'],
+          'm_sale_customer' => $post['m_sale_customer'],
+          'm_sale_item'     => $item,
+          'm_sale_lot'      => $lot,
+          'm_sale_qty'      => $qty,
+          'm_sale_price'    => $price,
+        ])->get('master_sales_tbl')->row();
+
+        if ($exists) {
+          continue; // skip duplicate
+        }
+      }
+
+      $data = [
+        "m_sale_date"     => $post['m_sale_date'],
+        "m_sale_trackno"  => $post['m_sale_trackno'],
+        "m_sale_customer" => $post['m_sale_customer'],
+        "m_sale_voucher"  => $post['m_sale_voucher'],
+        "m_sale_comrate"  => $post['m_sale_comrate'],
+        "m_sale_comm"     => $post['m_sale_comm'],
+        "m_sale_fright"   => $post['m_sale_fright'],
+        "m_sale_hamali"   => $post['m_sale_hamali'],
+        "m_sale_others"   => $post['m_sale_others'],
+        "m_sale_note"     => $post['m_sale_note'],
+        "m_sale_user"     => $post['m_sale_user'] ?? '',
+        "m_sale_item"     => $item,
+        "m_sale_qty"      => $qty,
+        "m_sale_weight"   => $weight,
+        "m_sale_crate"    => $issue_crate[$key] ?? 0,
+        "m_sale_price"    => $price,
+        "m_sale_total"    => $sale_total,
+        "m_sale_lot"      => $lot,
+      ];
+
+      /** ---------------- UPDATE ---------------- **/
       if (!empty($issue_id[$key])) {
-        $insert_data['m_sale_updatedby'] = $this->session->userdata('user_id');
-        $insert_data['m_sale_updatedon'] = date('Y-m-d H:i');
-        $new_qty = ((int) $pre_qty[$key] - (int) $issue_qty[$key]) * (-1);
-        $this->db->where('m_sale_id', $issue_id[$key])->update('master_sales_tbl', $insert_data);
+
+        $data['m_sale_updatedby'] = $this->session->userdata('user_id');
+        $data['m_sale_updatedon'] = date('Y-m-d H:i');
+
+        $this->db->where('m_sale_id', $issue_id[$key])
+          ->update('master_sales_tbl', $data);
+
+        $new_qty = (($pre_qty[$key] - $qty) * -1);
+
+        if ($post['m_sale_customer'] == $post['precust']) {
+          $this->update_cust_balance($post['m_sale_customer'], null, $new_qty, $item, $lot);
+        } else {
+          $this->update_cust_balance($post['m_sale_customer'], null, $qty, $item, $lot);
+          $this->update_cust_balance($post['precust'], null, -$pre_qty[$key], $item, $lot);
+        }
+
         $res = 2;
-        if ($this->input->post('m_sale_customer') == $this->input->post('precust')) {
-          $this->update_cust_balance($this->input->post('m_sale_customer'), null, $new_qty, $cau, $m_sale_lot[$key]);
-        } else {
-          $this->update_cust_balance($this->input->post('m_sale_customer'), null, (int) $issue_qty[$key], $cau, $m_sale_lot[$key]);
-          $this->update_cust_balance($this->input->post('precust'), null, ((int) $pre_qty[$key] * (-1)), $cau, $m_sale_lot[$key]);
-        }
-      } else {
+      }
+      /** ---------------- INSERT ---------------- **/
+      else {
 
-        if (!empty($this->input->post('m_sale_spo'))) {
-          $insert_data['m_sale_spo'] = $this->input->post('m_sale_spo');
-        } else {
-          $insert_data['m_sale_spo'] = $sale_spo;
-        }
+        $data['m_sale_spo']      = $sale_spo;
+        $data['m_sale_added_by'] = $this->session->userdata('user_id');
+        $data['m_sale_added_on'] = date('Y-m-d H:i');
 
-        $insert_data['m_sale_added_by'] = $this->session->userdata('user_id');
+        $this->db->insert('master_sales_tbl', $data);
 
-        $insert_data['m_sale_added_on'] = date('Y-m-d H:i');
-        $this->db->insert('master_sales_tbl', $insert_data);
+        $this->update_cust_balance($post['m_sale_customer'], null, $qty, $item, $lot);
+
         $res = 1;
-        $this->update_cust_balance($this->input->post('m_sale_customer'), null, $issue_qty[$key], $cau, $m_sale_lot[$key]); //new change
       }
     }
-    $saleTotalAmt += ((float) $this->input->post('m_sale_comm') + (float) $this->input->post('m_sale_fright') + (float) $this->input->post('m_sale_hamali') + (float) $this->input->post('m_sale_others'));
-    if (empty($this->input->post('m_sale_spo'))) {
-      $this->update_cust_balance($this->input->post('m_sale_customer'), $saleTotalAmt);
 
-      //   $this->Api_Model->send_sale_sms($sale_spo);
+    /** ---------------- FINAL AMOUNT ---------------- **/
+    $extra = (float)$post['m_sale_comm'] +
+      (float)$post['m_sale_fright'] +
+      (float)$post['m_sale_hamali'] +
+      (float)$post['m_sale_others'];
+
+    $saleTotalAmt += $extra;
+
+    if (empty($post['m_sale_spo'])) {
+      $this->update_cust_balance($post['m_sale_customer'], $saleTotalAmt);
     } else {
+      $new_amt = $saleTotalAmt - (float)$post['pre_grand_total'];
 
-      $new_amt = ($saleTotalAmt - (float) $this->input->post('pre_grand_total'));
-      if ($this->input->post('m_sale_customer') == $this->input->post('precust')) {
-        $this->update_cust_balance($this->input->post('m_sale_customer'), $new_amt);
+      if ($post['m_sale_customer'] == $post['precust']) {
+        $this->update_cust_balance($post['m_sale_customer'], $new_amt);
       } else {
-        $this->update_cust_balance($this->input->post('m_sale_customer'), $saleTotalAmt);
-        $this->update_cust_balance($this->input->post('precust'), ((float) $this->input->post('pre_grand_total') * (-1)));
+        $this->update_cust_balance($post['m_sale_customer'], $saleTotalAmt);
+        $this->update_cust_balance($post['precust'], -$post['pre_grand_total']);
       }
     }
+
+    // 🔒 END TRANSACTION
+    $this->db->trans_complete();
+
     return $res;
   }
 
@@ -1296,8 +1580,8 @@ class Main_model extends CI_model
       $this->db->or_like('mp.m_purcs_lot', $search_in);
       $this->db->group_end();
     }
-      $this->db->order_by('mp.m_purcs_available', 'ASC');
-  
+    $this->db->order_by('mp.m_purcs_available', 'ASC');
+
     return $this->db->get()->result();
   }
   public function insert_purchase()
@@ -1874,7 +2158,7 @@ class Main_model extends CI_model
 
           // Update user crate balance if applicable
           if (isset($crate_mapping[$crate])) {
-            $this->db->set($crate_mapping[$crate], "{$crate_mapping[$crate]} - {$m_payment_qty[$supplier . $uniqut[$cau]][$cou]}", FALSE)
+            $this->db->set($crate_mapping[$crate], "{$crate_mapping[$crate]} - {$m_payment_qty[$supplier .$uniqut[$cau]][$cou]}", FALSE)
               ->where('m_user_id', $supplier)->update('master_users_tbl');
           }
         }
@@ -2186,6 +2470,19 @@ class Main_model extends CI_model
     }
     return $this->db->order_by('m_item_name')->get('master_purchase_tbl')->result();
   }
+
+  private function get_lot_available_qty($item, $lot)
+  {
+    $row = $this->db->select('m_purcs_available as qty')
+      ->where([
+        'm_purcs_item' => $item,
+        'm_purcs_id'  => $lot
+      ])
+      ->get('master_purchase_tbl')
+      ->row();
+
+    return (float) ($row->qty ?? 0);
+  }
   //==========================Stock List===========================//
 
   public function update_cust_balance($id = '', $amt = '', $qty = '', $itemID = '', $purID = '')
@@ -2370,7 +2667,6 @@ class Main_model extends CI_model
       ->where('m_recvd_customer', $cust_id)->where('m_recvd_account', 1)->where('m_recvd_type', 1)->where('m_recvd_date', $to_date)->get('master_recieved_tbl')->row();
 
     if (!empty($from_date)) {
-
     }
     $vouch_amtcdrt = $this->db->select('sum(m_voucher_amount) as tamountcdt')->where('m_voucher_accountid', $cust_id)->where('m_voucher_account', 1)->where('m_voucher_type', 1)->where('m_voucher_status', 1)->where('m_voucher_date', $to_date)->get('master_voucher_tbl')->row();
 
@@ -2439,73 +2735,177 @@ class Main_model extends CI_model
   }
 
 
+  // public function get_custid_by_last_sale($days, $group)
+  // {
+  //   $last_ago = date('Y-m-d', strtotime("-{$days} days"));
+
+  //   // Group condition
+  //   $group_condition = "";
+  //   if ($group == 'o') {
+  //     $group_condition = "AND mc.m_cust_group = 0";
+  //   } else if (!empty($group)) {
+  //     $group_condition = "AND mc.m_cust_group = " . $this->db->escape($group);
+  //   }
+
+  //   $sql = "
+  //         SELECT 
+  //             mc.m_cust_id, 
+  //             mc.m_cust_name, 
+  //             mc.m_cust_hndiname, 
+  //             mc.m_cust_mobile, 
+  //             mg.m_group_name,
+  //             sale.last_sale_date,
+  //             rec.last_recvd_date
+  //         FROM master_customer_tbl mc
+  //         LEFT JOIN (
+  //             SELECT m_sale_customer, MAX(m_sale_date) as last_sale_date
+  //             FROM master_sales_tbl
+  //             GROUP BY m_sale_customer
+  //         ) as sale ON sale.m_sale_customer = mc.m_cust_id
+  //         LEFT JOIN (
+  //             SELECT m_recvd_customer, MAX(m_recvd_date) as last_recvd_date
+  //             FROM master_recieved_tbl
+  //             WHERE m_recvd_account = 0 OR m_recvd_account = 1
+  //             GROUP BY m_recvd_customer
+  //         ) as rec ON rec.m_recvd_customer = mc.m_cust_id
+  //         LEFT JOIN master_group_tbl mg ON mg.m_group_id = mc.m_cust_group
+  //         WHERE 1=1 {$group_condition}
+  //         AND (
+  //             (sale.last_sale_date IS NULL OR sale.last_sale_date <= '{$last_ago}')
+  //             OR
+  //             (rec.last_recvd_date IS NULL OR rec.last_recvd_date <= '{$last_ago}')
+  //         )
+  //     ";
+
+  //   $query = $this->db->query($sql)->result();
+
+  //   return array_values(array_filter(array_map(function ($customer) {
+  //     $ledger = $this->get_opening_balance($customer->m_cust_id, date('Y-m-d'));
+
+  //     // Filter out customers with zero balance amounts
+  //     if (
+  //       !empty($ledger) &&
+  //       ((isset($ledger['balance_amount']) && $ledger['balance_amount'] > 0) ||
+  //         (isset($ledger['balance_crate']) && $ledger['balance_crate'] > 0))
+  //     ) {
+  //       return [
+  //         "m_cust_id" => $customer->m_cust_id,
+  //         "m_cust_name" => $customer->m_cust_name,
+  //         "m_cust_hndiname" => $customer->m_cust_hndiname,
+  //         "m_cust_mobile" => $customer->m_cust_mobile,
+  //         "m_group_name" => $customer->m_group_name,
+  //         "last_recvd_date" => $customer->last_recvd_date,
+  //         "last_sale_date" => $customer->last_sale_date,
+  //         "total_balance" => (int) ($ledger['balance_amount'] ?? 0),
+  //         "total_crate_balance" => (int) ($ledger['balance_crate'] ?? 0),
+  //       ];
+  //     }
+  //     return null;
+  //   }, $query)));
+  // }
+
   public function get_custid_by_last_sale($days, $group)
   {
     $last_ago = date('Y-m-d', strtotime("-{$days} days"));
 
     // Group condition
     $group_condition = "";
-    if ($group == 'o') {
-      $group_condition = "AND mc.m_cust_group = 0";
-    } else if (!empty($group)) {
-      $group_condition = "AND mc.m_cust_group = " . $this->db->escape($group);
+
+    if ($group === 'o') {
+      $group_condition = " AND mc.m_cust_group = 0 ";
+    } elseif (!empty($group)) {
+      $group_condition = " AND mc.m_cust_group = ? ";
     }
 
     $sql = "
-          SELECT 
-              mc.m_cust_id, 
-              mc.m_cust_name, 
-              mc.m_cust_hndiname, 
-              mc.m_cust_mobile, 
-              mg.m_group_name,
-              sale.last_sale_date,
-              rec.last_recvd_date
-          FROM master_customer_tbl mc
-          LEFT JOIN (
-              SELECT m_sale_customer, MAX(m_sale_date) as last_sale_date
-              FROM master_sales_tbl
-              GROUP BY m_sale_customer
-          ) as sale ON sale.m_sale_customer = mc.m_cust_id
-          LEFT JOIN (
-              SELECT m_recvd_customer, MAX(m_recvd_date) as last_recvd_date
-              FROM master_recieved_tbl
-              WHERE m_recvd_account = 0 OR m_recvd_account = 1
-              GROUP BY m_recvd_customer
-          ) as rec ON rec.m_recvd_customer = mc.m_cust_id
-          LEFT JOIN master_group_tbl mg ON mg.m_group_id = mc.m_cust_group
-          WHERE 1=1 {$group_condition}
-          AND (
-              (sale.last_sale_date IS NULL OR sale.last_sale_date <= '{$last_ago}')
-              OR
-              (rec.last_recvd_date IS NULL OR rec.last_recvd_date <= '{$last_ago}')
-          )
-      ";
+        SELECT 
+            mc.m_cust_id,
+            mc.m_cust_name,
+            mc.m_cust_hndiname,
+            mc.m_cust_mobile,
+            mc.m_cust_balance,
+            mc.m_cust_10bal,
+            mc.m_cust_20bal,
+            mc.m_cust_25bal,
+            mg.m_group_name,
+            sale.last_sale_date,
+            rec.last_recvd_date
 
-    $query = $this->db->query($sql)->result();
+        FROM master_customer_tbl mc
 
-    return array_values(array_filter(array_map(function ($customer) {
-      $ledger = $this->get_opening_balance($customer->m_cust_id, date('Y-m-d'));
+        LEFT JOIN (
+            SELECT 
+                m_sale_customer,
+                MAX(m_sale_date) AS last_sale_date
+            FROM master_sales_tbl
+            GROUP BY m_sale_customer
+        ) sale 
+            ON sale.m_sale_customer = mc.m_cust_id
 
-      // Filter out customers with zero balance amounts
-      if (
-        !empty($ledger) &&
-        ((isset($ledger['balance_amount']) && $ledger['balance_amount'] > 0) ||
-          (isset($ledger['balance_crate']) && $ledger['balance_crate'] > 0))
-      ) {
-        return [
-          "m_cust_id" => $customer->m_cust_id,
-          "m_cust_name" => $customer->m_cust_name,
-          "m_cust_hndiname" => $customer->m_cust_hndiname,
-          "m_cust_mobile" => $customer->m_cust_mobile,
-          "m_group_name" => $customer->m_group_name,
-          "last_recvd_date" => $customer->last_recvd_date,
-          "last_sale_date" => $customer->last_sale_date,
-          "total_balance" => (int) ($ledger['balance_amount'] ?? 0),
-          "total_crate_balance" => (int) ($ledger['balance_crate'] ?? 0),
-        ];
+        LEFT JOIN (
+            SELECT 
+                m_recvd_customer,
+                MAX(m_recvd_date) AS last_recvd_date
+            FROM master_recieved_tbl
+            WHERE m_recvd_account IN (0,1)
+            GROUP BY m_recvd_customer
+        ) rec 
+            ON rec.m_recvd_customer = mc.m_cust_id
+
+        LEFT JOIN master_group_tbl mg 
+            ON mg.m_group_id = mc.m_cust_group
+
+        WHERE
+            (
+                sale.last_sale_date IS NULL
+                OR sale.last_sale_date <= ?
+                OR rec.last_recvd_date IS NULL
+                OR rec.last_recvd_date <= ?
+            )
+            {$group_condition}
+    ";
+
+    $params = [$last_ago, $last_ago];
+
+    if ($group !== 'o' && !empty($group)) {
+      $params[] = $group;
+    }
+
+    $customers = $this->db->query($sql, $params)->result();
+
+    $result = [];
+
+    foreach ($customers as $customer) {
+
+      // $ledger = $this->get_opening_balance(
+      //   $customer->m_cust_id,
+      //   date('Y-m-d')
+      // );
+
+      // $balance_amount = (float) ($ledger['balance_amount'] ?? 0);
+      // $balance_crate  = (float) ($ledger['balance_crate'] ?? 0);
+      $balance_amount = (float) ($customer->m_cust_balance ?? 0);
+      $balance_crate  = (float) (($customer->m_cust_25bal + $customer->m_cust_20bal + $customer->m_cust_10bal) ?? 0);
+
+      // Skip zero balance customers
+      if ($balance_amount <= 0 && $balance_crate <= 0) {
+        continue;
       }
-      return null;
-    }, $query)));
+
+      $result[] = [
+        'm_cust_id'            => $customer->m_cust_id,
+        'm_cust_name'          => $customer->m_cust_name,
+        'm_cust_hndiname'      => $customer->m_cust_hndiname,
+        'm_cust_mobile'        => $customer->m_cust_mobile,
+        'm_group_name'         => $customer->m_group_name,
+        'last_recvd_date'      => $customer->last_recvd_date,
+        'last_sale_date'       => $customer->last_sale_date,
+        'total_balance'        => (int) $balance_amount,
+        'total_crate_balance'  => (int) $balance_crate,
+      ];
+    }
+
+    return $result;
   }
 
   //===================== System setting =======================//

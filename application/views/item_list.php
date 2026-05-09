@@ -2,6 +2,15 @@
 <?php $this->view('head'); ?>
 <?php $this->view('header'); ?>
 
+<style>
+    .item-match {
+    background : #fff176;
+    border-radius : 2px;
+    padding : 0 2px;
+    font-weight : 600;
+}
+</style>
+
 <!-- ========== Page Content ========== -->
 <section class="py-1" style="background: #bbf;">
     <div class="container-fluid">
@@ -12,7 +21,7 @@
                 </h6>
             </div>
             <div class="col-6 text-end">
-               <button onclick="history.back()" class="btn btn-danger btn-sm">
+                <button onclick="history.back()" class="btn btn-danger btn-sm">
                     <i class="bi bi-box-arrow-left me-2"></i>Exit
                 </button>
             </div>
@@ -23,27 +32,16 @@
     <div class="container-fluid">
         <div class="row justify-content-evenly g-0">
             <div class="col-7">
-                <!-- <form action="#" method="POST" class="row align-items-center">
-               <div class="col-2">
-                  <a href="#" class="btn btn-warning btn-sm w-100">
-                     <i class="bi bi-receipt-cutoff me-2"></i>Lot Report
-                  </a>
-               </div>
-               <div class="col-4">
-                  <div class="input-group">
-                     <input type="date" class="form-control">
-                     <button class="btn btn-info">View Lot</button>
-                  </div>
-               </div>
-               <div class="col-6">
-                  <div class="input-group">
-                     <input type="text" class="form-control" placeholder="Search for Items, Lots or Chalaan">
-                     <button class="btn btn-info"><i class="bi bi-search mx-1"></i></button>
-                  </div>
-               </div>
-            </form> -->
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="input-group input-group-sm" style="max-width:320px;">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                        <input type="search" id="item_search_input" class="form-control border-start-0"
+                            placeholder="Search item, code, unit…">
+                    </div>
+                    <small class="text-muted" id="item_search_count"></small>
+                </div>
                 <div class="table-responsive bg-light" style="height: 64vh;">
-                    <table id="items_tbl" class="my_custom_datatable table table-light table-bordered table-hover">
+                    <table id="items_tbl" class="my_customize_datatable table table-light table-bordered table-hover">
                         <thead>
                             <tr>
                                 <th width="5%">Code</th>
@@ -72,7 +70,7 @@
                                         <td><?php echo $value->cratetype; ?></td>
                                         <td><?php echo $value->m_item_fright; ?></td>
                                         <td><?php echo $value->m_item_comm; ?></td>
-                                        
+
                                         <td title="Action" style="white-space: nowrap;">
                                             <?php // if ($logged_user_type == 1 || has_perm($logged_user_id, 'Mtr','city', 'Edit')) { 
                                             ?>
@@ -145,7 +143,7 @@
                                         </div>
                                     </div>
                                 </div>
-                              
+
 
                                 <div class="row mb-1">
                                     <div class="col-md-12">
@@ -160,7 +158,7 @@
                                                         } else {
                                                             $op = '';
                                                         }
-                                                        echo '<option value="' . $grp->m_itgrp_id . '" '.$op.'>' . $grp->m_itgrp_title . '</option>';
+                                                        echo '<option value="' . $grp->m_itgrp_id . '" ' . $op . '>' . $grp->m_itgrp_title . '</option>';
                                                     }
                                                 } ?>
 
@@ -181,7 +179,7 @@
                                                         } else {
                                                             $op = '';
                                                         }
-                                                        echo '<option value="' . $grp->m_itgrp_id . '" '.$op.'>' . $grp->m_itgrp_title . '</option>';
+                                                        echo '<option value="' . $grp->m_itgrp_id . '" ' . $op . '>' . $grp->m_itgrp_title . '</option>';
                                                     }
                                                 } ?>
 
@@ -202,7 +200,7 @@
                                                         } else {
                                                             $op = '';
                                                         }
-                                                        echo '<option value="' . $grp->m_itgrp_id . '" '.$op.'>' . $grp->m_itgrp_title . '</option>';
+                                                        echo '<option value="' . $grp->m_itgrp_id . '" ' . $op . '>' . $grp->m_itgrp_title . '</option>';
                                                     }
                                                 } ?>
 
@@ -215,7 +213,7 @@
                                     <div class="col-md-12">
                                         <div class="form-group">
                                             <label>Fright Rate</label>
-                                           <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="m_item_fright" id="m_item_fright" class="form-control" placeholder="Enter Fright Rate" value="<?= $ifright ?>">
+                                            <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="m_item_fright" id="m_item_fright" class="form-control" placeholder="Enter Fright Rate" value="<?= $ifright ?>">
                                         </div>
                                     </div>
                                 </div>
@@ -223,7 +221,7 @@
                                     <div class="col-md-12">
                                         <div class="form-group">
                                             <label>Commission Rate</label>
-                                           <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="m_item_comm" id="m_item_comm" class="form-control" placeholder="Enter Commission" value="<?= $comm ?>">
+                                            <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="m_item_comm" id="m_item_comm" class="form-control" placeholder="Enter Commission" value="<?= $comm ?>">
                                         </div>
                                     </div>
                                 </div>
@@ -231,7 +229,7 @@
                                     <div class="col-md-12">
                                         <div class="form-group">
                                             <label> Item Price</label>
-                                           <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="m_item_price" id="m_item_price" class="form-control" placeholder="Enter Item Price" value="<?= $iprice ?>">
+                                            <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="m_item_price" id="m_item_price" class="form-control" placeholder="Enter Item Price" value="<?= $iprice ?>">
                                         </div>
                                     </div>
                                 </div>
@@ -318,3 +316,32 @@
 <?php $this->view('js/js_master') ?>
 <?php $this->view('js/custom_js'); ?>
 <!-- ========================Footer================Fix======= -->
+<script>
+    $(function() {
+
+        $('#items_tbl').tableSearch({
+            inputSelector: '#item_search_input',
+
+            // Sirf in columns me search hoga: 0=Code, 1=Name, 2=Unit, 3=Price
+            // Sab columns me search chahiye to yeh line hata do
+            columns: [0, 1, 2, 3],
+
+            minChars: 1, // 1 char type karte hi search shuru
+            noResultMsg: 'Koi item nahi mila',
+            debounce: 150, // ms
+
+            highlight: true, // matched text highlight hoga
+            highlightClass: 'item-match',
+
+            onResult: function(visible, total) {
+                var $el = $('#item_search_count');
+                if (visible === total) {
+                    $el.text('');
+                } else {
+                    $el.text(visible + ' of ' + total + ' items');
+                }
+            }
+        });
+
+    });
+</script>
