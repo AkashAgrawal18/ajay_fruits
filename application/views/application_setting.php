@@ -56,13 +56,13 @@
             <div class="col-md-3">
               <div class="form-group">
                 <label class="control-label">Application Login Id</label>
-                <input value="<?php echo $login_detail->m_admin_login_id  ?>" type="text" name="m_admin_login_id" placeholder="App Login Id" class="form-control">
+                <input value="<?php echo $login_detail->m_user_login_id  ?>" type="text" name="m_admin_login_id" placeholder="App Login Id" class="form-control">
               </div>
             </div>
             <div class="col-md-2">
               <div class="form-group">
                 <label class="control-label">Login Password</label>
-                <input value="<?php echo $login_detail->m_admin_pass  ?>" type="text" name="m_admin_pass" placeholder="App Password" class="form-control">
+                <input value="<?php echo $login_detail->m_user_pass  ?>" type="text" name="m_admin_pass" placeholder="App Password" class="form-control">
               </div>
             </div>
             <div class="col-md-2">

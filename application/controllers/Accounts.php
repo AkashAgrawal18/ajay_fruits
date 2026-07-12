@@ -9,6 +9,22 @@ class Accounts extends CI_Controller
    echo "Welcome";
   }
 
+  public function branch_list()
+  {
+    $data = $this->login_details();
+    $data['pagename'] = "All Branch List";
+    $data['pgtype'] = 9;
+    $data['from_date'] = $this->input->post('from_date');
+    $data['to_date'] = $this->input->post('to_date');
+    $data['city_dtl'] = $this->input->post('city_dtl');
+    $data['search_in'] = $this->input->post('search_in');
+
+    $data['city_list'] = $this->Master_model->get_active_city();
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+   
+    $this->load->view('user_list', $data);
+  }
+
   public function user_list()
   {
     $data = $this->login_details();
@@ -179,9 +195,11 @@ class Accounts extends CI_Controller
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
-    
+    $data['branch_id'] = $this->input->post('branch_id');
+
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_all_customers($data['from_date'], $data['to_date'], $data['city_dtl'],$data['search_in']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['mech_value'] = $this->Main_model->get_all_customers($data['from_date'], $data['to_date'], $data['city_dtl'], $data['search_in'], $data['branch_id']);
     $this->load->view('customer_list', $data);
   }
 

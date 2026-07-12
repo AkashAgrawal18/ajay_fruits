@@ -25,7 +25,7 @@ public function index(){
     if ($this->form_validation->run() == FALSE) { }else{
 
       if($data = $this->Login_model->validate_user()){
-        $usrdata=array('is_user_in' => true, 'user_id' => $data[0]->m_admin_id,'user_type'=>$data[0]->m_admin_type,'user_name'=> $data[0]->m_admin_name);
+        $usrdata=array('is_user_in' => true, 'user_id' => $data[0]->m_user_id,'user_type'=>$data[0]->m_user_type,'user_name'=> $data[0]->m_user_name);
         $this->session->set_userdata($usrdata);
           redirect('Welcome');
       }else{ 

@@ -57,6 +57,9 @@
                             <li><a class="dropdown-item" href="<?= base_url('Sales/send_bill_indiviouly') ?>">Send Summary</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Sales/Reminder_list') ?>">Reminder List</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Sales/purchase_item_list') ?>">Stock in & out Report</a></li>
+                            <?php if ($this->session->userdata('user_type') == 8) : ?>
+                                <li><a class="dropdown-item" href="<?= base_url('Accounts/branch_list') ?>">Branch List</a></li>
+                            <?php endif; ?>
                         </ul>
                     </div>
                     <div class="btn-group">
@@ -129,7 +132,7 @@
                                 }
                                 if (!empty($expenses)) {
                                     foreach ($expenses as $expense) {
-                                        $type = expenseTypeLabel($expense->m_group_type,$expense->m_group_group);
+                                        $type = expenseTypeLabel($expense->m_group_type, $expense->m_group_group);
                                         $label = htmlspecialchars($expense->m_group_name . ' (' . $expense->m_group_id . ')');
                                         echo '<option value="' . $label . '" data-id="' . $expense->m_group_id . '" data-type="' . strtolower($type) . '">' . $label . '</option>';
                                     }
@@ -167,7 +170,7 @@
                             <!-- <img src="<? // base_url('uploads/') . get_settings('m_app_logo') 
                                             ?>" alt="" class="rounded-circle" style="aspect-ratio: 1/1;height:30px;"> -->
                             <div>
-                                <h6 class="m-0 text-dark pe-3"><?= $login_detail->m_admin_name ?></h6>
+                                <h6 class="m-0 text-dark pe-3"><?= $login_detail->m_user_name ?></h6>
                             </div>
                         </div>
                     </a>

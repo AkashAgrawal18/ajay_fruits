@@ -362,16 +362,16 @@ class Api_Model extends CI_model
 			$lot    = $m_sale_lot[$key] ?? null;
 
 			/** ---------------- STOCK CHECK ---------------- **/
-			$available_qty = $this->get_lot_available_qty($item, $lot);
+			// $available_qty = $this->get_lot_available_qty($item, $lot);
 
-			if ($qty > $available_qty) {
-				$this->db->trans_rollback();
-				return [
-					'response' => 'error',
-					'message' => 'Insufficient stock for item {$item} (Lot: {$lot})',
-					'm_sale_spo' => '',
-				];
-			}
+			// if ($qty > $available_qty) {
+			// 	$this->db->trans_rollback();
+			// 	return [
+			// 		'response' => 'error',
+			// 		'message' => 'Insufficient stock for item {$item} (Lot: {$lot})',
+			// 		'm_sale_spo' => '',
+			// 	];
+			// }
 
 			/** ---------------- CALCULATION ---------------- **/
 			$subtotal = ($weight > 0) ? ($price * $weight) : ($price * $qty);

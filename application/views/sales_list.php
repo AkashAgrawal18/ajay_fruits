@@ -75,13 +75,13 @@
                     <div class="col-2">
                         <div class="form-group">
                             <label for="">From date</label>
-                            <input type="date" max="<?= date('Y-m-d')?>" name="from_date" id="from_date" class="form-control" value="<?= $from_date ?>">
+                            <input type="date" max="<?= date('Y-m-d') ?>" name="from_date" id="from_date" class="form-control" value="<?= $from_date ?>">
                         </div>
                     </div>
                     <div class="col-2">
                         <div class="form-group">
                             <label for="">To date</label>
-                            <input type="date" max="<?= date('Y-m-d')?>" name="to_date" id="to_date" class="form-control" value="<?= $to_date ?>">
+                            <input type="date" max="<?= date('Y-m-d') ?>" name="to_date" id="to_date" class="form-control" value="<?= $to_date ?>">
                         </div>
                     </div>
 
@@ -113,22 +113,36 @@
                     </div>
                     <div class="col-2">
                         <div class="form-group">
+                            <label for="">Branch</label>
+                            <select name="branchs_id" id="branchs_id" class="form-select select2">
+                                <option value="">All Branches</option>
+                                <?php if (!empty($branch_list)) {
+                                    foreach ($branch_list as $branch) {
+                                        $selected = ($branchs_id == $branch->m_user_id) ? 'selected' : '';
+                                ?>
+                                        <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                <?php }
+                                } ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <div class="form-group">
                             <label for="">Search By Name</label>
                             <input type="text" name="search_in" id="search_in" class="form-control" placeholder="Enter Name,Mobile..." value="<?= $search_in ?>">
                         </div>
                     </div>
-                     <div class="col-2">
+                    <div class="col-2">
                         <div class="form-group">
                             <label for="">Lot Wise Search</label>
                             <input type="text" name="lot_no" id="lot_no" class="form-control" value="<?= $lot_no ?>">
                         </div>
                     </div>
-                    <div class="col-2 mt-4">
+                    <div class="col-4 mt-2">
                         <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i> Search</button>
                         <a class="btn btn-danger btn-sm" href="<?= base_url('Sales/sales_list') ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
                         <button class="btn btn-success btn-sm" type="button" onclick="printcustomtable()"><i class="bi bi-printer me-2"></i>Print</button>
                         <button class="btn btn-warning btn-sm" type="submit" value="3" name="print_bill"><i class="bi bi-printer"></i> Print Bill</button>
-                        
                     </div>
                 </form>
             </div>

@@ -20,6 +20,8 @@
         var link = "<?= site_url('Accounts/general_list'); ?>"
       } else if (rtype == 5) {
         var link = "<?= site_url('Accounts/investment_list'); ?>"
+      } else if (rtype == 9) {
+        var link = "<?= site_url('Accounts/branch_list'); ?>"
       }
 
 

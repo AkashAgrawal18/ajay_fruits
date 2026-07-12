@@ -2,7 +2,8 @@
 <?php include("header.php"); ?>
 <!-- ========== Page Content ========== -->
 <?php
-// echo $pgtype; die;
+$paglink = '';
+$pgname = '';
 if ($pgtype == 1) {
     $paglink = 'user_list';
     $pgname = 'Staff';
@@ -18,6 +19,9 @@ if ($pgtype == 1) {
 } else if ($pgtype == 5) {
     $paglink = 'investment_list';
     $pgname = 'Investment';
+} else if ($pgtype == 9) {
+    $paglink = 'branch_list';
+    $pgname = 'Branch';
 }
 ?>
 
@@ -26,7 +30,7 @@ if ($pgtype == 1) {
         <div class="row align-items-center">
             <div class="col-6">
                 <h6 class="m-0 text-white">
-                    Home >> <span class="text-primary">Add <?= $pgname ?></span>
+                    Home >> <span class="text-primary"><?= $pagename . ' ' . $pgname ?></span>
                 </h6>
             </div>
             <div class="col-6 text-end">
@@ -82,12 +86,12 @@ if ($pgtype == 1) {
             $loginid = '';
             $login_allow = 1;
             $opening = 0;
-            $crateOP = array(0,0,0);
+            $crateOP = array(0, 0, 0);
         }
-        
-       $cv10 = isset($crateOP[0]) ? $crateOP[0] : 0;
-       $cv20 = isset($crateOP[1]) ? $crateOP[1] : 0;
-       $cv25 = isset($crateOP[2]) ? $crateOP[2] : 0;
+
+        $cv10 = isset($crateOP[0]) ? $crateOP[0] : 0;
+        $cv20 = isset($crateOP[1]) ? $crateOP[1] : 0;
+        $cv25 = isset($crateOP[2]) ? $crateOP[2] : 0;
         ?>
 
         <form class="row justify-content-evenly g-4" id="frm-add-user" action="#" method="POST">
@@ -99,6 +103,89 @@ if ($pgtype == 1) {
                         <input type="hidden" name="m_user_type" id="m_user_type" value="<?= $pgtype ?>">
                         <input type="text" name="m_user_name" id="m_user_name" value="<?= $name ?>" class="form-control" placeholder="Enter Account Name" required>
                     </div>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Contact Person</label>
+                        <input type="text" name="m_user_contractPerd" id="m_user_contractPerd" value="<?= $contractPerd ?>" class="form-control" placeholder="Harsh Agrawal">
+                    </div>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Mobile Number <span class="text-danger">*</span></label>
+                        <input type="tel" maxlength="10" minlength="10" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_user_mobile" id="m_user_mobile" value="<?= $mobile ?>" placeholder="1234512345" required>
+                    </div>
+                    <?php if ($pgtype == 1) { ?>
+                        <div class="col-6">
+                            <label for="" class="mb-0 form-label small">Group</label>
+                            <select name="m_user_group[]" id="group" class="form-control select2" multiple>
+                                <option value="">Select Group</option>
+                                <?php
+                                $j = 0;
+                                foreach ($group_dtl as $Svalue) {
+                                    $option1 = "";
+
+                                    if ($group[$j] == $Svalue->m_group_id) {
+                                        $option1 = "selected";
+                                        $j++;
+                                    }
+
+                                ?>
+                                    <option value="<?php echo $Svalue->m_group_id; ?>" <?= $option1 ?>><?= $Svalue->m_group_name; ?>
+                                    </option>
+                                <?php
+                                }
+
+                                ?>
+
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label for="" class="mb-0 form-label small">Designation</label>
+                            <select name="m_user_design" id="design" class="form-control select2">
+                                <option value="1" <?= $design == 1 ? 'selected' : '' ?>>Sale Agent</option>
+                                <option value="2" <?= $design == 2 ? 'selected' : '' ?>>Manager</option>
+
+                            </select>
+                        </div>
+                    <?php } else if ($pgtype != 9) { ?>
+                        <div class="col-4">
+                            <label for="" class="mb-0 form-label small">10kg Crate Balance</label>
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <select class="form-control dropdown-toggle-split" aria-haspopup="true" aria-expanded="false" name="ct10" style="border-radius: 5px 0px 0px 5px;">
+                                        <option value="2" <?php if ($cv10 > 0) echo 'selected' ?>>DR.</option>
+                                        <option value="1" <?php if ($cv10 < 0) echo 'selected' ?>>CR.</option>
+                                    </select>
+                                </div>
+                                <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="cbv10" id="cbv10" value="<?= abs((int)$cv10) ?>" placeholder="10kg Balance" class="form-control" aria-label="Text input with segmented dropdown button">
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <label for="" class="mb-0 form-label small">20kg Crate Balance</label>
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+
+                                    <select class="form-control dropdown-toggle-split" aria-haspopup="true" aria-expanded="false" name="ct20" style="border-radius: 5px 0px 0px 5px;">
+                                        <option value="2" <?php if ($cv20 > 0) echo 'selected' ?>>DR.</option>
+                                        <option value="1" <?php if ($cv20 < 0) echo 'selected' ?>>CR.</option>
+                                    </select>
+
+                                </div>
+                                <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="cbv20" id="cbv20" value="<?= abs((int)$cv20) ?>" placeholder="20kg Balance" class="form-control" aria-label="Text input with segmented dropdown button">
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <label for="" class="mb-0 form-label small">25kg Crate Balance</label>
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+
+                                    <select class="form-control dropdown-toggle-split" aria-haspopup="true" aria-expanded="false" name="ct25" style="border-radius: 5px 0px 0px 5px;">
+                                        <option value="2" <?php if ($cv25 > 0) echo 'selected' ?>>DR.</option>
+                                        <option value="1" <?php if ($cv25 < 0) echo 'selected' ?>>CR.</option>
+                                    </select>
+
+                                </div>
+                                <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="cbv25" id="cbv25" value="<?= abs((int)$cv25) ?>" placeholder="25kg Balance" class="form-control" aria-label="Text input with segmented dropdown button">
+                            </div>
+                        </div>
+                    <?php } ?>
                     <div class="col-6">
                         <label for="" class="mb-0 form-label small">Area/City</label>
                         <select name="m_user_city" id="city" class="form-control select2">
@@ -149,117 +236,13 @@ if ($pgtype == 1) {
                         <label for="" class="mb-0 form-label small">Address</label>
                         <textarea rows="3" class="form-control" name="m_user_address" id="m_user_address" value="<?= $address ?>" placeholder="enter full address"><?= $address ?></textarea>
                     </div>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Contact Person</label>
-                        <input type="text" name="m_user_contractPerd" id="m_user_contractPerd" value="<?= $contractPerd ?>" class="form-control" placeholder="Harsh Agrawal">
-                    </div>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Mobile Number <span class="text-danger">*</span></label>
-                        <input type="tel" maxlength="10" minlength="10" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_user_mobile" id="m_user_mobile" value="<?= $mobile ?>" placeholder="1234512345" required>
-                    </div>
-                    <?php if ($pgtype == 1) { ?>
-                        <div class="col-6">
-                            <label for="" class="mb-0 form-label small">Group</label>
-                            <select name="m_user_group[]" id="group" class="form-control select2" multiple>
-                                <option value="">Select Group</option>
-                                <?php
-                                $j = 0;
-                                foreach ($group_dtl as $Svalue) {
-                                    $option1 = "";
 
-                                    if ($group[$j] == $Svalue->m_group_id) {
-                                        $option1 = "selected";
-                                        $j++;
-                                    }
 
-                                ?>
-                                    <option value="<?php echo $Svalue->m_group_id; ?>" <?= $option1 ?>><?= $Svalue->m_group_name; ?>
-                                    </option>
-                                <?php
-                                }
-
-                                ?>
-
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <label for="" class="mb-0 form-label small">Designation</label>
-                            <select name="m_user_design" id="design" class="form-control select2">
-                                <option value="1" <?= $design == 1 ? 'selected' : '' ?>>Sale Agent</option>
-                                <option value="2" <?= $design == 2 ? 'selected' : '' ?>>Manager</option>
-
-                            </select>
-                        </div>
-                    <?php } else { ?>
-                        <div class="col-4">
-                            <label for="" class="mb-0 form-label small">10kg Crate Balance</label>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-
-                                    <select class="form-control dropdown-toggle-split" aria-haspopup="true" aria-expanded="false" name="ct10" style="border-radius: 5px 0px 0px 5px;">
-                                        <option value="2" <?php if ($cv10 > 0) echo 'selected' ?>>DR.</option>
-                                        <option value="1" <?php if ($cv10 < 0) echo 'selected' ?>>CR.</option>
-                                    </select>
-
-                                </div>
-                                <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="cbv10" id="cbv10" value="<?= abs((int)$cv10) ?>" placeholder="10kg Balance" class="form-control" aria-label="Text input with segmented dropdown button">
-                            </div>
-
-                        </div>
-                        <div class="col-4">
-                            <label for="" class="mb-0 form-label small">20kg Crate Balance</label>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-
-                                    <select class="form-control dropdown-toggle-split" aria-haspopup="true" aria-expanded="false" name="ct20" style="border-radius: 5px 0px 0px 5px;">
-                                        <option value="2" <?php if ($cv20 > 0) echo 'selected' ?>>DR.</option>
-                                        <option value="1" <?php if ($cv20 < 0) echo 'selected' ?>>CR.</option>
-                                    </select>
-
-                                </div>
-                                <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="cbv20" id="cbv20" value="<?= abs((int)$cv20) ?>" placeholder="20kg Balance" class="form-control" aria-label="Text input with segmented dropdown button">
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <label for="" class="mb-0 form-label small">25kg Crate Balance</label>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-
-                                    <select class="form-control dropdown-toggle-split" aria-haspopup="true" aria-expanded="false" name="ct25" style="border-radius: 5px 0px 0px 5px;">
-                                        <option value="2" <?php if ($cv25 > 0) echo 'selected' ?>>DR.</option>
-                                        <option value="1" <?php if ($cv25 < 0) echo 'selected' ?>>CR.</option>
-                                    </select>
-
-                                </div>
-                                <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="cbv25" id="cbv25" value="<?= abs((int)$cv25) ?>" placeholder="25kg Balance" class="form-control" aria-label="Text input with segmented dropdown button">
-                            </div>
-                        </div>
-                    <?php } ?>
                 </div>
             </div>
             <div class="col-4">
                 <div class="row g-4">
-                    <div class="col-12">
-                        <label for="" class="mb-0 form-label small">Remarks</label>
-                        <textarea rows="3" class="form-control" name="m_user_remark" id="m_user_remark" placeholder="if any"><?= $remark ?></textarea>
-                    </div>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Trade Mark</label>
-                        <input type="text" class="form-control" name="m_user_trademark" id="m_user_trademark" value="<?= $trademark ?>" placeholder="if any">
-                    </div>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Account number</label>
-                        <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_user_accountno" id="m_user_accountno" value="<?= $accountno ?>" placeholder="123412341234">
-                    </div>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Pan Number</label>
-                        <input type="tel" maxlength="10" minlength="10" class="form-control" name="m_user_pan_no" id="m_user_pan_no" value="<?= $pan_no ?>" placeholder="123412341234">
-                    </div>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Aadhar number</label>
-                        <input type="tel" maxlength="12" minlength="12" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_user_adharno" id="m_user_adharno" value="<?= $adharno ?>" placeholder="123412341234">
-                    </div>
-                    <?php if ($pgtype == 1) { ?>
+                    <?php if ($pgtype == 1 || $pgtype == 9) { ?>
                         <div class="col-6">
                             <label for="" class="mb-0 form-label small">Login Allow</label>
                             <select name="m_user_login_allow" id="m_user_login_allow" class="form-control">
@@ -276,44 +259,68 @@ if ($pgtype == 1) {
                                                         echo 'd-none';
                                                     } ?>">
                             <label for="" class="mb-0 form-label small">Login Id</label>
-                            <input type="tel" maxlength="10" minlength="10" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_user_loginid" id="m_user_loginid" value="<?= $loginid ?>">
+                            <?php if ($pgtype == 9) { ?>
+                                <input type="text" class="form-control" name="m_user_loginid" id="m_user_loginid" value="<?= $loginid ?>">
+                            <?php } else { ?>
+                                <input type="tel" maxlength="10" minlength="10" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_user_loginid" id="m_user_loginid" value="<?= $loginid ?>">
+                            <?php } ?>
                         </div>
 
                         <div class="col-6 logindtl <?php if ($login_allow == 0) {
                                                         echo 'd-none';
                                                     } ?>">
                             <label for="" class="mb-0 form-label small">Password</label>
-                            <input type="text" maxlength="6" class="form-control" name="m_user_password" id="m_user_password" value="<?= $password ?>">
+                            <input type="text" minlength="6" class="form-control" name="m_user_password" id="m_user_password" value="<?= $password ?>">
                         </div>
 
-                    <?php }?>
-                        <div class="col-6">
-                            <label for="" class="mb-0 form-label small">Opening Cash Balance</label>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
+                    <?php } ?>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Opening Cash Balance</label>
+                        <div class="input-group mb-3">
+                            <div class="input-group-prepend">
 
-                                    <select class="form-control dropdown-toggle-split" aria-haspopup="true" aria-expanded="false" name="m_user_typeopening" style="border-radius: 5px 0px 0px 5px;">
-                                        <option value="2" <?php if (!empty($opening) && $opening > 0) echo 'selected' ?>>DR.</option>
-                                        <option value="1" <?php if (!empty($opening) && $opening < 0) echo 'selected' ?>>CR.</option>
-                                    </select>
+                                <select class="form-control dropdown-toggle-split" aria-haspopup="true" aria-expanded="false" name="m_user_typeopening" style="border-radius: 5px 0px 0px 5px;">
+                                    <option value="2" <?php if (!empty($opening) && $opening > 0) echo 'selected' ?>>DR.</option>
+                                    <option value="1" <?php if (!empty($opening) && $opening < 0) echo 'selected' ?>>CR.</option>
+                                </select>
 
-                                </div>
-                                <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="m_user_opening" id="m_user_opening" value="<?= abs($opening) ?>" placeholder="Enter opening Balance" class="form-control" aria-label="Text input with segmented dropdown button">
                             </div>
-
-
+                            <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="m_user_opening" id="m_user_opening" value="<?= abs($opening) ?>" placeholder="Enter opening Balance" class="form-control" aria-label="Text input with segmented dropdown button">
                         </div>
-                        <div class="col-6">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckChecked">
-                                <label class="form-check-label small" for="flexSwitchCheckChecked">Print in English
-                                    Only</label>
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckChecked">
-                                <label class="form-check-label small" for="flexSwitchCheckChecked">Special Expense</label>
-                            </div>
+                    </div>
+
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Trade Mark</label>
+                        <input type="text" class="form-control" name="m_user_trademark" id="m_user_trademark" value="<?= $trademark ?>" placeholder="if any">
+                    </div>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Account number</label>
+                        <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_user_accountno" id="m_user_accountno" value="<?= $accountno ?>" placeholder="123412341234">
+                    </div>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Pan Number</label>
+                        <input type="tel" maxlength="10" minlength="10" class="form-control" name="m_user_pan_no" id="m_user_pan_no" value="<?= $pan_no ?>" placeholder="123412341234">
+                    </div>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Aadhar number</label>
+                        <input type="tel" maxlength="12" minlength="12" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_user_adharno" id="m_user_adharno" value="<?= $adharno ?>" placeholder="123412341234">
+                    </div>
+                    <div class="col-12">
+                        <label for="" class="mb-0 form-label small">Remarks</label>
+                        <textarea rows="3" class="form-control" name="m_user_remark" id="m_user_remark" placeholder="if any"><?= $remark ?></textarea>
+                    </div>
+
+                    <!-- <div class="col-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckChecked">
+                            <label class="form-check-label small" for="flexSwitchCheckChecked">Print in English
+                                Only</label>
                         </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckChecked">
+                            <label class="form-check-label small" for="flexSwitchCheckChecked">Special Expense</label>
+                        </div>
+                    </div> -->
 
                 </div>
             </div>

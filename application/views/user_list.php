@@ -18,6 +18,9 @@ if ($pgtype == 1) {
 } else if ($pgtype == 5) {
     $paglink = 'investment_list';
     $pgname = 'Investment';
+} else if ($pgtype == 9) {
+    $paglink = 'branch_list';
+    $pgname = 'Branch';
 }
 ?>
 <!-- ========== Page Content ========== -->

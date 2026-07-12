@@ -40,7 +40,6 @@
             $trademark = $edit_value->m_cust_trademark;
             $loginid = $edit_value->m_cust_loginid;
             $password = $edit_value->m_cust_password;
-         
         } else {
             $id = '';
             $name = '';
@@ -73,56 +72,6 @@
                         <label for="" class="mb-0 form-label small">Account Name <span class="text-danger">*</span></label>
                         <input type="hidden" name="m_cust_id" id="m_cust_id" value="<?= $id ?>">
                         <input type="text" name="m_cust_name" id="m_cust_name" value="<?= $name ?>" class="form-control" placeholder="Enter Account Name" required>
-                    </div>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Area/City</label>
-                        <select name="m_cust_city" id="city" class="form-control select2">
-                            <option value="">Select City</option>
-                            <?php
-                            foreach ($city_dtl as $city_value) {
-
-                                if ($city == $city_value->m_city_id) {
-                                    $option1 = "selected";
-                                } else {
-                                    $option1 = "";
-                                }
-
-                            ?>
-                                <option value="<?php echo $city_value->m_city_id; ?>" <?= $option1 ?>><?php echo $city_value->m_city_name ?>
-                                </option>
-                            <?php
-                            }
-
-                            ?>
-
-                        </select>
-                    </div>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">State</label>
-                        <select name="m_cust_state" id="state" class="form-control select2">
-                            <option value="">Select State</option>
-                            <?php
-                            foreach ($state_dtl as $Svalue) {
-
-                                if ($state == $Svalue->m_state_id) {
-                                    $option1 = "selected";
-                                } else {
-                                    $option1 = "";
-                                }
-
-                            ?>
-                                <option value="<?php echo $Svalue->m_state_id; ?>" <?= $option1 ?>><?= $Svalue->m_state_name; ?>
-                                </option>
-                            <?php
-                            }
-
-                            ?>
-
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <label for="" class="mb-0 form-label small">Address</label>
-                        <textarea rows="3" class="form-control" name="m_cust_address" id="m_cust_address" value="<?= $address ?>" placeholder="enter full address"><?= $address ?></textarea>
                     </div>
                     <div class="col-6">
                         <label for="" class="mb-0 form-label small">Contact Person</label>
@@ -175,6 +124,57 @@
                             <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="cbv25" id="cbv25" value="<?= abs($cv25) ?>" placeholder="25kg Balance" class="form-control" aria-label="Text input with segmented dropdown button">
                         </div>
                     </div>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Area/City</label>
+                        <select name="m_cust_city" id="city" class="form-control select2">
+                            <option value="">Select City</option>
+                            <?php
+                            foreach ($city_dtl as $city_value) {
+
+                                if ($city == $city_value->m_city_id) {
+                                    $option1 = "selected";
+                                } else {
+                                    $option1 = "";
+                                }
+
+                            ?>
+                                <option value="<?php echo $city_value->m_city_id; ?>" <?= $option1 ?>><?php echo $city_value->m_city_name ?>
+                                </option>
+                            <?php
+                            }
+
+                            ?>
+
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">State</label>
+                        <select name="m_cust_state" id="state" class="form-control select2">
+                            <option value="">Select State</option>
+                            <?php
+                            foreach ($state_dtl as $Svalue) {
+
+                                if ($state == $Svalue->m_state_id) {
+                                    $option1 = "selected";
+                                } else {
+                                    $option1 = "";
+                                }
+
+                            ?>
+                                <option value="<?php echo $Svalue->m_state_id; ?>" <?= $option1 ?>><?= $Svalue->m_state_name; ?>
+                                </option>
+                            <?php
+                            }
+
+                            ?>
+
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label for="" class="mb-0 form-label small">Address</label>
+                        <textarea rows="3" class="form-control" name="m_cust_address" id="m_cust_address" value="<?= $address ?>" placeholder="enter full address"><?= $address ?></textarea>
+                    </div>
+
                 </div>
             </div>
             <div class="col-4">
@@ -183,27 +183,6 @@
                         <label for="" class="mb-0 form-label small">Account Name (hindi)</label>
                         <input type="text" name="m_cust_hndiname" id="m_cust_hndiname" value="<?= $hndiname ?>" class="form-control" placeholder="Enter Name in hindi">
                     </div>
-                    <div class="col-12">
-                        <label for="" class="mb-0 form-label small">Remarks</label>
-                        <textarea rows="3" class="form-control" name="m_cust_remark" id="m_cust_remark" placeholder="if any"><?= $remark ?></textarea>
-                    </div>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Trade Mark</label>
-                        <input type="text" class="form-control" name="m_cust_trademark" id="m_cust_trademark" value="<?= $trademark ?>" placeholder="if any">
-                    </div>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Account number</label>
-                        <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_cust_accountno" id="m_cust_accountno" value="<?= $accountno ?>" placeholder="123412341234">
-                    </div>
-                    <div class="col-6">
-                            <label for="" class="mb-0 form-label small">Login Id</label>
-                            <input type="tel" maxlength="10" minlength="10" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_cust_loginid" id="m_cust_loginid" value="<?= $loginid ?>">
-                        </div>
-
-                        <div class="col-6">
-                            <label for="" class="mb-0 form-label small">Password</label>
-                            <input type="text" minlength="6" class="form-control" name="m_cust_password" id="m_cust_password" value="<?= $password ?>">
-                        </div>
                     <div class="col-6">
                         <label for="" class="mb-0 form-label small">Opening Cash Balance</label>
                         <div class="input-group mb-3">
@@ -242,6 +221,28 @@
 
                         </select>
                     </div>
+                    <div class="col-12">
+                        <label for="" class="mb-0 form-label small">Remarks</label>
+                        <textarea rows="3" class="form-control" name="m_cust_remark" id="m_cust_remark" placeholder="if any"><?= $remark ?></textarea>
+                    </div>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Trade Mark</label>
+                        <input type="text" class="form-control" name="m_cust_trademark" id="m_cust_trademark" value="<?= $trademark ?>" placeholder="if any">
+                    </div>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Account number</label>
+                        <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_cust_accountno" id="m_cust_accountno" value="<?= $accountno ?>" placeholder="123412341234">
+                    </div>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Login Id</label>
+                        <input type="tel" maxlength="10" minlength="10" onkeypress="return (event.charCode >= 48 && event.charCode <= 57)" class="form-control" name="m_cust_loginid" id="m_cust_loginid" value="<?= $loginid ?>">
+                    </div>
+
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Password</label>
+                        <input type="text" minlength="6" class="form-control" name="m_cust_password" id="m_cust_password" value="<?= $password ?>">
+                    </div>
+
 
                     <div class="col-12 d-flex justify-content-between">
                         <div class="form-check form-switch">

@@ -145,11 +145,13 @@ class Sales extends CI_Controller
     $data['search_in'] = $this->input->post('search_in');
     $data['group_id'] = $this->input->post('group_id');
     $data['lot_no'] = $this->input->post('lot_no');
+    $data['branchs_id'] = $this->input->post('branchs_id');
     $data['group_dtl'] = $this->Master_model->get_all_group(1);
     $data['staff_list'] = $this->Main_model->get_active_user_list(1);
     $data['item_list'] = $this->Master_model->get_all_item();
     $data['custo_list'] = $this->Main_model->get_cust_active_list();
-    $data['all_value'] = $this->Main_model->sales_group($data['from_date'], $data['to_date'], null, $data['group_id'], $data['search_in'], null, $data['lot_no']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['all_value'] = $this->Main_model->sales_group($data['from_date'], $data['to_date'], null, $data['group_id'], $data['search_in'], null, $data['lot_no'], $data['branchs_id']);
 
     if (!empty($this->input->post('print_bill'))) {
       $this->mulbill_print($data['to_date'], $data['group_id']);
@@ -359,9 +361,11 @@ class Sales extends CI_Controller
     $data['from_date'] = $this->input->post('from_date') ?: date('Y-m-d');
     $data['to_date'] = $this->input->post('to_date') ?: $curdate;
     $data['suppiler_id'] = $this->input->post('suppiler_id');
+    $data['branch_id'] = $this->input->post('branch_id');
     $data['suplier_list'] = $this->Main_model->get_active_user_list(2);
     $data['item_list'] = $this->Master_model->get_all_item();
-    $data['all_value'] = $this->Main_model->purchase_group($data['from_date'], $data['to_date'], $data['suppiler_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['all_value'] = $this->Main_model->purchase_group($data['from_date'], $data['to_date'], $data['suppiler_id'], null, $data['branch_id']);
 
 
     $this->load->view('purchase_list', $data);
@@ -1112,13 +1116,13 @@ class Sales extends CI_Controller
         }
 
         $message = "📄 *खाता स्टेटमेंट विवरण*\n\n" . "*नाम - " . $customer_name . "*\n\n" . "🔹 *स्टेटमेंट अवधि*\n" . "From: " . $from_date . "\n" . "To: " . $to_date . "\n\n" . "📊 *खाते का सारांश*\n" . "कुल बैलेंस:* " . $cust_bal['balance_amount'] . "\n\n" . "📦 *केरेट स्टेटमेंट*\n🔹 *टोटल बाकी केरेट:* " . $oldcrate . "\n\n" . "🙏🏻 *अजय कुशवाहा एंड कंपनी*\n\n" . "🚀 *पूरा स्टेटमेंट डाउनलोड करें:* [📥 Download PDF] " . $url;
-       
+
         if (!empty($message)) {
           $cust_dtl = $this->Main_model->get_cust_active_list($cust_id);
           $response = $this->Api_Model->send_whatsapp_message($cust_dtl[0]->m_cust_mobile, $message);
         }
       }
-     
+
       if ($response) {
         $info = array(
           'status' => 'success',

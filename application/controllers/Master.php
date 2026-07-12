@@ -658,6 +658,16 @@ public function delete_group()
 		$data['login_detail'] = $this->Login_model->user_details();
 		return $data;
 	}
+
+	// Only allow access for superadmin (m_user_type == 8)
+	protected function require_superadmin()
+	{
+		$ut = $this->session->userdata('user_type');
+		if (!isset($ut) || $ut != 8) {
+			redirect('Welcome');
+		}
+	}
+
 	//=========================/Details===========================//
 
 	//======================Login Validation======================//
