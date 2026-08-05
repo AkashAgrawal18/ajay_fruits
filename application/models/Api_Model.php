@@ -2,58 +2,76 @@
 
 class Api_Model extends CI_model
 {
-	// ===================== API tokens (BUG-017) =======================//
-	// The API has no session, so identity comes from a bearer token issued at
-	// login. Endpoints must derive the user from the token and ignore any
-	// user_id supplied by the caller.
+	// ===================== Branch scoping =======================//
+	//
+	// Mirrors the branch trio in Main_model / Master_model, but the API has no
+	// session to read `user_type` from, so the context is resolved once per
+	// request from the `user_id` the mobile app already posts (see
+	// Api_Controller::_api_context). That keeps branch filtering working with
+	// no change to the mobile client.
+	//
+	// The bearer-token methods that used to live here (create_token,
+	// user_id_from_token, revoke_token) were removed at the owner's request -
+	// the shipped app never sent a token. The `api_tokens` table is left in
+	// place so token auth can be restored without a migration.
 
-	/** Issues a fresh token for a user and returns it. */
-	public function create_token($user_id)
+	/** Resolved branch for this request. null == all branches (unscoped). */
+	private $api_branch = null;
+
+	/**
+	 * Resolves and stores the branch for this request.
+	 *
+	 *   superadmin (type 8)      -> null, sees every branch
+	 *   branch account (type 9)  -> its own user id, matching Main_model
+	 *   anyone else              -> the branch recorded on their account
+	 *   unknown / not supplied   -> null, request stays unscoped
+	 */
+	public function set_branch_context($user_id)
 	{
-		$this->config->load('integrations', TRUE, TRUE);
-		$ttl = (int) $this->config->item('api_token_ttl', 'integrations');
-		if ($ttl <= 0) {
-			$ttl = 2592000;
-		}
+		$this->api_branch = null;
 
-		$token = bin2hex(random_bytes(32));
-
-		$this->db->insert('api_tokens', array(
-			'user_id'    => (int) $user_id,
-			'token'      => $token,
-			'created_at' => date('Y-m-d H:i:s'),
-			'expires_at' => date('Y-m-d H:i:s', time() + $ttl),
-		));
-
-		// Opportunistic cleanup so the table does not grow without bound.
-		$this->db->where('expires_at <', date('Y-m-d H:i:s'))->delete('api_tokens');
-
-		return $token;
-	}
-
-	/** Resolves a token to a live, enabled user id, or null. */
-	public function user_id_from_token($token)
-	{
-		if (empty($token)) {
+		if (empty($user_id)) {
 			return null;
 		}
 
-		$row = $this->db->select('t.user_id')
-			->from('api_tokens t')
-			->join('master_users_tbl u', 'u.m_user_id = t.user_id', 'inner')
-			->where('t.token', $token)
-			->where('t.expires_at >', date('Y-m-d H:i:s'))
-			->where('u.m_user_status', 1)
-			->where('u.m_user_login_allow', 1)
-			->get()->row();
+		$row = $this->db->select('m_user_id,m_user_type,m_user_branch')
+			->where('m_user_id', (int) $user_id)
+			->get('master_users_tbl')->row();
 
-		return $row ? (int) $row->user_id : null;
+		if (empty($row)) {
+			return null;
+		}
+
+		if ($row->m_user_type == 8) {
+			$this->api_branch = null;
+		} elseif ($row->m_user_type == 9) {
+			$this->api_branch = (int) $row->m_user_id;
+		} else {
+			$this->api_branch = (int) $row->m_user_branch;
+		}
+
+		return $this->api_branch;
 	}
 
-	/** Invalidates a token (logout). */
-	public function revoke_token($token)
+	/** The resolved branch, or null when unscoped. */
+	public function branch_id()
 	{
-		return $this->db->where('token', $token)->delete('api_tokens');
+		return $this->api_branch;
+	}
+
+	/** Adds the branch predicate to the pending query when one is resolved. */
+	private function where_branch($column)
+	{
+		if ($this->api_branch !== null) {
+			$this->db->where($column, $this->api_branch);
+		}
+		return $this->db;
+	}
+
+	/** Branch value to stamp on a new row - head office (0) when unscoped. */
+	private function branch_for_insert()
+	{
+		return $this->api_branch !== null ? $this->api_branch : 0;
 	}
 
 	public function check_mobile($mobile)
@@ -125,6 +143,7 @@ class Api_Model extends CI_model
 		$this->db->join('master_city_tbl', 'master_city_tbl.m_city_id = mct.m_cust_city', 'left');
 		$this->db->join('master_group_tbl', 'master_group_tbl.m_group_id = mct.m_cust_group');
 		$this->db->where_in('m_cust_group', explode(',', $user_group));
+		$this->where_branch('mct.m_cust_branch');
 		$this->db->order_by('m_cust_name');
 		$custo_list = $this->db->get('master_customer_tbl mct')->result();
 
@@ -218,6 +237,7 @@ class Api_Model extends CI_model
 		$this->db->where('si_issue_user', $this->input->post('user_id'));
 		$this->db->where('si_issue_type', 1);
 		$this->db->where('si_issue_status', 1);
+		$this->where_branch('staff_itemissue_tbl.si_issue_branch');
 		$this->db->order_by('m_item_name');
 		return $this->db->get('staff_itemissue_tbl')->result();
 	}
@@ -230,6 +250,7 @@ class Api_Model extends CI_model
 
 		$this->db->where('m_sale_user', $user_id);
 		$this->db->where('m_sale_date', $fdate);
+		$this->where_branch('master_sales_tbl.m_sale_branch');
 		$this->db->order_by('m_sale_date', 'desc');
 		$this->db->group_by('m_sale_spo');
 		return $this->db->get('master_sales_tbl')->result();
@@ -245,6 +266,7 @@ class Api_Model extends CI_model
 		$this->db->join('master_group_tbl', 'master_group_tbl.m_group_id = mct.m_cust_group');
 		$this->db->where('m_sale_user', $this->input->post('user_id'));
 		$this->db->where('m_sale_spo', $this->input->post('m_sale_spo'));
+		$this->where_branch('master_sales_tbl.m_sale_branch');
 		$this->db->group_by('m_sale_spo');
 		$sale_datil = $this->db->get('master_sales_tbl')->result();
 
@@ -255,6 +277,7 @@ class Api_Model extends CI_model
 			->join('master_itemgroup_tbl as unit', 'unit.m_itgrp_id = mit.m_item_unit', 'left');
 		$this->db->where('m_sale_user', $this->input->post('user_id'));
 		$this->db->where('m_sale_spo', $this->input->post('m_sale_spo'));
+		$this->where_branch('master_sales_tbl.m_sale_branch');
 
 		$sale_items =  $this->db->get('master_sales_tbl')->result();
 
@@ -304,6 +327,7 @@ class Api_Model extends CI_model
 
 	public function get_all_items()
 	{
+		$this->where_branch('master_item_tbl.m_item_branch');
 		$res = $this->db->select('master_item_tbl.*,(CASE WHEN group.m_itgrp_title IS NULL THEN "" ELSE group.m_itgrp_title END ) AS groupname,(CASE WHEN crate.m_itgrp_title IS NULL THEN "" ELSE crate.m_itgrp_title END ) AS cratetype,(CASE WHEN unit.m_itgrp_title IS NULL THEN "" ELSE unit.m_itgrp_title END ) AS unitname')
 			->join('master_itemgroup_tbl as group', 'group.m_itgrp_id = master_item_tbl.m_item_group', 'left')
 			->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_item_tbl.m_item_crate', 'left')
@@ -459,6 +483,7 @@ class Api_Model extends CI_model
 				"m_sale_lot"      => $lot,
 				"m_sale_total"    => $subtotal,
 				"m_sale_spo"      => $sale_spo,
+				"m_sale_branch"   => $this->branch_for_insert(),
 				"m_sale_added_by" => $post['user_id'],
 				"m_sale_added_on" => date('Y-m-d H:i')
 			];
@@ -518,6 +543,7 @@ class Api_Model extends CI_model
 
 		);
 		$insert_data['m_recvd_voucher'] = $voucher_no;
+		$insert_data['m_recvd_branch'] = $this->branch_for_insert();
 		$insert_data['m_recvd_added_by'] = $this->input->post('user_id');
 		$insert_data['m_recvd_added_on'] = date('Y-m-d H:i');
 		$res = $this->db->insert('master_recieved_tbl', $insert_data);
@@ -535,6 +561,7 @@ class Api_Model extends CI_model
 				"m_voucher_status"    => 1,
 
 			);
+			$insert_data['m_voucher_branch'] = $this->branch_for_insert();
 			$insert_data['m_voucher_added_by'] = $this->input->post('user_id');
 			$insert_data['m_voucher_added_on'] = date('Y-m-d H:i');
 			$res1 = $this->db->insert('master_voucher_tbl', $insert_data);
@@ -578,6 +605,7 @@ class Api_Model extends CI_model
 
 				);
 				$insert_data['m_recvd_voucher'] = $voucher_no;
+				$insert_data['m_recvd_branch'] = $this->branch_for_insert();
 				$insert_data['m_recvd_added_by'] = $this->input->post('user_id');
 				$insert_data['m_recvd_added_on'] = date('Y-m-d H:i');
 				$res =	$this->db->insert('master_recieved_tbl', $insert_data);
@@ -622,6 +650,7 @@ class Api_Model extends CI_model
 				return $this->db->where('m_exp_id', $check->m_exp_id)->update('master_expenses_tbl', $insertt_data);
 			} else {
 				$insertt_data['m_exp_voucher'] = $voucher_no;
+				$insertt_data['m_exp_branch'] = $this->branch_for_insert();
 				$insertt_data['m_exp_added_by'] = $this->input->post('user_id');
 				$insertt_data['m_exp_added_on'] = date('Y-m-d H:i');
 				return $this->db->insert('master_expenses_tbl', $insertt_data);
@@ -648,6 +677,7 @@ class Api_Model extends CI_model
 		$this->db->where('m_recvd_type', 1);
 		$this->db->where('m_recvd_account', 1);
 		$this->db->where('m_recvd_date', $fdate);
+		$this->where_branch('master_recieved_tbl.m_recvd_branch');
 		$this->db->order_by('m_recvd_date', 'desc');
 		$sql = $this->db->get('master_recieved_tbl')->result();
 
@@ -689,6 +719,7 @@ class Api_Model extends CI_model
 		$this->db->where('m_recvd_user', $user_id);
 		$this->db->where('m_recvd_type', 2);
 		$this->db->where('m_recvd_date', $fdate);
+		$this->where_branch('master_recieved_tbl.m_recvd_branch');
 		$this->db->group_by('m_recvd_voucher');
 		$this->db->order_by('m_recvd_date', 'desc');
 		$sql = $this->db->get('master_recieved_tbl')->result();
@@ -731,6 +762,8 @@ class Api_Model extends CI_model
 		$crate_total = 0;
 		$total_given = 0;
 		$total_recieved = 0;
+		// Branch-scoped to match Main_model::get_customer_balance() in the web app.
+		$this->where_branch('m_sale_branch');
 		$salequery = $this->db->select('sum(m_sale_qty) as tqty,sum(m_sale_total) as sub_total,sum(m_sale_crate) as tcrate,(m_sale_comm+m_sale_fright+m_sale_hamali+m_sale_others) as texpense')->where('m_sale_customer', $cust_id)->group_by('m_sale_spo')->get('master_sales_tbl')->result();
 		if (!empty($salequery)) {
 			foreach ($salequery as $key) {
@@ -740,10 +773,13 @@ class Api_Model extends CI_model
 			}
 		}
 
+		$this->where_branch('m_recvd_branch');
 		$amountrcvdquery = $this->db->select('sum(m_recvd_amount) as tamountrcvd')->where('m_recvd_customer', $cust_id)->where('m_recvd_account', 1)->where('m_recvd_type', 1)->get('master_recieved_tbl')->result();
 
+		$this->where_branch('m_voucher_branch');
 		$vouch_amtcdrt = $this->db->select('sum(m_voucher_amount) as tamountcdt')->where('m_voucher_accountid', $cust_id)->where('m_voucher_account', 1)->where('m_voucher_type', 1)->where('m_voucher_status', 1)->get('master_voucher_tbl')->result();
 
+		$this->where_branch('m_voucher_branch');
 		$vouch_amtdbt = $this->db->select('sum(m_voucher_amount) as tamountdbt')->where('m_voucher_accountid', $cust_id)->where('m_voucher_account', 1)->where('m_voucher_type', 2)->where('m_voucher_status', 1)->get('master_voucher_tbl')->result();
 
 		$balance_amt = $opening_bal->m_cust_opening + (($grand_total + $vouch_amtdbt[0]->tamountdbt) - ($amountrcvdquery[0]->tamountrcvd + $vouch_amtcdrt[0]->tamountcdt));
@@ -884,6 +920,7 @@ class Api_Model extends CI_model
 					$this->db->where('si_issue_date', $pr_date);
 				}
 
+				$this->where_branch('si_issue_branch');
 				$total_return = $this->db->select('sum(si_issue_qty) as itemqty,sum(si_issue_weight) as itmwgt,sum(si_issue_total) as total_amount,sum(si_issue_crate) as total_crate')->where('si_issue_type', 2)->where('si_issue_user', $user_id)->where('si_issue_item', $key->si_issue_item)->where('si_issue_lotno', $key->si_issue_lotno)->where('si_issue_status', 1)->group_by('si_issue_item')->get('staff_itemissue_tbl')->result();
 
 				if (isset($total_return[0])) {
@@ -935,13 +972,18 @@ class Api_Model extends CI_model
 	{
 		$user_group = $this->user_details($user_id)[0]->m_user_group;
 		$res = array();
+		$this->where_branch('si_issue_branch');
 		$total_stock = $this->db->select('sum(si_issue_qty) as itemqty,sum(si_issue_total) as total_amount,sum(si_issue_crate) as total_crate')->where('si_issue_type', 1)->where('si_issue_user', $user_id)->where('si_issue_date', $fdate)->where('si_issue_status', 1)->get('staff_itemissue_tbl')->result();
 
+		$this->where_branch('si_issue_branch');
 		$total_return = $this->db->select('sum(si_issue_qty) as itemqty,sum(si_issue_total) as total_amount,sum(si_issue_crate) as total_crate')->where('si_issue_type', 2)->where('si_issue_user', $user_id)->where('si_issue_date', $fdate)->where('si_issue_status', 1)->get('staff_itemissue_tbl')->result();
 
+		$this->where_branch('m_sale_branch');
 		$total_sale = $this->db->select('sum(m_sale_qty) as saleqty,sum(m_sale_total) as total_saleamt,sum(m_sale_crate) as total_salecrate')->where('m_sale_user', $user_id)->where('m_sale_date', $fdate)->get('master_sales_tbl')->result();
 
+		$this->where_branch('m_recvd_branch');
 		$total_crate_recived = $this->db->select('sum(m_recvd_qty) as recievd_crate')->where('m_recvd_user', $user_id)->where('m_recvd_date', $fdate)->where('m_recvd_type', 2)->get('master_recieved_tbl')->result();
+		$this->where_branch('m_recvd_branch');
 		$total_payment_recived = $this->db->select('sum(m_recvd_amount) as recievd_amount')->where('m_recvd_user', $user_id)->where('m_recvd_date', $fdate)->where('m_recvd_account', 1)->where('m_recvd_type', 1)->get('master_recieved_tbl')->result();
 
 		$cust_list = $this->get_user_customers($user_group);
@@ -1017,6 +1059,7 @@ class Api_Model extends CI_model
 				);
 
 				$insert_data['si_issue_status'] = 1;
+				$insert_data['si_issue_branch'] = $this->branch_for_insert();
 				$insert_data['si_issue_added_by'] = $user_id;
 				$insert_data['si_issue_spo'] = $issue_spo;
 				$insert_data['si_issue_added_on'] = date('Y-m-d H:i');
@@ -1041,6 +1084,7 @@ class Api_Model extends CI_model
 
 		);
 
+		$data['m_cust_branch'] = $this->branch_for_insert();
 		$data['m_cust_added_by'] = $this->input->post('user_id');
 		$data['m_cust_added_on'] = date('Y-m-d H:i:s');
 		$this->db->insert('master_customer_tbl', $data);
@@ -1173,6 +1217,7 @@ class Api_Model extends CI_model
             "si_issue_price"   => $issue_price[$key] ?? 0,
             "si_issue_total"   => $issue_total[$key] ?? 0,
             "si_issue_status"  => 1,
+            "si_issue_branch"  => $this->branch_for_insert(),
             "si_issue_added_by"=> $post['user_id'],
             "si_issue_spo"     => $issue_spo,
             "si_issue_added_on"=> date('Y-m-d H:i')
@@ -1247,6 +1292,7 @@ class Api_Model extends CI_model
 			);
 
 			$insert_data['m_purcs_spo'] = $purcs_spo;
+			$insert_data['m_purcs_branch'] = $this->branch_for_insert();
 			$insert_data['m_purcs_added_by'] = $this->input->post('user_id');
 
 			$insert_data['m_purcs_added_on'] = date('Y-m-d H:i');
@@ -1266,6 +1312,7 @@ class Api_Model extends CI_model
 		$this->db->join('master_state_tbl', 'master_state_tbl.m_state_id = master_users_tbl.m_user_state', 'left');
 		$this->db->where('m_user_type', 1);
 		$this->db->where('m_user_design', 1);
+		$this->where_branch('master_users_tbl.m_user_branch');
 		return $this->db->get('master_users_tbl')->result();
 	}
 
@@ -1276,6 +1323,7 @@ class Api_Model extends CI_model
 		$this->db->join('master_city_tbl', 'master_city_tbl.m_city_id = master_users_tbl.m_user_city', 'left');
 		$this->db->join('master_state_tbl', 'master_state_tbl.m_state_id = master_users_tbl.m_user_state', 'left');
 		$this->db->where('m_user_type', 2);
+		$this->where_branch('master_users_tbl.m_user_branch');
 		return $this->db->get('master_users_tbl')->result();
 	}
 
@@ -1295,6 +1343,7 @@ class Api_Model extends CI_model
 		$this->db->join('master_users_tbl mut', 'mut.m_user_id = staff_itemissue_tbl.si_issue_user', 'left');
 		$this->db->where('si_issue_added_by', $user_id);
 		$this->db->where('si_issue_status', 1);
+		$this->where_branch('staff_itemissue_tbl.si_issue_branch');
 		$this->db->order_by('si_issue_date', 'desc');
 		$this->db->group_by('si_issue_spo');
 		$this->db->group_by('si_issue_date');
@@ -1320,6 +1369,7 @@ class Api_Model extends CI_model
 		$this->db->join('master_users_tbl mut', 'mut.m_user_id = master_purchase_tbl.m_purcs_suplier', 'left')
 			->join('master_users_tbl', 'master_users_tbl.m_user_id = master_purchase_tbl.m_purcs_user', 'left');
 		$this->db->where('m_purcs_added_by', $user_id);
+		$this->where_branch('master_purchase_tbl.m_purcs_branch');
 		$this->db->order_by('m_purcs_date', 'desc');
 		$this->db->group_by('m_purcs_spo');
 		$this->db->group_by('m_purcs_date');
@@ -1440,6 +1490,7 @@ class Api_Model extends CI_model
 		if (!empty($lot_id)) {
 			$this->db->where('m_purcs_id', $lot_id);
 		}
+		$this->where_branch('master_purchase_tbl.m_purcs_branch');
 		$this->db->order_by('m_item_name');
 		$this->db->order_by('m_purcs_date', 'desc');
 		if ($lot == 1) {
@@ -1472,6 +1523,7 @@ class Api_Model extends CI_model
 			$this->db->where('si_issue_lotno', $lot);
 		}
 		$this->db->where('si_issue_status', 1);
+		$this->where_branch('staff_itemissue_tbl.si_issue_branch');
 		$this->db->order_by('m_item_name');
 		$this->db->order_by('si_issue_date', 'desc');
 		$this->db->group_by('si_issue_item');
@@ -1499,6 +1551,7 @@ class Api_Model extends CI_model
 		if (!empty($lot)) {
 			$this->db->where('m_sale_lot', $lot);
 		}
+		$this->where_branch('master_sales_tbl.m_sale_branch');
 		$this->db->order_by('m_item_name');
 		$this->db->order_by('m_sale_date', 'desc');
 		$this->db->group_by('m_sale_item');
@@ -1716,6 +1769,7 @@ class Api_Model extends CI_model
 			->join('master_itemgroup_tbl unit', 'unit.m_itgrp_id = master_item_tbl.m_item_unit', 'left')
 			->join('master_users_tbl mut', 'mut.m_user_id = master_purchase_tbl.m_purcs_suplier', 'left');
 		$this->db->where('m_purcs_available >', 0);
+		$this->where_branch('master_purchase_tbl.m_purcs_branch');
 
 		if (!empty($itemid)) {
 			$this->db->where('m_item_id', $itemid);
