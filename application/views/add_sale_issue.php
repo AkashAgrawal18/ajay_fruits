@@ -35,6 +35,7 @@
                 $issue_trackno = $edit_value[0]->si_issue_trackno;
                 $issue_type = $edit_value[0]->si_issue_type;
                 $issue_user = $edit_value[0]->si_issue_user;
+                $issue_branch = $edit_value[0]->si_issue_branch;
                 // $issue_item = $edit_value->si_issue_item;
                 // $issue_qty = $edit_value->si_issue_qty;
                 // $issue_weight = $edit_value->si_issue_weight;
@@ -46,6 +47,7 @@
                 $issue_trackno = '';
                 $issue_type = 1;
                 $issue_user = '';
+                $issue_branch = !empty($branch_id) ? $branch_id : '';
                 // $issue_item = '';
                 // $issue_qty = '';
                 // $issue_weight = '';
@@ -123,6 +125,28 @@
 
                 </div>
 
+                <?php if ($this->session->userdata('user_type') == 8) { ?>
+                <div class="col-md-3">
+                    <div class="row">
+                        <div class="col-4">
+                            <label>Branch</label>
+                        </div>
+                        <div class="col-8">
+                            <div class="form-group">
+                                <select name="si_issue_branch" id="si_issue_branch" class="form-select select2">
+                                    <option value="0">Head Office</option>
+                                    <?php if (!empty($branch_list)) {
+                                        foreach ($branch_list as $branch) {
+                                    ?>
+                                        <option value="<?= $branch->m_user_id ?>" <?= $issue_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                                    <?php }
+                                    } ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php } ?>
 
                 <div class="col-md-12 mb-2">
 
@@ -226,6 +250,34 @@
     $(document).ready(function(e) {
         total_calculate_fun()
         let incount = $('#rowunt').val();
+
+        // Live branch cascading: re-scope Staff/Item pickers when the
+        // Branch select changes, so they only show that branch's data.
+        BranchCascade.bind('#si_issue_branch', [{
+                listType: 'staff',
+                target: '#si_issue_user',
+                mode: 'select',
+                idField: 'm_user_id',
+                labelFn: function(s) { return s.m_user_name + ' | ' + s.m_user_mobile; },
+                placeholder: '--Select--'
+            },
+            {
+                listType: 'item',
+                target: '#items_datalist',
+                mode: 'datalist',
+                valueFn: function(it) { return it.m_item_name; },
+                attrsFn: function(it) {
+                    return {
+                        itemid: it.m_item_id,
+                        price: it.m_item_price,
+                        ifright: it.m_item_fright,
+                        crate: it.m_crate_name,
+                        unit: it.m_unit_name
+                    };
+                }
+            }
+        ], "<?php echo site_url('Master/branch_scoped_options'); ?>");
+
         $(document).on('change', '#item_serch_inp', function() {
             var price = $("#items_datalist option[value='" + $(this).val() + "']").attr('data-price')
             var unit = $("#items_datalist option[value='" + $(this).val() + "']").attr('data-unit')

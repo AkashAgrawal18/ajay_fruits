@@ -18,9 +18,11 @@ class Sales extends CI_Controller
     $data['to_date'] = $this->input->post('to_date') ?: $curdate;
     $data['staff_id'] = $this->input->post('staff_id');
     $data['lot_no'] = $this->input->post('lot_no');
-    $data['staff_list'] = $this->Main_model->get_active_user_list(1);
-    $data['item_list'] = $this->Master_model->get_all_item();
-    $data['all_value'] = $this->Main_model->issue_item_group($data['from_date'], $data['to_date'], $data['staff_id'], $data['lot_no']);
+    $data['branch_id'] = $this->input->post('branch_id');
+    $data['staff_list'] = $this->Main_model->get_active_user_list(1, $data['branch_id']);
+    $data['item_list'] = $this->Master_model->get_all_item('', $data['branch_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['all_value'] = $this->Main_model->issue_item_group($data['from_date'], $data['to_date'], $data['staff_id'], $data['lot_no'], $data['branch_id']);
 
 
     $this->load->view('sale_issue_list', $data);
@@ -35,8 +37,10 @@ class Sales extends CI_Controller
     if (!empty($data['id'])) {
       $data['edit_value'] = $this->Main_model->get_edit_item_issue($data['id']);
     }
-    $data['staff_list'] = $this->Main_model->get_active_user_list(1);
-    $data['item_list'] = $this->Main_model->get_avilable_item(null, 1);
+    $data['branch_id'] = !empty($data['edit_value']) ? $data['edit_value'][0]->si_issue_branch : $this->input->get('branch_id');
+    $data['staff_list'] = $this->Main_model->get_active_user_list(1, $data['branch_id']);
+    $data['item_list'] = $this->Main_model->get_avilable_item(null, 1, $data['branch_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
     // $data['all_value'] = $this->Main_model->all_custgrp();
 
     $this->load->view('add_sale_issue', $data);
@@ -44,6 +48,9 @@ class Sales extends CI_Controller
 
   public function insert_issue_item()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->insert_issue_item()) {
@@ -76,6 +83,9 @@ class Sales extends CI_Controller
 
   public function lotwise_insert_issue()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->lotwise_insert_issue()) {
@@ -96,6 +106,9 @@ class Sales extends CI_Controller
 
   public function delete_issue_item()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_issue_item()) {
@@ -146,12 +159,22 @@ class Sales extends CI_Controller
     $data['group_id'] = $this->input->post('group_id');
     $data['lot_no'] = $this->input->post('lot_no');
     $data['branchs_id'] = $this->input->post('branchs_id');
-    $data['group_dtl'] = $this->Master_model->get_all_group(1);
-    $data['staff_list'] = $this->Main_model->get_active_user_list(1);
-    $data['item_list'] = $this->Master_model->get_all_item();
-    $data['custo_list'] = $this->Main_model->get_cust_active_list();
+    $data['group_dtl'] = $this->Master_model->get_all_group(1, $data['branchs_id']);
+    $data['staff_list'] = $this->Main_model->get_active_user_list(1, $data['branchs_id']);
+    $data['item_list'] = $this->Master_model->get_all_item('', $data['branchs_id']);
+    $data['custo_list'] = $this->Main_model->get_cust_active_list('', $data['branchs_id']);
     $data['branch_list'] = $this->Main_model->get_user_list(9);
     $data['all_value'] = $this->Main_model->sales_group($data['from_date'], $data['to_date'], null, $data['group_id'], $data['search_in'], null, $data['lot_no'], $data['branchs_id']);
+
+    // Preload every invoice's lines in one query. The view used to call
+    // get_edit_sales() per row, which is what made this page time out (BUG-006).
+    $spos = array();
+    foreach ((array) $data['all_value'] as $row) {
+      if (!empty($row->m_sale_spo)) {
+        $spos[] = $row->m_sale_spo;
+      }
+    }
+    $data['sale_lines'] = $this->Main_model->get_sales_lines_by_spo($spos, $data['branchs_id']);
 
     if (!empty($this->input->post('print_bill'))) {
       $this->mulbill_print($data['to_date'], $data['group_id']);
@@ -167,12 +190,14 @@ class Sales extends CI_Controller
     $data['pagename'] = "Add Sales";
     $data['id'] = $this->input->get('id');
     // print_r($data['id']); die ;
-    $data['staff_list'] = $this->Main_model->get_active_user_list(1);
     if (!empty($data['id'])) {
       $data['edit_value'] = $this->Main_model->get_edit_sales($data['id']);
     }
-    $data['custo_list'] = $this->Main_model->get_cust_active_list();
-    $data['item_list'] = $this->Main_model->get_avilable_item(null, 1);
+    $data['branch_id'] = !empty($data['edit_value']) ? $data['edit_value'][0]->m_sale_branch : $this->input->get('branch_id');
+    $data['staff_list'] = $this->Main_model->get_active_user_list(1, $data['branch_id']);
+    $data['custo_list'] = $this->Main_model->get_cust_active_list('', $data['branch_id']);
+    $data['item_list'] = $this->Main_model->get_avilable_item(null, 1, $data['branch_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
     // $data['all_value'] = $this->Main_model->all_custgrp();
 
     $this->load->view('add_sales', $data);
@@ -180,6 +205,9 @@ class Sales extends CI_Controller
 
   public function insert_sales()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->insert_sales()) {
@@ -209,6 +237,9 @@ class Sales extends CI_Controller
 
   public function lotwise_insert_sales()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->lotwise_insert_sales()) {
@@ -228,6 +259,9 @@ class Sales extends CI_Controller
 
   public function delete_sales()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_sales()) {
@@ -247,6 +281,9 @@ class Sales extends CI_Controller
 
   public function delete_sales_id()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_sales_id()) {
@@ -266,12 +303,20 @@ class Sales extends CI_Controller
 
   public function lotwise_sale_print()
   {
+    // Was reachable anonymously and rendered sales data straight out (BUG-030).
+    $this->require_login();
     $data['all_value'] = $this->Report_model->lotwise_sales_list($this->input->get('purid'), $this->input->get('item_id'));
     $this->load->view('lotwise_sale_print', $data);
   }
 
   public function mulbill_print($sal_date, $group)
   {
+    $this->require_login();
+
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $sal_date)) {
+      show_error('Invalid date', 400);
+      return;
+    }
 
     $data['sal_date'] = $sal_date;
     $data['data'] = $this->Main_model->get_bill_data($sal_date, $group);
@@ -281,6 +326,7 @@ class Sales extends CI_Controller
 
   public function bill_print()
   {
+    $this->require_login();
 
     $data['id'] = $this->input->get('id');
     $data['pgtype'] = 2;
@@ -292,6 +338,7 @@ class Sales extends CI_Controller
 
   public function crate_bill_print($id)
   {
+    $this->require_login();
 
     $data['id'] = $id;
     $data['type'] = 2;
@@ -305,6 +352,7 @@ class Sales extends CI_Controller
 
   public function payment_bill_print($id)
   {
+    $this->require_login();
 
     $data['id'] = $id;
     $data['type'] = 1;
@@ -355,18 +403,33 @@ class Sales extends CI_Controller
   public function purchase_list()
   {
     $data = $this->login_details();
+    $user_type = $this->session->userdata('user_type');
+
+    // Sirf 8 aur 9 ko hi is page ka access do, baaki sabko block
+    if (!in_array($user_type, [8, 9])) {
+      show_error('Access Denied', 403);
+      return;
+    }
 
     $data['pagename'] = "All Purchase list";
     $curdate = date('Y-m-d');
+    if ($user_type == 9) {
+      // user_type 9 -> apni hi branch ka data, dropdown se koi override nahi
+      $data['branch_id'] = $this->session->userdata('user_id');
+      $data['branch_locked'] = true; // view me dropdown disable karne ke liye
+    } else {
+      // user_type 8 -> sab branch dekh sakta hai, dropdown se filter
+      $data['branch_id'] = $this->input->post('branch_id');
+      $data['branch_locked'] = false;
+      $data['type_pur'] = $this->input->post('type_pur') ?: 1;
+    }
     $data['from_date'] = $this->input->post('from_date') ?: date('Y-m-d');
     $data['to_date'] = $this->input->post('to_date') ?: $curdate;
     $data['suppiler_id'] = $this->input->post('suppiler_id');
-    $data['branch_id'] = $this->input->post('branch_id');
-    $data['suplier_list'] = $this->Main_model->get_active_user_list(2);
-    $data['item_list'] = $this->Master_model->get_all_item();
+    $data['suplier_list'] = $this->Main_model->get_active_user_list(2, $data['branch_id']);
+    $data['item_list'] = $this->Master_model->get_all_item('', $data['branch_id']);
     $data['branch_list'] = $this->Main_model->get_user_list(9);
-    $data['all_value'] = $this->Main_model->purchase_group($data['from_date'], $data['to_date'], $data['suppiler_id'], null, $data['branch_id']);
-
+    $data['all_value'] = $this->Main_model->purchase_group($data['from_date'], $data['to_date'], $data['suppiler_id'], null, $data['branch_id'], $data['type_pur']);
 
     $this->load->view('purchase_list', $data);
   }
@@ -382,8 +445,10 @@ class Sales extends CI_Controller
     $data['to_date'] = $this->input->post('to_date') ?: $curdate;
     $data['suppiler_id'] = $this->input->post('suppiler_id');
     $data['search_in'] = $this->input->post('search_in');
-    $data['suplier_list'] = $this->Main_model->get_active_user_list(2);
-    $data['all_value'] = $this->Main_model->get_purchase_items($data['from_date'], $data['to_date'], $data['suppiler_id'], $data['search_in']);
+    $data['branch_id'] = $this->input->post('branch_id');
+    $data['suplier_list'] = $this->Main_model->get_active_user_list(2, $data['branch_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['all_value'] = $this->Main_model->get_purchase_items($data['from_date'], $data['to_date'], $data['suppiler_id'], $data['search_in'], $data['branch_id']);
 
 
 
@@ -460,7 +525,7 @@ class Sales extends CI_Controller
       return;
     }
 
-    $res = $this->db->where('m_sale_id', $id)->update('master_sales_tbl', ['m_sale_lot' => $lot, 'm_sale_updatedon' => date('Y-m-d H:i:s'), 'm_sale_updatedby' => $this->session->userdata('m_user_id') ?: 0]);
+    $res = $this->db->where('m_sale_id', $id)->update('master_sales_tbl', ['m_sale_lot' => $lot, 'm_sale_updatedon' => date('Y-m-d H:i:s'), 'm_sale_updatedby' => $this->session->userdata('user_id') ?: 0]);
 
     if ($res) {
       echo json_encode(['status' => 'success', 'message' => 'Sale lot updated']);
@@ -497,15 +562,20 @@ class Sales extends CI_Controller
   public function add_purchase()
   {
     $data = $this->login_details();
-
+    if ($this->session->userdata('user_type') != 8) {
+      show_error('Access Denied. Only Super Admin can add/edit purchases.', 403);
+      return;
+    }
     $data['pagename'] = "Add Purchase";
     $data['id'] = $this->input->get('id');
     $data['edit_value'] = $this->Main_model->get_edit_purchase($data['id']);
     $data['inter_expense'] = $this->Main_model->get_purchase_expense($data['id']);
     // print_r($data['inter_expense']); die ;
-    $data['suplier_list'] = $this->Main_model->get_active_user_list(2);
-    $data['item_list'] = $this->Master_model->get_all_item();
-    $data['expense_lst'] = $this->Master_model->get_all_active_group(2);
+    $data['branch_id'] = !empty($data['edit_value']) ? $data['edit_value'][0]->m_purcs_branch : $this->input->get('branch_id');
+    $data['suplier_list'] = $this->Main_model->get_active_user_list(2, $data['branch_id']);
+    $data['item_list'] = $this->Master_model->get_all_item('', $data['branch_id']);
+    $data['expense_lst'] = $this->Master_model->get_all_active_group(2, $data['branch_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
     // $data['all_value'] = $this->Main_model->all_custgrp();
 
 
@@ -514,7 +584,10 @@ class Sales extends CI_Controller
 
   public function insert_purchase()
   {
-
+    if ($this->session->userdata('user_type') != 8) {
+      echo json_encode(['status' => 'error', 'message' => 'Access Denied']);
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->insert_purchase()) {
 
@@ -546,7 +619,10 @@ class Sales extends CI_Controller
 
   public function delete_purchase()
   {
-
+    if ($this->session->userdata('user_type') != 8) {
+      echo json_encode(['status' => 'error', 'message' => 'Access Denied']);
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_purchase()) {
         $info = array(
@@ -565,7 +641,10 @@ class Sales extends CI_Controller
 
   public function delete_purchase_id()
   {
-
+    if ($this->session->userdata('user_type') != 8) {
+      echo json_encode(['status' => 'error', 'message' => 'Access Denied']);
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_purchase_id()) {
         $info = array(
@@ -603,24 +682,29 @@ class Sales extends CI_Controller
     $data['recvd_account'] = $this->input->post('recvd_account');
     $data['recvd_method'] = $this->input->post('recvd_method');
     $data['group_id'] = $this->input->post('group_id');
-    $data['group_dtl'] = $this->Master_model->get_all_group(1);
-    $data['paymode_lst'] = $this->Master_model->get_payment_methods();
-    $data['user_list'] = $this->Main_model->get_active_user_list(1);
-    $data['general_list'] = $this->Main_model->get_active_user_list(4);
-    $data['investment_list'] = $this->Main_model->get_active_user_list(5);
-    $data['custo_list'] = $this->Main_model->get_cust_active_list();
-    $data['all_value'] = $this->Main_model->get_received_list($type, $data['from_date'], $data['to_date'], null, $data['recvd_account'], $data['recvd_method'], $data['group_id'], $data['search_in']);
-    $data['crate_lst'] = $this->Master_model->all_active_itemgroup(3);
+    $data['branch_id'] = $this->input->post('branch_id');
+    $data['group_dtl'] = $this->Master_model->get_all_group(1, $data['branch_id']);
+    $data['paymode_lst'] = $this->Master_model->get_payment_methods($data['branch_id']);
+    $data['user_list'] = $this->Main_model->get_active_user_list(1, $data['branch_id']);
+    $data['general_list'] = $this->Main_model->get_active_user_list(4, $data['branch_id']);
+    $data['investment_list'] = $this->Main_model->get_active_user_list(5, $data['branch_id']);
+    $data['custo_list'] = $this->Main_model->get_cust_active_list('', $data['branch_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['all_value'] = $this->Main_model->get_received_list($type, $data['from_date'], $data['to_date'], null, $data['recvd_account'], $data['recvd_method'], $data['group_id'], $data['search_in'], null, $data['branch_id']);
+    $data['crate_lst'] = $this->Master_model->all_active_itemgroup(3, $data['branch_id']);
 
     $this->load->view('payment_recived_list', $data);
   }
 
   public function insert_recieved_data()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $data = $this->Main_model->insert_recieved_data();
     }
-    redirect($_SERVER['HTTP_REFERER']);
+    $this->_redirect_back();
   }
 
   public function update_recieved_data()
@@ -628,11 +712,14 @@ class Sales extends CI_Controller
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $data = $this->Main_model->update_recieved_data();
     }
-    redirect($_SERVER['HTTP_REFERER']);
+    $this->_redirect_back();
   }
 
   public function delete_recieved_data()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_recieved_data()) {
@@ -670,25 +757,30 @@ class Sales extends CI_Controller
     $data['payment_account'] = $this->input->post('payment_account');
     $data['payment_method'] = $this->input->post('payment_method');
     $data['search_in'] = $this->input->post('search_in');
-    $data['supplier_list'] = $this->Main_model->get_active_user_list(2);
-    $data['loader_list'] = $this->Main_model->get_active_user_list(3);
-    $data['staff_list'] = $this->Main_model->get_active_user_list(1);
-    $data['general_list'] = $this->Main_model->get_active_user_list(4);
-    $data['investment_list'] = $this->Main_model->get_active_user_list(5);
-    $data['expense_lst'] = $this->Master_model->get_all_active_group(2);
-    $data['paymode_lst'] = $this->Master_model->get_payment_methods();
-    $data['all_value'] = $this->Main_model->get_payment_list($type, $data['from_date'], $data['to_date'], null, $data['payment_account'], $data['payment_method'], $data['search_in']);
-    $data['crate_lst'] = $this->Master_model->all_active_itemgroup(3);
+    $data['branch_id'] = $this->input->post('branch_id');
+    $data['supplier_list'] = $this->Main_model->get_active_user_list(2, $data['branch_id']);
+    $data['loader_list'] = $this->Main_model->get_active_user_list(3, $data['branch_id']);
+    $data['staff_list'] = $this->Main_model->get_active_user_list(1, $data['branch_id']);
+    $data['general_list'] = $this->Main_model->get_active_user_list(4, $data['branch_id']);
+    $data['investment_list'] = $this->Main_model->get_active_user_list(5, $data['branch_id']);
+    $data['expense_lst'] = $this->Master_model->get_all_active_group(2, $data['branch_id']);
+    $data['paymode_lst'] = $this->Master_model->get_payment_methods($data['branch_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['all_value'] = $this->Main_model->get_payment_list($type, $data['from_date'], $data['to_date'], null, $data['payment_account'], $data['payment_method'], $data['search_in'], null, $data['branch_id']);
+    $data['crate_lst'] = $this->Master_model->all_active_itemgroup(3, $data['branch_id']);
     // echo '<pre>';print_r($data['all_value']); die ;
     $this->load->view('payment_paid_list', $data);
   }
 
   public function insert_payment_data()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $data = $this->Main_model->insert_payment_data();
     }
-    redirect($_SERVER['HTTP_REFERER']);
+    $this->_redirect_back();
   }
 
   public function update_payment_data()
@@ -696,7 +788,7 @@ class Sales extends CI_Controller
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $data = $this->Main_model->update_payment_data();
     }
-    redirect($_SERVER['HTTP_REFERER']);
+    $this->_redirect_back();
   }
 
   public function delete_payment_data()
@@ -731,29 +823,40 @@ class Sales extends CI_Controller
     $data['to_date'] = $this->input->post('to_date') ?: $curdate;
     $data['search_in'] = $this->input->post('search_in');
     $data['type'] = $this->input->post('type') ?: '';
-    $data['all_value'] = $this->Main_model->get_voucher_list($data['type'], $data['from_date'], $data['to_date'], null, $data['search_in']);
+    $data['branch_id'] = $this->input->post('branch_id');
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['all_value'] = $this->Main_model->get_voucher_list($data['type'], $data['from_date'], $data['to_date'], null, $data['search_in'], null, $data['branch_id']);
     // echo '<pre>';print_r($data['all_value']); die ;
     $this->load->view('voucher_list', $data);
   }
 
   public function insert_voucher_data()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $data = $this->Main_model->insert_voucher_data();
     }
-    redirect($_SERVER['HTTP_REFERER']);
+    $this->_redirect_back();
   }
 
   public function update_voucher_data()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $data = $this->Main_model->update_voucher_data();
     }
-    redirect($_SERVER['HTTP_REFERER']);
+    $this->_redirect_back();
   }
 
   public function delete_voucher_data()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_voucher_data()) {
@@ -773,46 +876,59 @@ class Sales extends CI_Controller
 
   public function get_vourcher_accounts()
   {
-
+    // Was reachable anonymously and dumped the full customer / supplier /
+    // staff / expense lists as JSON (BUG-030).
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $acc_type = $this->input->post('acct_type');
+      $branch_id = $this->input->post('branch_id');
       switch ($acc_type) {
         case 1:
-          $data['list'] = $this->Main_model->get_cust_active_list();
+          $data['list'] = $this->Main_model->get_cust_active_list('', $branch_id);
           $data['listtype'] = 1;
           $data['listname'] = "Customer";
           break;
         case 2:
-          $data['list'] = $this->Main_model->get_active_user_list(2);
+          $data['list'] = $this->Main_model->get_active_user_list(2, $branch_id);
           $data['listtype'] = 2;
           $data['listname'] = "Supplier";
           break;
         case 3:
-          $data['list'] = $this->Master_model->get_all_active_group(2);
+          $data['list'] = $this->Master_model->get_all_active_group(2, $branch_id);
           $data['listtype'] = 3;
           $data['listname'] = "Expense";
           break;
         case 4:
-          $data['list'] = $this->Main_model->get_active_user_list(3);
+          $data['list'] = $this->Main_model->get_active_user_list(3, $branch_id);
           $data['listtype'] = 2;
           $data['listname'] = "Loader";
           break;
         case 5:
-          $data['list'] = $this->Main_model->get_active_user_list(1);
+          $data['list'] = $this->Main_model->get_active_user_list(1, $branch_id);
           $data['listtype'] = 2;
           $data['listname'] = "Staff";
           break;
         case 6:
-          $data['list'] = $this->Main_model->get_active_user_list(4);
+          $data['list'] = $this->Main_model->get_active_user_list(4, $branch_id);
           $data['listtype'] = 2;
           $data['listname'] = "General";
           break;
         case 7:
-          $data['list'] = $this->Main_model->get_active_user_list(5);
+          $data['list'] = $this->Main_model->get_active_user_list(5, $branch_id);
           $data['listtype'] = 2;
           $data['listname'] = "Investment";
           break;
       }
+
+      // CSRF regenerates its token on every accepted POST (see
+      // window.refreshCsrfToken in footer.php). This endpoint can be called
+      // repeatedly from the same page load (account type or branch changed
+      // more than once) with no reload in between, so the client needs the
+      // fresh token back or its *next* call gets rejected as a mismatch.
+      $data['csrf_token_name'] = $this->security->get_csrf_token_name();
+      $data['csrf_token_value'] = $this->security->get_csrf_hash();
 
       echo json_encode($data);
     }
@@ -820,46 +936,60 @@ class Sales extends CI_Controller
 
   public function get_reciept_accounts()
   {
-
+    // Was reachable anonymously and dumped the full customer / supplier /
+    // staff / bank lists as JSON (BUG-030).
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $acc_type = $this->input->post('acct_type');
+      $branch_id = $this->input->post('branch_id');
       switch ($acc_type) {
         case 1:
-          $data['list'] = $this->Main_model->get_cust_active_list();
+          $data['list'] = $this->Main_model->get_cust_active_list('', $branch_id);
           $data['listtype'] = 1;
           $data['listname'] = "Customer";
           break;
         case 4:
-          $data['list'] = $this->Main_model->get_active_user_list(2);
+          $data['list'] = $this->Main_model->get_active_user_list(2, $branch_id);
           $data['listtype'] = 2;
           $data['listname'] = "Supplier";
           break;
         case 5:
-          $data['list'] = $this->Master_model->get_all_active_group(2);
+          $data['list'] = $this->Master_model->get_all_active_group(2, $branch_id);
           $data['listtype'] = 3;
           $data['listname'] = "Expense";
           break;
         case 6:
-          $data['list'] = $this->Main_model->get_active_user_list(3);
+          $data['list'] = $this->Main_model->get_active_user_list(3, $branch_id);
           $data['listtype'] = 2;
           $data['listname'] = "Loader";
           break;
         case 7:
-          $data['list'] = $this->Master_model->get_all_active_group(3);
+          $data['list'] = $this->Master_model->get_all_active_group(3, $branch_id);
           $data['listtype'] = 3;
           $data['listname'] = "Bank";
           break;
         case 2:
-          $data['list'] = $this->Main_model->get_active_user_list(4);
+          $data['list'] = $this->Main_model->get_active_user_list(4, $branch_id);
           $data['listtype'] = 2;
           $data['listname'] = "General";
           break;
         case 3:
-          $data['list'] = $this->Main_model->get_active_user_list(5);
+          $data['list'] = $this->Main_model->get_active_user_list(5, $branch_id);
           $data['listtype'] = 2;
           $data['listname'] = "Investment";
           break;
+        case 8:
+          $data['list'] = $this->Main_model->get_active_user_list(9);
+          $data['listtype'] = 2;
+          $data['listname'] = "Branch";
+          break;
       }
+
+      // See the matching note in get_vourcher_accounts() above.
+      $data['csrf_token_name'] = $this->security->get_csrf_token_name();
+      $data['csrf_token_value'] = $this->security->get_csrf_hash();
 
       echo json_encode($data);
     }
@@ -900,6 +1030,9 @@ class Sales extends CI_Controller
 
   public function download_pdf()
   {
+    // Was reachable anonymously - any customer id in the query string returned
+    // that customer's day summary and balance as a PDF (BUG-030).
+    $this->require_login();
     $data['sal_date'] = $this->input->get('date') ?: date('Y-m-d');
     $cust_id = $this->input->get('id');
     if (!empty($data['sal_date']) and !empty($cust_id)) {
@@ -913,6 +1046,12 @@ class Sales extends CI_Controller
 
   public function download_customer_statement()
   {
+    // Reachable two ways: by a logged-in staff member, or by a customer
+    // following a signed link we sent them over WhatsApp. Anything else is
+    // refused - account_name alone must never be enough (BUG-016).
+    if ($this->session->userdata('is_user_in') !== true) {
+      $this->_require_valid_statement_link($this->input->get('account_name'));
+    }
 
     $data['pagename'] = "Customer Cash Ledger";
     $data['exporttype'] = 2;
@@ -1108,7 +1247,7 @@ class Sales extends CI_Controller
     if (!empty($from_date) and !empty($to_date) and !empty($cust_ids)) {
       foreach ($cust_ids as $cust_id) {
         $cust_bal = $this->Main_model->get_opening_balance($cust_id, $to_date);
-        $url = "https://www.ajayfruits.in/Sales/download_customer_statement?account_name=" . $cust_id . "&from_date=" . $from_date . "&to_date=" . $to_date;
+        $url = $this->_signed_statement_url($cust_id, $from_date, $to_date);
         $customer_name = !empty($cust_bal['m_cust_hndiname']) ? $cust_bal['m_cust_hndiname'] : $cust_bal['cust_name'];
         $oldcrate = "";
         foreach ($cust_bal['crateitems'] as $cau => $kry) {
@@ -1177,6 +1316,9 @@ class Sales extends CI_Controller
 
   public function send_bill_cron()
   {
+    if ($this->_require_cron_auth() === false) {
+      return;
+    }
     $curr_date = date('Y-m-d');
     $sal_date = date('Y-m-d', strtotime($curr_date . '-1 day'));
     $cust_ids = $this->Main_model->get_custid_by_date($sal_date);
@@ -1195,6 +1337,9 @@ class Sales extends CI_Controller
 
   public function send_bill_cron_temp()
   {
+    if ($this->_require_cron_auth() === false) {
+      return;
+    }
     $curr_date = date('Y-m-d');
     $sal_date = date('Y-m-d', strtotime($curr_date . '-1 day'));
     $cust_ids = $this->Main_model->get_custid_by_date($sal_date);
@@ -1294,8 +1439,8 @@ class Sales extends CI_Controller
     $balcrate   = implode(', ', $balcrate_parts);
 
     // 📲 WhatsApp Template Payload — corrected format
-    $phone_number_id = "1075803802285561";
-    $apikey          = "bd492389-3e22-11f1-894a-02c8a5e042bd";
+    $phone_number_id = $this->_whatsapp_credential('whatsapp_phone_number_id');
+    $apikey          = $this->_whatsapp_credential('whatsapp_apikey');
 
     $payload = [
       "messaging_product" => "whatsapp",
@@ -1388,8 +1533,8 @@ class Sales extends CI_Controller
       }
       $oldcrate = rtrim($oldcrate, ',');
 
-      $phone_number_id = "1075803802285561";
-      $apikey          = "bd492389-3e22-11f1-894a-02c8a5e042bd";
+      $phone_number_id = $this->_whatsapp_credential('whatsapp_phone_number_id');
+      $apikey          = $this->_whatsapp_credential('whatsapp_apikey');
 
       $payload = [
         "messaging_product" => "whatsapp",
@@ -1469,8 +1614,8 @@ class Sales extends CI_Controller
 
   // public function test_whatsapp()
   // {
-  //   $phone_number_id = "1075803802285561";  // ← Fixed: updated from console.pinbot.ai
-  //   $apikey          = "bd492389-3e22-11f1-894a-02c8a5e042bd";
+  //   $phone_number_id = $this->_whatsapp_credential('whatsapp_phone_number_id');
+  //   $apikey          = $this->_whatsapp_credential('whatsapp_apikey');
 
   //   $cust_list = $this->Main_model->get_cust_active_list();
   //   foreach ($cust_list as $cust_id) {
@@ -1523,6 +1668,9 @@ class Sales extends CI_Controller
 
   public function update_cust_bal_cron()
   {
+    if ($this->_require_cron_auth() === false) {
+      return;
+    }
     $cust_list = $this->Main_model->get_cust_active_list();
 
     if (!empty($cust_list)) {
@@ -1534,6 +1682,9 @@ class Sales extends CI_Controller
 
   public function update_cust_crtbal_cron()
   {
+    if ($this->_require_cron_auth() === false) {
+      return;
+    }
     $cust_list = $this->Main_model->get_cust_active_list();
 
     if (!empty($cust_list)) {
@@ -1545,6 +1696,9 @@ class Sales extends CI_Controller
 
   public function update_supplier_balcron()
   {
+    if ($this->_require_cron_auth() === false) {
+      return;
+    }
     $supplier_list = $this->Main_model->get_active_users(2);
 
     if (!empty($supplier_list)) {
@@ -1580,11 +1734,165 @@ class Sales extends CI_Controller
   }
   //=========================/Details===========================//
 
+  /**
+   * Returns the user to the page they posted from.
+   *
+   * Replaces redirect($_SERVER['HTTP_REFERER']), which fataled when the header
+   * was missing and was an open redirect otherwise, since Referer is entirely
+   * caller-controlled (BUG-007).
+   */
+  protected function _redirect_back($fallback = 'Welcome')
+  {
+    $referer = isset($_SERVER['HTTP_REFERER']) ? trim($_SERVER['HTTP_REFERER']) : '';
+
+    if ($referer !== '') {
+      $host = parse_url($referer, PHP_URL_HOST);
+      // Only follow it when it points back at this host.
+      if ($host !== null && strcasecmp($host, $_SERVER['HTTP_HOST']) === 0) {
+        redirect($referer);
+        return;
+      }
+    }
+
+    redirect($fallback);
+  }
+
+  /**
+   * Cron endpoints rewrite every stored balance (and one of them sends bulk
+   * WhatsApp messages), yet they were reachable by anyone (BUG-010, RISK-12).
+   *
+   * They still need to run unattended, so instead of a session they require
+   * either a CLI invocation or a shared key, passed as `?cron_key=` or an
+   * `X-Cron-Key` header. A logged-in superadmin may also trigger them manually.
+   *
+   * Configure AJAYFRUITS_CRON_KEY in the environment and update the scheduler:
+   *   php index.php Sales update_cust_bal_cron
+   *   curl -H "X-Cron-Key: <key>" https://…/Sales/update_cust_bal_cron
+   */
+  protected function _require_cron_auth()
+  {
+    if (is_cli()) {
+      return true;
+    }
+
+    if ($this->session->userdata('is_user_in') === true
+      && $this->session->userdata('user_type') == 8) {
+      return true;
+    }
+
+    $expected = (string) getenv('AJAYFRUITS_CRON_KEY');
+    if ($expected !== '') {
+      $supplied = (string) ($this->input->get_request_header('X-Cron-Key', TRUE)
+        ?: $this->input->get('cron_key'));
+
+      if ($supplied !== '' && hash_equals($expected, $supplied)) {
+        return true;
+      }
+    } else {
+      log_message('error', 'AJAYFRUITS_CRON_KEY is not set; cron endpoints are refusing all remote calls.');
+    }
+
+    $this->output->set_status_header(403);
+    echo json_encode(array('status' => 'error', 'message' => 'Access Denied'));
+    return false;
+  }
+
+  //==================Integration credentials===================//
+
+  /**
+   * Reads a third-party credential from config/integrations.php, which sources
+   * it from the environment. Previously these were string literals in this
+   * file and are still present in git history, so they must be rotated at the
+   * provider (BUG-022).
+   */
+  protected function _whatsapp_credential($key)
+  {
+    $this->config->load('integrations', TRUE, TRUE);
+    $value = (string) $this->config->item($key, 'integrations');
+
+    if ($value === '') {
+      log_message('error', "Missing integration credential '{$key}'. Set it in the environment.");
+    }
+
+    return $value;
+  }
+
+  //=================Signed statement links=====================//
+
+  /**
+   * Secret used to sign customer-facing links. Falls back to the framework
+   * encryption key so a missing config cannot silently disable signing.
+   */
+  protected function _link_secret()
+  {
+    $this->config->load('integrations', TRUE, TRUE);
+    $secret = (string) $this->config->item('link_secret', 'integrations');
+
+    if ($secret === '') {
+      $secret = (string) $this->config->item('encryption_key');
+    }
+
+    return $secret;
+  }
+
+  /** Signature for one account/expiry pair. */
+  protected function _statement_signature($account_name, $expires)
+  {
+    return hash_hmac('sha256', $account_name . '|' . $expires, $this->_link_secret());
+  }
+
+  /**
+   * Builds the customer-facing statement URL with an expiring signature, so a
+   * recipient cannot change account_name to read someone else's ledger.
+   */
+  protected function _signed_statement_url($cust_id, $from_date, $to_date)
+  {
+    $this->config->load('integrations', TRUE, TRUE);
+    $ttl = (int) $this->config->item('link_ttl', 'integrations');
+    $expires = time() + ($ttl > 0 ? $ttl : 2592000);
+
+    return 'https://www.ajayfruits.in/Sales/download_customer_statement'
+      . '?account_name=' . rawurlencode($cust_id)
+      . '&from_date=' . rawurlencode($from_date)
+      . '&to_date=' . rawurlencode($to_date)
+      . '&expires=' . $expires
+      . '&sig=' . $this->_statement_signature($cust_id, $expires);
+  }
+
+  /** Aborts unless the request carries a valid, unexpired signature. */
+  protected function _require_valid_statement_link($account_name)
+  {
+    $expires = (int) $this->input->get('expires');
+    $sig     = (string) $this->input->get('sig');
+    $secret  = $this->_link_secret();
+
+    if ($secret === '') {
+      log_message('error', 'Statement link signing has no secret configured; refusing request.');
+      show_error('Access Denied', 403);
+      return;
+    }
+
+    if ($account_name === null || $account_name === '' || $sig === '' || $expires <= 0) {
+      show_error('Access Denied', 403);
+      return;
+    }
+
+    if ($expires < time()) {
+      show_error('This statement link has expired. Please request a new one.', 403);
+      return;
+    }
+
+    if (!hash_equals($this->_statement_signature($account_name, $expires), $sig)) {
+      show_error('Access Denied', 403);
+      return;
+    }
+  }
+
   //======================Login Validation======================//
   protected function require_login()
   {
     $is_user_in = $this->session->userdata('is_user_in');
-    if (isset($is_user_in) || $is_user_in == true) {
+    if ($is_user_in == true) {
       return;
     } else if ($this->session->userdata('is_cust_in') == true) {
       redirect('Reports/account_ledger');
@@ -1596,7 +1904,7 @@ class Sales extends CI_Controller
   protected function ajax_login($nav_id = '')
   {
     $is_user_in = $this->session->userdata('is_user_in');
-    if (isset($is_user_in) || $is_user_in == true) {
+    if ($is_user_in == true) {
       return true;
     } else {
       echo json_encode(array('status' => 'error', 'message' => 'You are not Logged in Now!! Please login again.'));

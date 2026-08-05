@@ -2,8 +2,59 @@
 
 class Api_Model extends CI_model
 {
+	// ===================== API tokens (BUG-017) =======================//
+	// The API has no session, so identity comes from a bearer token issued at
+	// login. Endpoints must derive the user from the token and ignore any
+	// user_id supplied by the caller.
 
+	/** Issues a fresh token for a user and returns it. */
+	public function create_token($user_id)
+	{
+		$this->config->load('integrations', TRUE, TRUE);
+		$ttl = (int) $this->config->item('api_token_ttl', 'integrations');
+		if ($ttl <= 0) {
+			$ttl = 2592000;
+		}
 
+		$token = bin2hex(random_bytes(32));
+
+		$this->db->insert('api_tokens', array(
+			'user_id'    => (int) $user_id,
+			'token'      => $token,
+			'created_at' => date('Y-m-d H:i:s'),
+			'expires_at' => date('Y-m-d H:i:s', time() + $ttl),
+		));
+
+		// Opportunistic cleanup so the table does not grow without bound.
+		$this->db->where('expires_at <', date('Y-m-d H:i:s'))->delete('api_tokens');
+
+		return $token;
+	}
+
+	/** Resolves a token to a live, enabled user id, or null. */
+	public function user_id_from_token($token)
+	{
+		if (empty($token)) {
+			return null;
+		}
+
+		$row = $this->db->select('t.user_id')
+			->from('api_tokens t')
+			->join('master_users_tbl u', 'u.m_user_id = t.user_id', 'inner')
+			->where('t.token', $token)
+			->where('t.expires_at >', date('Y-m-d H:i:s'))
+			->where('u.m_user_status', 1)
+			->where('u.m_user_login_allow', 1)
+			->get()->row();
+
+		return $row ? (int) $row->user_id : null;
+	}
+
+	/** Invalidates a token (logout). */
+	public function revoke_token($token)
+	{
+		return $this->db->where('token', $token)->delete('api_tokens');
+	}
 
 	public function check_mobile($mobile)
 	{
@@ -16,20 +67,22 @@ class Api_Model extends CI_model
 
 	public function user_login($mobile, $password)
 	{
-		$this->db->select('m_user_id,m_user_loginid');
+		$this->db->select('m_user_id,m_user_loginid,m_user_password');
 		$this->db->where('m_user_loginid', $mobile);
-		$this->db->where('m_user_password', $password);
 		$this->db->where('m_user_login_allow', 1);
 		$this->db->where('m_user_status', 1);
 		$this->db->where_in('m_user_type', 1);
 
-		$res = $this->db->get('master_users_tbl')->result();
-		return $res;
+		$row = $this->db->get('master_users_tbl')->row();
+		if (!empty($row) && password_verify($password, $row->m_user_password)) {
+			return [$row];
+		}
+		return [];
 	}
 
 	public function user_details($user_id)
 	{
-		$this->db->select('m_user_id,m_user_name,m_user_mobile,m_user_image,m_user_remark,m_user_pan_no,m_user_accountno,m_user_address,m_user_adharno,m_user_trademark,m_user_contractPerd,m_user_added_on,m_user_design,m_state_name,m_city_name,m_user_login_allow,m_user_password,m_user_group');
+		$this->db->select('m_user_id,m_user_name,m_user_mobile,m_user_image,m_user_remark,m_user_pan_no,m_user_accountno,m_user_address,m_user_adharno,m_user_trademark,m_user_contractPerd,m_user_added_on,m_user_design,m_state_name,m_city_name,m_user_login_allow,m_user_group');
 		// $this->db->join('master_designation_tbl', 'master_designation_tbl.m_desig_id = master_users_tbl.m_emp_design', 'left');
 		$this->db->join('master_state_tbl', 'master_state_tbl.m_state_id = master_users_tbl.m_user_state', 'left');
 		$this->db->join('master_city_tbl', 'master_city_tbl.m_city_id = master_users_tbl.m_user_city', 'left');
@@ -338,19 +391,15 @@ class Api_Model extends CI_model
 		// 🔒 TRANSACTION START
 		$this->db->trans_start();
 
-		/** ---------------- SPO GENERATION ---------------- **/
-		$lastSpo = $this->db->select('m_sale_spo')
-			->order_by('m_sale_id', 'desc')
-			->limit(1)
-			->get('master_sales_tbl')
-			->row();
+		/** ---------------- SPO GENERATION (highest counter ever issued, locked FOR UPDATE) ---------------- **/
+		// Not the last inserted row - editing an older invoice can leave a stale
+		// spo on the newest row and cause the next invoice number to be reused.
+		$maxSpo = $this->db->query(
+			"SELECT MAX(CAST(SUBSTRING_INDEX(m_sale_spo, '/', 1) AS UNSIGNED)) AS max_counter FROM master_sales_tbl FOR UPDATE"
+		)->row();
 
-		if (!empty($lastSpo)) {
-			$spo_coun = explode('/', $lastSpo->m_sale_spo);
-			$sale_spo = ((int)$spo_coun[0] + 1) . '/' . date('dm', strtotime($post['m_sale_date']));
-		} else {
-			$sale_spo = '1/' . date('dm', strtotime($post['m_sale_date']));
-		}
+		$next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 1;
+		$sale_spo     = $next_counter . '/' . date('dm', strtotime($post['m_sale_date']));
 
 		$saleTotalAmt = 0;
 
@@ -1071,20 +1120,15 @@ class Api_Model extends CI_model
     // 🔒 START TRANSACTION
     $this->db->trans_start();
 
-    /** -------- SPO GENERATION (optimized) -------- **/
-    $lastSpo = $this->db->select('si_issue_spo')
-        ->where('si_issue_type', 1)
-        ->order_by('si_issue_id', 'desc')
-        ->limit(1)
-        ->get('staff_itemissue_tbl')
-        ->row();
+    /** -------- SPO GENERATION (highest counter ever issued, locked FOR UPDATE) -------- **/
+    // Not the last inserted row - editing an older issue can leave a stale spo
+    // on the newest row and cause the next issue number to be reused.
+    $maxSpo = $this->db->query(
+        "SELECT MAX(CAST(SUBSTRING_INDEX(si_issue_spo, '/', 1) AS UNSIGNED)) AS max_counter FROM staff_itemissue_tbl WHERE si_issue_type = 1 FOR UPDATE"
+    )->row();
 
-    if (!empty($lastSpo)) {
-        $spo_coun = explode('/', $lastSpo->si_issue_spo);
-        $issue_spo = ((int)$spo_coun[0] + 1) . '/' . date('dm', strtotime($post['si_issue_date']));
-    } else {
-        $issue_spo = '1/' . date('dm', strtotime($post['si_issue_date']));
-    }
+    $next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 1;
+    $issue_spo    = $next_counter . '/' . date('dm', strtotime($post['si_issue_date']));
 
     foreach ($issue_item as $key => $item) {
 
@@ -1150,6 +1194,7 @@ class Api_Model extends CI_model
 
 	public function insert_purchase()
 	{
+		$this->db->trans_start();
 
 		// $issue_id = $this->input->post('m_purcs_id');
 		$purchase = $this->input->post('m_purcs_item');
@@ -1161,13 +1206,18 @@ class Api_Model extends CI_model
 		$m_purcs_lot = $this->input->post('m_purcs_lot');
 
 		$supp_tm = $this->db->select('m_user_trademark')->where('m_user_type', 2)->where('m_user_id', $this->input->post('m_purcs_suplier'))->get('master_users_tbl')->row();
-		$purchase_dtl = $this->db->select('m_purcs_spo')->order_by('m_purcs_id', 'desc')->group_by('m_purcs_spo')->get('master_purchase_tbl')->result();
-		if (!empty($purchase_dtl)) {
-			$spo_coun = explode('/', $purchase_dtl[0]->m_purcs_spo);
-			$purcs_spo = $supp_tm->m_user_trademark . '/' . ($spo_coun[1] + 1) . '/' . date('d/m', strtotime($this->input->post('m_purcs_date')));
-		} else {
-			$purcs_spo = $supp_tm->m_user_trademark . '/1/' . date('d/m', strtotime($this->input->post('m_purcs_date')));
-		}
+
+		// SPO generation: highest counter ever issued (locked FOR UPDATE), not the
+		// last inserted row - editing an older purchase can leave a stale spo on
+		// the newest row and cause the next invoice number to be reused. Restricted
+		// to m_purcs_type = 1 because Transfer rows (type 2) share this table and
+		// their spo format doesn't carry a numeric counter in this position.
+		$maxSpo = $this->db->query(
+			"SELECT MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(m_purcs_spo, '/', 2), '/', -1) AS UNSIGNED)) AS max_counter FROM master_purchase_tbl WHERE m_purcs_type = 1 FOR UPDATE"
+		)->row();
+
+		$next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 1;
+		$purcs_spo    = $supp_tm->m_user_trademark . '/' . $next_counter . '/' . date('d/m', strtotime($this->input->post('m_purcs_date')));
 
 		foreach ($purchase as $key => $cau) {
 
@@ -1204,13 +1254,14 @@ class Api_Model extends CI_model
 			$this->update_userbalance($this->input->post('m_purcs_suplier'), null, $issue_qty[$key], $cau); //new change:end
 		}
 
+		$this->db->trans_complete();
 		return $res;
 	}
 
 	public function get_all_agents()
 	{
 
-		$this->db->select('m_user_id,m_user_name,m_user_mobile,m_user_pan_no,m_user_accountno,m_user_address,m_user_adharno,m_user_trademark,m_user_contractPerd,m_user_added_on,m_user_design,m_state_name,m_city_name,m_user_login_allow,m_user_password,m_user_group');
+		$this->db->select('m_user_id,m_user_name,m_user_mobile,m_user_pan_no,m_user_accountno,m_user_address,m_user_adharno,m_user_trademark,m_user_contractPerd,m_user_added_on,m_user_design,m_state_name,m_city_name,m_user_login_allow,m_user_group');
 		$this->db->join('master_city_tbl', 'master_city_tbl.m_city_id = master_users_tbl.m_user_city', 'left');
 		$this->db->join('master_state_tbl', 'master_state_tbl.m_state_id = master_users_tbl.m_user_state', 'left');
 		$this->db->where('m_user_type', 1);
@@ -1231,10 +1282,10 @@ class Api_Model extends CI_model
 	public function get_item_issue_list($user_id, $from_date, $todate, $agent)
 	{
 		if (!empty($from_date)) {
-			$this->db->where('DATE_FORMAT(si_issue_date,"%Y-%m-%d")>=', $from_date);
+			$this->db->where('si_issue_date>=', $from_date);
 		}
 		if (!empty($todate)) {
-			$this->db->where('DATE_FORMAT(si_issue_date,"%Y-%m-%d")<=', $todate);
+			$this->db->where('si_issue_date<=', $todate);
 		}
 
 		if (!empty($agent)) {
@@ -1255,10 +1306,10 @@ class Api_Model extends CI_model
 	{
 
 		if (!empty($from_date)) {
-			$this->db->where('DATE_FORMAT(m_purcs_date,"%Y-%m-%d")>=', $from_date);
+			$this->db->where('m_purcs_date>=', $from_date);
 		}
 		if (!empty($todate)) {
-			$this->db->where('DATE_FORMAT(m_purcs_date,"%Y-%m-%d")<=', $todate);
+			$this->db->where('m_purcs_date<=', $todate);
 		}
 
 		if (!empty($supplier)) {

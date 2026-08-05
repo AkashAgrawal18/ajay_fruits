@@ -118,6 +118,23 @@
                         <input type="text" name="search_in" id="search_in" class="form-control" placeholder="Enter Name,Mobile..." value="<?= $search_in ?>">
                     </div>
                 </div>
+                <?php if ($this->session->userdata('user_type') == 8) { ?>
+                <div class="col-2">
+                    <div class="form-group">
+                        <label for="">Branch</label>
+                        <select name="branch_id" id="branch_id" class="form-select select2">
+                            <option value="">All Branches</option>
+                            <?php if (!empty($branch_list)) {
+                                foreach ($branch_list as $branch) {
+                                    $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                            ?>
+                                    <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                            <?php }
+                            } ?>
+                        </select>
+                    </div>
+                </div>
+                <?php } ?>
 
                 <div class="col-3 mt-4">
                     <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i> Search</button>
@@ -434,6 +451,22 @@
                                             </select>
                                         </div>
                                     </div>
+                                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                                    <div class="col-4">
+                                        <div class="form-group">
+                                            <label>Branch</label>
+                                            <select name="m_payment_branch" id="m_payment_branch" class="form-control">
+                                                <option value="0" <?= empty($branch_id) ? 'selected' : '' ?>>Head Office</option>
+                                                <?php if (!empty($branch_list)) {
+                                                    foreach ($branch_list as $branch) {
+                                                        $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                                                        echo '<option value="' . $branch->m_user_id . '" ' . $selected . '>' . $branch->m_user_name . '</option>';
+                                                    }
+                                                } ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <?php } ?>
 
                                 </div>
                             </div>
@@ -506,6 +539,28 @@
                                         </div>
 
                                     </div>
+
+                                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                                    <div class="col-3">
+                                        <div class="row">
+                                            <div class="col-4">
+                                                <label>Branch</label>
+                                            </div>
+                                            <div class="col-8">
+                                                <div class="form-group">
+                                                    <select name="m_payment_branch" id="m_payment_branch" class="form-control">
+                                                        <option value="0">Head Office</option>
+                                                        <?php if (!empty($branch_list)) {
+                                                            foreach ($branch_list as $branch) {
+                                                                echo '<option value="' . $branch->m_user_id . '">' . $branch->m_user_name . '</option>';
+                                                            }
+                                                        } ?>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php } ?>
 
                                     <div class="col-12">
                                         <table class="table table-striped table-bordered dt-responsive nowra">
@@ -598,6 +653,25 @@
         $(document).on('input', '.m_payment_qty', function() {
             calculateCrateTotal();
         });
+
+        // Live branch cascading: re-scope the Supplier picker when the
+        // modal's own Branch select changes. Only one of these two datalists
+        // exists per render (type=1 Payment vs type=2 Crate Issue) - updating
+        // both is a harmless no-op on whichever one isn't in the DOM.
+        BranchCascade.bind('#m_payment_branch', [{
+            listType: 'supplier',
+            target: '#m_supplier_list, #cm_supplier_list',
+            mode: 'datalist',
+            valueFn: function(s) { return s.m_user_name + ' | ' + s.m_user_mobile; },
+            attrsFn: function(s) {
+                return {
+                    name: s.m_user_name,
+                    balance: s.m_user_balance,
+                    id: s.m_user_id,
+                    mobile: s.m_user_mobile
+                };
+            }
+        }], "<?php echo site_url('Master/branch_scoped_options'); ?>");
 
         let incount = 0;
         $(document).on('change', '#item_serch_inp', function() {

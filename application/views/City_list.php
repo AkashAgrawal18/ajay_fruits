@@ -98,9 +98,9 @@
                                                       } ?></h5>
                   </div>
                   <!-- <div class="col-md-6 text-end">
-                  <?php if ($logged_user_type == 1 || has_perm($logged_user_id, 'Mtr', 'city', 'Add')) { ?>
+                  <?php // if ($logged_user_type == 1) { ?>
                      <button class="btn btn-warning btn-sm custom_btn1" type="button" data-bs-toggle="modal" data-bs-target="#myImportModal" title="Excel Import"><i class="bx bx-import"></i>Import</button>
-                  <?php } ?>
+                  <?php // } ?>
                </div> -->
                </div>
                <div class="form-example">

@@ -57,7 +57,7 @@
                 </h6>
             </div>
             <div class="col-6 text-end">
-                <a class="btn btn-primary btn-sm" href="<?= base_url('Sales/add_sales') ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
+                <a class="btn btn-primary btn-sm" href="<?= base_url('Sales/add_sales' . (!empty($branchs_id) ? '?branch_id=' . $branchs_id : '')) ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
                 <button onclick="history.back()" class="btn btn-danger btn-sm">
                     <i class="bi bi-box-arrow-left me-2"></i>Exit
                 </button>
@@ -111,6 +111,7 @@
                             </select>
                         </div>
                     </div>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
                     <div class="col-2">
                         <div class="form-group">
                             <label for="">Branch</label>
@@ -126,6 +127,7 @@
                             </select>
                         </div>
                     </div>
+                    <?php } ?>
                     <div class="col-2">
                         <div class="form-group">
                             <label for="">Search By Name</label>
@@ -285,7 +287,10 @@
                                                                                 <tbody id="modal_body_contant">
 
                                                                                     <?php
-                                                                                    $item_list =  $this->Main_model->get_edit_sales($value->m_sale_spo);
+                                                                                    // Preloaded by the controller in a single query (BUG-006).
+                                                                                    $item_list = isset($sale_lines[$value->m_sale_spo])
+                                                                                        ? $sale_lines[$value->m_sale_spo]
+                                                                                        : array();
 
                                                                                     if (!empty($item_list)) {
                                                                                         foreach ($item_list as $cua => $key) {

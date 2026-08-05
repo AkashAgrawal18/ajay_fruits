@@ -47,6 +47,7 @@
                 $purcs_advance = $edit_value[0]->m_purcs_advance;
                 $purcs_others = $edit_value[0]->m_purcs_others;
                 $purcs_note = $edit_value[0]->m_purcs_note;
+                $purcs_branch = $edit_value[0]->m_purcs_branch;
             } else {
                 $purcs_spo = '';
                 $purcs_date = date('Y-m-d');
@@ -64,6 +65,7 @@
                 $purcs_advance = 0;
                 $purcs_others = 0;
                 $purcs_note = '';
+                $purcs_branch = !empty($branch_id) ? $branch_id : '';
             } ?>
 
 
@@ -112,6 +114,27 @@
                         </div>
                     </div>
 
+                </div>
+
+                <div class="col-md-2">
+                    <div class="row">
+                        <div class="col-4">
+                            <label>Branch</label>
+                        </div>
+                        <div class="col-8">
+                            <div class="form-group">
+                                <select name="m_purcs_branch" id="m_purcs_branch" class="form-select select2">
+                                    <option value="0">Head Office</option>
+                                    <?php if (!empty($branch_list)) {
+                                        foreach ($branch_list as $branch) {
+                                    ?>
+                                        <option value="<?= $branch->m_user_id ?>" <?= $purcs_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                                    <?php }
+                                    } ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="col-md-4">
@@ -431,6 +454,36 @@
         total_calculate_fun()
         calculate_expenses()
         let incount = $('#rowunt').val();
+
+        // Live branch cascading: re-scope Supplier/Item pickers when the
+        // Branch select changes, so they only show that branch's data.
+        // NOTE: a hidden input also shares id="m_purcs_suplier" elsewhere in
+        // this form (pre-existing markup) - target the <select> only.
+        BranchCascade.bind('#m_purcs_branch', [{
+                listType: 'supplier',
+                target: 'select#m_purcs_suplier',
+                mode: 'select',
+                idField: 'm_user_id',
+                labelFn: function(s) { return s.m_user_name + ' | ' + s.m_user_mobile; },
+                placeholder: '--Select--'
+            },
+            {
+                listType: 'item',
+                target: '#items_datalist',
+                mode: 'datalist',
+                valueFn: function(it) { return it.m_item_name; },
+                attrsFn: function(it) {
+                    return {
+                        itemid: it.m_item_id,
+                        price: it.m_item_price,
+                        ifright: it.m_item_fright,
+                        crate: it.m_crate_name,
+                        unit: it.m_unit_name
+                    };
+                }
+            }
+        ], "<?php echo site_url('Master/branch_scoped_options'); ?>");
+
         $(document).on('change', '#item_serch_inp', function() {
             var price = $("#items_datalist option[value='" + $(this).val() + "']").attr('data-price')
             var unit = $("#items_datalist option[value='" + $(this).val() + "']").attr('data-unit')

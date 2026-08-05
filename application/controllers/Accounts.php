@@ -18,9 +18,11 @@ class Accounts extends CI_Controller
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
+    $data['branch_id'] = $this->input->post('branch_id');
 
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in'],$data['branch_id']);
    
     $this->load->view('user_list', $data);
   }
@@ -34,9 +36,11 @@ class Accounts extends CI_Controller
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
+    $data['branch_id'] = $this->input->post('branch_id');
 
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in'],$data['branch_id']);
    
     $this->load->view('user_list', $data);
   }
@@ -50,9 +54,11 @@ class Accounts extends CI_Controller
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
+    $data['branch_id'] = $this->input->post('branch_id');
 
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in'],$data['branch_id']);
    
     $this->load->view('user_list', $data);
   }
@@ -66,9 +72,11 @@ class Accounts extends CI_Controller
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
-    
+    $data['branch_id'] = $this->input->post('branch_id');
+
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in'],$data['branch_id']);
   
     $this->load->view('user_list', $data);
   }
@@ -81,9 +89,11 @@ class Accounts extends CI_Controller
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
-    
+    $data['branch_id'] = $this->input->post('branch_id');
+
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in'],$data['branch_id']);
    
     $this->load->view('user_list', $data);
   }
@@ -96,9 +106,11 @@ class Accounts extends CI_Controller
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
     $data['search_in'] = $this->input->post('search_in');
-    
+    $data['branch_id'] = $this->input->post('branch_id');
+
     $data['city_list'] = $this->Master_model->get_active_city();
-    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
+    $data['mech_value'] = $this->Main_model->get_user_list($data['pgtype'], $data['from_date'], $data['to_date'], $data['city_dtl'],1,$data['search_in'],$data['branch_id']);
   
     $this->load->view('user_list', $data);
   }
@@ -113,11 +125,12 @@ class Accounts extends CI_Controller
     } else {
       $data['pagename'] = "Add New";
     }
-    $data['design_dtl'] = $this->Master_model->get_active_design();
     $data['state_dtl'] = $this->Master_model->get_active_state();
     $data['city_dtl'] = $this->Master_model->get_active_city();
-    $data['group_dtl'] = $this->Master_model->get_all_group(1);
     $data['edit_value'] = $this->Main_model->get_user_dtl($data['id']);
+    $data['branch_id'] = !empty($data['edit_value']) ? $data['edit_value']->m_user_branch : $this->input->get('branch_id');
+    $data['group_dtl'] = $this->Master_model->get_all_group(1, $data['branch_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
 
     $this->load->view('add_user', $data);
   }
@@ -154,7 +167,9 @@ class Accounts extends CI_Controller
 
   public function delete_user()
   {
-
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_user()) {
         $info = array(
@@ -168,6 +183,31 @@ class Accounts extends CI_Controller
         );
       }
       echo json_encode($info);
+    }
+  }
+
+  // Superadmin-only: decrypt and reveal a staff/branch account's password.
+  public function view_password()
+  {
+    if ($this->ajax_login() === false) {
+      return;
+    }
+    if ($this->session->userdata('user_type') != 8) {
+      echo json_encode(array('status' => 'error', 'message' => 'Access Denied'));
+      return;
+    }
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+      $row = $this->Main_model->get_user_password_enc($this->input->post('id'));
+      $password = !empty($row) ? decrypt_password_for_admin($row->m_user_password_enc) : '';
+
+      if ($password === '') {
+        echo json_encode(array(
+          'status'  => 'error',
+          'message' => 'Password not available. It becomes viewable again after this user\'s password is next changed.',
+        ));
+        return;
+      }
+      echo json_encode(array('status' => 'success', 'password' => $password));
     }
   }
 
@@ -230,10 +270,12 @@ class Accounts extends CI_Controller
     } else {
       $data['pagename'] = "Add New Customer";
     }
-    $data['group_dtl'] = $this->Master_model->get_all_group(1);
     $data['state_dtl'] = $this->Master_model->get_active_state();
     $data['city_dtl'] = $this->Master_model->get_active_city();
     $data['edit_value'] = $this->Main_model->get_cust_dtl($data['id']);
+    $data['branch_id'] = !empty($data['edit_value']) ? $data['edit_value']->m_cust_branch : $this->input->get('branch_id');
+    $data['group_dtl'] = $this->Master_model->get_all_group(1, $data['branch_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
 
     $this->load->view('add_customer', $data);
   }
@@ -336,6 +378,7 @@ class Accounts extends CI_Controller
 
   public function import_custs_data()
   {
+    $this->require_login();
     //$salon_id = $this->session->custdata('s_id');
     if (isset($_FILES['import_file'])) {
       require_once "Simplexlsx.class.php";
@@ -378,7 +421,9 @@ class Accounts extends CI_Controller
 
   public function delete_customer()
   {
-
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_customer()) {
         $info = array(
@@ -407,8 +452,10 @@ class Accounts extends CI_Controller
 
     // $data['to_date'] = $this->input->post('to_date');
     // $data['city_dtl'] = $this->input->post('city_dtl');
+    $data['branch_id'] = $this->input->post('branch_id');
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
 
-    $data['all_value'] = $this->Main_model->get_customer_group_list($group);
+    $data['all_value'] = $this->Main_model->get_customer_group_list($group, $data['branch_id']);
     $this->load->view('customer_group', $data);
   }
 
@@ -419,8 +466,10 @@ class Accounts extends CI_Controller
     $data['from_date'] = $this->input->post('from_date');
     $data['to_date'] = $this->input->post('to_date');
     $data['city_dtl'] = $this->input->post('city_dtl');
+    $data['branch_id'] = $this->input->post('branch_id');
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
 
-    $data['all_value'] = $this->Main_model->all_custgrp();
+    $data['all_value'] = $this->Main_model->all_custgrp($data['branch_id']);
     $this->load->view('customer_group', $data);
   }
 
@@ -430,14 +479,18 @@ class Accounts extends CI_Controller
     $data['pagename'] = "Add Customer Group";
     $data['id'] = $this->input->get('id');
     $data['edit_value'] = $this->Main_model->get_edit_custgrp($data['id']);
-    $data['staff_list'] = $this->Main_model->get_active_user_list(1);
-    $data['cust_list'] = $this->Main_model->get_cust_list();
+    $data['branch_id'] = !empty($data['edit_value']) ? $data['edit_value']->m_custgrp_branch : $this->input->get('branch_id');
+    $data['staff_list'] = $this->Main_model->get_active_user_list(1, $data['branch_id']);
+    $data['cust_list'] = $this->Main_model->get_cust_list(null, null, null, null, null, $data['branch_id']);
+    $data['branch_list'] = $this->Main_model->get_user_list(9);
     $this->load->view('add_customer_group', $data);
   }
 
   public function insert_custgrp()
   {
-
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->insert_custgrp()) {
 
@@ -469,7 +522,9 @@ class Accounts extends CI_Controller
 
   public function delete_custgrp()
   {
-
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_custgrp()) {
         $info = array(
@@ -500,7 +555,7 @@ class Accounts extends CI_Controller
   protected function require_login()
   {
       $is_user_in = $this->session->userdata('is_user_in');
-      if (isset($is_user_in) || $is_user_in == true) {
+      if ($is_user_in == true) {
           return;
       } else if ($this->session->userdata('is_cust_in') == true) {
           redirect('Reports/account_ledger');
@@ -512,7 +567,7 @@ class Accounts extends CI_Controller
   protected function ajax_login($nav_id = '')
   {
     $is_user_in = $this->session->userdata('is_user_in');
-    if (isset($is_user_in) || $is_user_in == true) {
+    if ($is_user_in == true) {
       return true;
     } else {
       echo json_encode(array('status' => 'error', 'message' => 'You are not Logged in Now!! Please login again.'));

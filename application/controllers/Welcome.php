@@ -60,6 +60,14 @@ class Welcome extends CI_Controller
 
   public function db_backup()
   {
+    // Only Super Admin may download a full database backup - this contains
+    // every branch's data plus (hashed) user credentials.
+    $this->require_login();
+    if ($this->session->userdata('user_type') != 8) {
+      show_error('Access Denied', 403);
+      return;
+    }
+
     $this->load->helper('url');
     $this->load->helper('file');
     $this->load->helper('download');
@@ -71,13 +79,25 @@ class Welcome extends CI_Controller
     );
     $backup = &$this->dbutil->backup($db_format);
     $dbname = 'backup-on-' . date('Y-m-d_H:i') . '.zip';
-    $save = base_url('assets/database_backup/') . $dbname;
-    write_file($save, $backup);
+
+    $backup_dir = FCPATH . 'assets/database_backup/';
+    if (!is_dir($backup_dir)) {
+      mkdir($backup_dir, 0755, true);
+    }
+    write_file($backup_dir . $dbname, $backup);
+
     force_download($dbname, $backup);
   }
 
   function send_balance_sms()
   {
+    // Bulk SMS to every customer with an outstanding balance - restrict to
+    // Super Admin so it can't be triggered anonymously (cost/spam vector).
+    $this->require_login();
+    if ($this->session->userdata('user_type') != 8) {
+      show_error('Access Denied', 403);
+      return;
+    }
 
     $cust_list = $this->Main_model->get_all_customers();
     if (!empty($cust_list)) {
@@ -117,7 +137,7 @@ class Welcome extends CI_Controller
   protected function require_login()
   {
       $is_user_in = $this->session->userdata('is_user_in');
-      if (isset($is_user_in) || $is_user_in == true) {
+      if ($is_user_in == true) {
           return;
       } else if ($this->session->userdata('is_cust_in') == true) {
           redirect('Reports/account_ledger');
@@ -133,7 +153,7 @@ class Welcome extends CI_Controller
 
     $is_user_in = $this->session->userdata('is_user_in');
 
-    if (isset($is_user_in) || $is_user_in == true) {
+    if ($is_user_in == true) {
       return true;
     } else {
       echo json_encode(array('status' => 'error', 'message' => 'You are not Logged in Now!! Please login again.'));

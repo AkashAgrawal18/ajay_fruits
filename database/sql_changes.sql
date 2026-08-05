@@ -58,3 +58,170 @@ ADD COLUMN `si_issue_branch` int(11) NOT NULL DEFAULT 1 AFTER `si_issue_id`;
 
 
 INSERT INTO `master_users_tbl` (`m_user_id`, `m_user_branch`, `m_user_name`, `m_user_mobile`, `m_user_type`, `m_user_image`, `m_user_phoneno`, `m_user_remark`, `m_user_pan_no`, `m_user_accountno`, `m_user_design`, `m_user_state`, `m_user_city`, `m_user_address`, `m_user_adharno`, `m_user_trademark`, `m_user_contractPerd`, `m_user_group`, `m_user_opening`, `m_user_crateOP`, `m_user_balance`, `m_user_10bal`, `m_user_20bal`, `m_user_25bal`, `m_user_login_allow`, `m_user_loginid`, `m_user_password`, `m_user_status`, `m_user_added_on`, `m_user_added_by`, `m_user_updated_on`, `m_user_updated_by`) VALUES ('1', '1', 'Super Admin', '', '8', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '1', 'ajayfruits', 'ajayfruits001@', '1', '2026-06-22 20:22:15.000000', '1', '2026-06-22 20:22:15.000000', '1');
+
+
+ALTER TABLE master_purchase_tbl
+  ADD COLUMN m_purcs_type TINYINT DEFAULT 1 COMMENT '1=Purchase, 2=Transfer',
+  ADD COLUMN m_purcs_ref_lot INT NULL COMMENT 'source m_purcs_id when type=2 (transfer)',
+  ADD COLUMN m_purcs_from_branch INT NULL COMMENT 'source branch on a transfer row';
+
+-- Security fix: widen password columns to fit bcrypt hashes (60 chars) ahead of
+-- migrating from plaintext password storage to password_hash()/password_verify().
+ALTER TABLE `master_users_tbl` MODIFY `m_user_password` VARCHAR(255) NOT NULL;
+ALTER TABLE `master_customer_tbl` MODIFY `m_cust_password` VARCHAR(255) NOT NULL;
+ALTER TABLE `application_settings` MODIFY `date_lock_password` VARCHAR(255) NULL;
+-- ---------------------------------------------------------------------------
+-- BUG-017: the mobile API trusted a caller-supplied user_id with no
+-- authentication. Tokens are now issued by Api_Controller::user_login() and
+-- required by every other endpoint.
+--
+-- Deploy note: apply this BEFORE deploying the code, and ship the mobile app
+-- update that sends the token in the same window - older app builds will stop
+-- working once the code is live.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `api_tokens` (
+  `id`         BIGINT(20)   NOT NULL AUTO_INCREMENT,
+  `user_id`    BIGINT(20)   NOT NULL,
+  `token`      CHAR(64)     NOT NULL,
+  `created_at` DATETIME     NOT NULL,
+  `expires_at` DATETIME     NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_api_tokens_token` (`token`),
+  KEY `ix_api_tokens_user` (`user_id`),
+  KEY `ix_api_tokens_expiry` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- ---------------------------------------------------------------------------
+-- BUG-005: master_admin_tbl holds PLAINTEXT passwords (e.g. 'ajayfruits001@',
+-- '12345678').
+--
+-- Nothing in application/ references this table any more - logins go through
+-- master_users_tbl, which uses password_hash()/password_verify(). The rows are
+-- therefore dead data that only carries risk.
+--
+-- Left commented out because dropping data is not reversible: confirm the table
+-- is genuinely unused in your environment, take a backup, then run ONE of these.
+--
+-- Option A - keep the rows but destroy the credentials:
+--   UPDATE `master_admin_tbl` SET `m_admin_pass` = '';
+--
+-- Option B - remove the table entirely:
+--   DROP TABLE `master_admin_tbl`;
+--
+-- NOTE: these passwords are also in git history. If they were ever reused
+-- anywhere else, change them there too.
+-- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- BUG-006: sales_list range filters used DATE_FORMAT(m_sale_date, ...) which
+-- could not use an index. The model now compares the DATE column directly;
+-- this index supports the common "date range within a branch" filter.
+-- ---------------------------------------------------------------------------
+ALTER TABLE `master_sales_tbl` ADD INDEX `ix_sales_branch_date` (`m_sale_branch`, `m_sale_date`);
+ALTER TABLE `master_recieved_tbl` ADD INDEX `ix_recvd_branch_date` (`m_recvd_branch`, `m_recvd_date`);
+ALTER TABLE `master_purchase_tbl` ADD INDEX `ix_purcs_branch_date` (`m_purcs_branch`, `m_purcs_date`);
+
+-- ---------------------------------------------------------------------------
+-- Branch backfill inconsistency (found during the BUG-003 audit).
+--
+-- The branch columns above were added with two different defaults:
+--   m_sale_branch / m_purcs_branch  -> NOT NULL (default 0)  => existing rows = 0
+--   every other *_branch column     -> NOT NULL DEFAULT 1     => existing rows = 1
+--
+-- So head-office history is branch 0 in sales/purchase and branch 1 everywhere
+-- else, and neither 0 nor 1 is a real type-9 branch account. Audited counts on
+-- the live database:
+--   master_recieved_tbl  74295 rows at branch 1
+--   staff_itemissue_tbl  21471
+--   master_expenses_tbl   3836
+--   master_payment_tbl    2480
+--   master_voucher_tbl    1589
+--   master_customer_tbl    534
+--   master_sales_tbl / master_purchase_tbl: 0 affected (already branch 0)
+--
+-- This is NOT the BUG-003 corruption pattern (which would show scattered user
+-- ids); it is the original migration's default. It is harmless while ordinary
+-- users are unscoped, but it means a type-9 branch user will not match these
+-- rows, and new head-office rows now write 0 while the old ones stay 1.
+--
+-- Normalise head office to 0 when you are ready. Take a backup first.
+--   UPDATE `master_recieved_tbl`   SET `m_recvd_branch`   = 0 WHERE `m_recvd_branch`   = 1;
+--   UPDATE `master_payment_tbl`    SET `m_payment_branch` = 0 WHERE `m_payment_branch` = 1;
+--   UPDATE `master_voucher_tbl`    SET `m_voucher_branch` = 0 WHERE `m_voucher_branch` = 1;
+--   UPDATE `staff_itemissue_tbl`   SET `si_issue_branch`  = 0 WHERE `si_issue_branch`  = 1;
+--   UPDATE `master_customer_tbl`   SET `m_cust_branch`    = 0 WHERE `m_cust_branch`    = 1;
+--   UPDATE `master_expenses_tbl`   SET `m_exp_branch`     = 0 WHERE `m_exp_branch`     = 1;
+-- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- Superadmin "view password" feature: staff/branch login passwords stay
+-- bcrypt-hashed in `m_user_password` for actual login (unchanged). This new
+-- column carries a second, reversibly-encrypted copy (AES-256-CBC, key in
+-- application/config/integrations.php:password_enc_key) that only superadmin
+-- can decrypt, via Accounts::view_password().
+--
+-- Existing rows have NULL here until each user's password is next changed -
+-- there is no plaintext left anywhere to backfill from.
+-- ---------------------------------------------------------------------------
+ALTER TABLE `master_users_tbl` ADD COLUMN `m_user_password_enc` VARCHAR(255) NULL AFTER `m_user_password`;
+
+-- ---------------------------------------------------------------------------
+-- BUG-028: branch ownership normalised onto Branch 1 (m_user_id 141).
+--
+-- APPLIED to the local DB on 2026-08-02. Backup taken first:
+--   assets/database_backup/ajayfruits_db_pre_branch_migration_2026-08-02_140604.sql
+--
+-- Rows carried two conflicting conventions and neither matched a selectable
+-- branch, so the superadmin branch filter returned nothing for Head Office and
+-- Branch 2, and only 5 purchase lots for Branch 1:
+--   * legacy 1 - the original ALTER DEFAULT, written before any branch record
+--                existed (1 is the Super Admin account id, NOT a branch)
+--   * 0        - "head office", written by the newer insert code
+-- Real branches are 141 (Branch 1) and 142 (Branch 2). Per the owner's
+-- decision all historical data belongs to Branch 1, so both conventions were
+-- collapsed onto 141 - keeping a customer and their sales/receipts/payments on
+-- the same branch so ledgers and balances reconcile under the filter.
+--
+-- This supersedes the older "normalise head office to 0" note further up in
+-- this file - do NOT run those UPDATEs, they map the other way.
+-- ---------------------------------------------------------------------------
+UPDATE `master_custgroup_tbl`  SET `m_custgrp_branch` = 141 WHERE `m_custgrp_branch` = 1;
+UPDATE `master_customer_tbl`   SET `m_cust_branch`    = 141 WHERE `m_cust_branch`    = 1;
+UPDATE `master_group_tbl`      SET `m_group_branch`   = 141 WHERE `m_group_branch`   = 1;
+UPDATE `master_itemgroup_tbl`  SET `m_itgrp_branch`   = 141 WHERE `m_itgrp_branch`   = 1;
+UPDATE `master_item_tbl`       SET `m_item_branch`    = 141 WHERE `m_item_branch`    = 1;
+UPDATE `master_payment_tbl`    SET `m_payment_branch` = 141 WHERE `m_payment_branch` = 1;
+UPDATE `master_recieved_tbl`   SET `m_recvd_branch`   = 141 WHERE `m_recvd_branch`   = 1;
+UPDATE `master_voucher_tbl`    SET `m_voucher_branch` = 141 WHERE `m_voucher_branch` = 1;
+UPDATE `staff_itemissue_tbl`   SET `si_issue_branch`  = 141 WHERE `si_issue_branch`  = 1;
+UPDATE `master_expenses_tbl`   SET `m_exp_branch`     = 141 WHERE `m_exp_branch`     = 1;
+UPDATE `master_sales_tbl`      SET `m_sale_branch`    = 141 WHERE `m_sale_branch`    = 0;
+UPDATE `master_purchase_tbl`   SET `m_purcs_branch`   = 141 WHERE `m_purcs_branch`   = 0;
+
+-- Only operational accounts move. m_user_type 9 (the Branch 1 / Branch 2
+-- records that DEFINE the branches) and 8 (Super Admin) stay on head office -
+-- reassigning type 9 would make Branch 2's own record claim it is in Branch 1.
+UPDATE `master_users_tbl` SET `m_user_branch` = 141
+  WHERE `m_user_branch` = 1 AND `m_user_type` NOT IN (8, 9);
+UPDATE `master_users_tbl` SET `m_user_branch` = 0 WHERE `m_user_type` = 8;
+
+-- Stop new rows landing on the stale legacy value: an insert that omits the
+-- branch now falls back to head office (0) instead of 1.
+ALTER TABLE `master_custgroup_tbl` MODIFY `m_custgrp_branch` int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `master_customer_tbl`  MODIFY `m_cust_branch`    int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `master_expenses_tbl`  MODIFY `m_exp_branch`     int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `master_group_tbl`     MODIFY `m_group_branch`   int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `master_itemgroup_tbl` MODIFY `m_itgrp_branch`   int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `master_item_tbl`      MODIFY `m_item_branch`    int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `master_payment_tbl`   MODIFY `m_payment_branch` int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `master_recieved_tbl`  MODIFY `m_recvd_branch`   int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `master_users_tbl`     MODIFY `m_user_branch`    int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `master_voucher_tbl`   MODIFY `m_voucher_branch` int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `staff_itemissue_tbl`  MODIFY `si_issue_branch`  int(11) NOT NULL DEFAULT 0;
+
+-- Follow-up (F-06): these two were missed in the DEFAULT list above. They were
+-- NOT NULL with no default at all, so an insert omitting the branch would error
+-- rather than fall back to head office. Latent today - every writer sets the
+-- column explicitly - but inconsistent with the other branch columns.
+ALTER TABLE `master_sales_tbl`    MODIFY `m_sale_branch`  int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `master_purchase_tbl` MODIFY `m_purcs_branch` int(11) NOT NULL DEFAULT 0;

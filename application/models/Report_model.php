@@ -17,12 +17,24 @@ class Report_model extends CI_model
   {
     return $this->db->select('m_user_id')->where('m_user_type', 9)->where('m_user_status', 1)->get('master_users_tbl')->result();
   }
+  /**
+   * See Main_model::branch_id() for the rationale. Only a type-9 branch account
+   * is scoped by its own user id; applying that to every non-superadmin filters
+   * ordinary users against a non-existent branch (BUG-002/BUG-003).
+   */
   private function branch_id($override = null)
   {
-    if (!$this->is_superadmin()) {
+    $type = $this->session->userdata('user_type');
+
+    if ($type == 9) {
       return (int) $this->session->userdata('user_id');
     }
-    return ($override !== null && $override !== '') ? (int) $override : null;
+
+    if ($type == 8) {
+      return ($override !== null && $override !== '') ? (int) $override : null;
+    }
+
+    return null;
   }
 
   private function where_branch($column, $override = null)
@@ -385,9 +397,9 @@ class Report_model extends CI_model
     return $result;
   }
 
-  public function customer_detailed_leger($from_date, $todate, $customers)
+  public function customer_detailed_leger($from_date, $todate, $customers, $branch_id = null)
   {
-    $branch = $this->branch_id();
+    $branch = $this->branch_id($branch_id);
     $sql1   = [];
 
     // Sales
@@ -498,9 +510,9 @@ class Report_model extends CI_model
 
   // ========================== Supplier ledger ==========================//
 
-  public function get_sup_crate_ledger($crate_id, $sup_id, $from_date = '', $today = '')
+  public function get_sup_crate_ledger($crate_id, $sup_id, $from_date = '', $today = '', $branch_id = null)
   {
-    $branch = $this->branch_id();
+    $branch = $this->branch_id($branch_id);
 
     if ($today == 1) {
       if (!empty($from_date)) $this->db->where('m_purcs_date', $from_date);
@@ -533,9 +545,9 @@ class Report_model extends CI_model
     ];
   }
 
-  public function get_sup_opening_balance($sup_id, $from_date)
+  public function get_sup_opening_balance($sup_id, $from_date, $branch_id = null)
   {
-    $branch      = $this->branch_id();
+    $branch      = $this->branch_id($branch_id);
     $opening_bal = $this->Main_model->get_user_dtl($sup_id);
 
     $sub_total = $total_expense = $grand_total = $crate_total = $total_given = $total_recieved = 0;
@@ -620,9 +632,9 @@ class Report_model extends CI_model
     return $result;
   }
 
-  public function supplier_detailed_leger($from_date, $todate, $supplier)
+  public function supplier_detailed_leger($from_date, $todate, $supplier, $branch_id = null)
   {
-    $branch = $this->branch_id();
+    $branch = $this->branch_id($branch_id);
     $sql1   = [];
 
     // Purchases
@@ -792,9 +804,9 @@ class Report_model extends CI_model
     return $total_balance;
   }
 
-  public function cash_bank_leger($pagetype, $from_date, $todate, $method, $balance = '')
+  public function cash_bank_leger($pagetype, $from_date, $todate, $method, $balance = '', $branch_id = null)
   {
-    $branch      = $this->branch_id();
+    $branch      = $this->branch_id($branch_id);
     $opening_bal = $this->Master_model->get_edit_group($method);
     $total_balance = $opening_bal->m_group_opening;
     $sql1 = [];
@@ -868,9 +880,9 @@ class Report_model extends CI_model
 
   // ========================== General / Invest ledger ==========================//
 
-  public function general_invest_leger($from_date, $todate, $account_name, $balance = '')
+  public function general_invest_leger($from_date, $todate, $account_name, $balance = '', $branch_id = null)
   {
-    $branch        = $this->branch_id();
+    $branch        = $this->branch_id($branch_id);
     $opening_bal   = $this->Main_model->get_user_dtl($account_name);
     $total_balance = $opening_bal->m_user_opening;
     $sql1 = [];
@@ -925,9 +937,9 @@ class Report_model extends CI_model
 
   // ========================== Fright / Staff comm / Expense ledger ==========================//
 
-  public function fright_ledger($from_date, $todate, $account_name, $group, $balance = '')
+  public function fright_ledger($from_date, $todate, $account_name, $group, $balance = '', $branch_id = null)
   {
-    $branch        = $this->branch_id();
+    $branch        = $this->branch_id($branch_id);
     $opening_bal   = $this->Master_model->get_edit_group($account_name);
     $total_balance = $opening_bal->m_group_opening;
     $sql1 = [];
@@ -965,9 +977,9 @@ class Report_model extends CI_model
     return ($balance == 1) ? $total_balance : $sql1;
   }
 
-  public function staffcomm_ledger($from_date, $todate, $account_name, $balance = '')
+  public function staffcomm_ledger($from_date, $todate, $account_name, $balance = '', $branch_id = null)
   {
-    $branch        = $this->branch_id();
+    $branch        = $this->branch_id($branch_id);
     $opening_bal   = $this->Main_model->get_user_dtl($account_name);
     $total_balance = $opening_bal->m_user_opening;
     $sql1 = [];
@@ -1004,9 +1016,9 @@ class Report_model extends CI_model
     return ($balance == 1) ? $total_balance : $sql1;
   }
 
-  public function expense_leger($from_date, $todate, $account_name, $balance = '')
+  public function expense_leger($from_date, $todate, $account_name, $balance = '', $branch_id = null)
   {
-    $branch        = $this->branch_id();
+    $branch        = $this->branch_id($branch_id);
     $opening_bal   = $this->Master_model->get_edit_group($account_name);
     $total_balance = $opening_bal->m_group_opening;
     $sql1 = [];
@@ -1068,9 +1080,9 @@ class Report_model extends CI_model
     return ($balance == 1) ? $total_balance : $sql1;
   }
 
-  public function voucher_leger($type, $from_date, $todate, $balance = '')
+  public function voucher_leger($type, $from_date, $todate, $balance = '', $branch_id = null)
   {
-    $branch        = $this->branch_id();
+    $branch        = $this->branch_id($branch_id);
     $total_balance = 0;
     $sql1          = [];
 
@@ -1096,8 +1108,8 @@ class Report_model extends CI_model
   public function sales_item_group($from_date, $todate, $agent)
   {
     $branch = $this->branch_id();
-    if (!empty($from_date)) $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d")>=', $from_date);
-    if (!empty($todate))    $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d")<=', $todate);
+    if (!empty($from_date)) $this->db->where('m_sale_date>=', $from_date);
+    if (!empty($todate))    $this->db->where('m_sale_date<=', $todate);
     if (!empty($agent))     $this->db->where_in('m_sale_user', $agent);
     if ($branch !== null) $this->db->where('master_sales_tbl.m_sale_branch', $branch);
     $this->db->select('sum(m_sale_qty) as tqty,sum(m_sale_weight) as twght,m_item_name,sum(m_sale_total) as total_amount,unit.m_itgrp_title,m_user_name');
@@ -1251,8 +1263,8 @@ class Report_model extends CI_model
 
   private function _query_sales_bulk($from_date, $to_date, $staff_id, array $cust_ids, $branch)
   {
-    if (!empty($from_date)) $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d") >=', $from_date);
-    if (!empty($to_date))   $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d") <=', $to_date);
+    if (!empty($from_date)) $this->db->where('m_sale_date >=', $from_date);
+    if (!empty($to_date))   $this->db->where('m_sale_date <=', $to_date);
     $this->db->select('m_sale_spo, m_sale_trackno, SUM(m_sale_qty) AS total_qty, SUM(m_sale_total) AS sub_total, m_sale_date, SUM(m_sale_weight) AS total_weight, SUM(m_sale_crate) AS total_crate, m_sale_comrate, m_sale_comm, m_sale_fright, m_sale_hamali, m_sale_others, (m_sale_comm + m_sale_fright + m_sale_hamali + m_sale_others) AS total_expense, m_sale_note, m_sale_user, m_sale_customer, GROUP_CONCAT(m_sale_qty) AS sale_qty, GROUP_CONCAT(m_sale_price) AS sale_price, GROUP_CONCAT(m_sale_total) AS sale_total, GROUP_CONCAT(m_sale_weight) AS sale_weight, GROUP_CONCAT(m_sale_crate) AS sale_crate, GROUP_CONCAT(m_item_name) AS sale_itemname, GROUP_CONCAT(crate.m_itgrp_title) AS sale_cratetype, GROUP_CONCAT(unit.m_itgrp_title) AS sale_unitname, m_cust_name, m_cust_id, m_cust_mobile')
       ->join('master_customer_tbl mut', 'mut.m_cust_id = master_sales_tbl.m_sale_customer', 'left')
       ->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
@@ -1579,6 +1591,110 @@ class Report_model extends CI_model
     $result['balance_crate']  = array_sum(explode(',', $opening_bal)) + $crate_total;
     return $result;
   }
+
+  public function transfer_ledger_data($from_date, $todate, $branch_id = null)
+  {
+    $this->db->select('
+        mp.m_purcs_id,
+        mp.m_purcs_spo,
+        mp.m_purcs_date,
+        mp.m_purcs_qty,
+        mp.m_purcs_weight,
+        mp.m_purcs_price as issue_rate,
+        mp.m_purcs_total,
+        mp.m_purcs_lot,
+        mp.m_purcs_branch as to_branch,
+        mp.m_purcs_from_branch as from_branch,
+        mp.m_purcs_ref_lot,
+        mp.m_purcs_added_by,
+        mp.m_purcs_added_on,
+        mit.m_item_name,
+        tobr.m_user_name as to_branch_name,
+        frombr.m_user_name as from_branch_name,
+        addedby.m_user_name as added_by_name
+    ');
+    $this->db->from('master_purchase_tbl mp');
+    $this->db->join('master_item_tbl mit', 'mit.m_item_id = mp.m_purcs_item', 'left');
+    $this->db->join('master_users_tbl tobr', 'tobr.m_user_id = mp.m_purcs_branch', 'left');
+    $this->db->join('master_users_tbl frombr', 'frombr.m_user_id = mp.m_purcs_from_branch', 'left');
+    $this->db->join('master_users_tbl addedby', 'addedby.m_user_id = mp.m_purcs_added_by', 'left');
+
+    $this->db->where('mp.m_purcs_type', 2); // sirf transfer records
+
+    if (!empty($from_date)) $this->db->where('mp.m_purcs_date >=', $from_date);
+    if (!empty($todate))    $this->db->where('mp.m_purcs_date <=', $todate);
+
+    // Super admin (branch_id null) => sab dikhega
+    // Branch user => uski branch se related dono taraf (bheja gaya + mila hua)
+    if (!empty($branch_id)) {
+      $this->db->group_start();
+      $this->db->where('mp.m_purcs_branch', $branch_id);
+      $this->db->or_where('mp.m_purcs_from_branch', $branch_id);
+      $this->db->group_end();
+    }
+
+    $this->db->order_by('mp.m_purcs_date', 'desc');
+    $this->db->order_by('mp.m_purcs_id', 'desc');
+
+    return $this->db->get()->result();
+  }
+
+  // ===================== Branch Ledger / Outstanding =======================//
+
+  public function get_branch_opening_balance($branch_id, $before_date)
+  {
+    $bill_total = $this->db->select_sum('m_purcs_total')
+      ->where('m_purcs_branch', $branch_id)
+      ->where('m_purcs_type', 2)
+      ->where('m_purcs_date <', $before_date)
+      ->get('master_purchase_tbl')->row();
+
+    $paid_total = $this->db->select_sum('m_recvd_amount')
+      ->where('m_recvd_customer', $branch_id)
+      ->where('m_recvd_account', 8)
+      ->where('m_recvd_type', 1)
+      ->where('m_recvd_date <', $before_date)
+      ->get('master_recieved_tbl')->row();
+
+    $bills = !empty($bill_total->m_purcs_total) ? (float) $bill_total->m_purcs_total : 0;
+    $paid  = !empty($paid_total->m_recvd_amount) ? (float) $paid_total->m_recvd_amount : 0;
+
+    return $bills - $paid;
+  }
+
+  public function branch_ledger_bills($branch_id, $from_date = '', $todate = '')
+  {
+    $this->db->select('m_purcs_spo, m_purcs_date, SUM(m_purcs_qty) as tqty, SUM(m_purcs_total) as tamount')
+      ->where('m_purcs_branch', $branch_id)
+      ->where('m_purcs_type', 2);
+    if (!empty($from_date)) $this->db->where('m_purcs_date >=', $from_date);
+    if (!empty($todate))    $this->db->where('m_purcs_date <=', $todate);
+    $this->db->group_by('m_purcs_spo');
+    $this->db->order_by('m_purcs_date');
+    return $this->db->get('master_purchase_tbl')->result();
+  }
+
+  public function branch_ledger_payments($branch_id, $from_date = '', $todate = '')
+  {
+    $this->db->select('m_recvd_voucher, m_recvd_date, m_recvd_amount, m_recvd_remark')
+      ->where('m_recvd_customer', $branch_id)
+      ->where('m_recvd_account', 8)
+      ->where('m_recvd_type', 1);
+    if (!empty($from_date)) $this->db->where('m_recvd_date >=', $from_date);
+    if (!empty($todate))    $this->db->where('m_recvd_date <=', $todate);
+    $this->db->order_by('m_recvd_date');
+    return $this->db->get('master_recieved_tbl')->result();
+  }
+
+  public function branch_outstanding_list()
+  {
+    $this->db->select('m_user_id, m_user_name, m_user_mobile, m_user_balance');
+    $this->db->where('m_user_type', 9);
+    $this->db->order_by('m_user_name');
+    return $this->db->get('master_users_tbl')->result();
+  }
+
+  // ===================== Branch Ledger / Outstanding =======================//
 
   public function dashboard_counts($date)
   {

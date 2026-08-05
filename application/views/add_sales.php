@@ -44,6 +44,7 @@
                 $sale_others = $edit_value[0]->m_sale_others;
 
                 $sale_note = $edit_value[0]->m_sale_note;
+                $sale_branch = $edit_value[0]->m_sale_branch;
             } else {
                 $sale_spo = '';
                 $sale_date = date('Y-m-d');
@@ -57,6 +58,7 @@
                 $sale_hamali = 0;
                 $sale_others = 0;
                 $sale_note = '';
+                $sale_branch = !empty($branch_id) ? $branch_id : '';
             } ?>
 
 
@@ -83,6 +85,22 @@
                         <input type="text" name="m_sale_voucher" id="m_sale_voucher" class="form-control" placeholder="Enter Voucher No" value="<?= $sale_voucher ?>">
                     </div>
                 </div>
+                <?php if ($this->session->userdata('user_type') == 8) { ?>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Branch</label>
+                        <select name="m_sale_branch" id="m_sale_branch" class="form-select select2">
+                            <option value="0">Head Office</option>
+                            <?php if (!empty($branch_list)) {
+                                foreach ($branch_list as $branch) {
+                            ?>
+                                <option value="<?= $branch->m_user_id ?>" <?= $sale_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                            <?php }
+                            } ?>
+                        </select>
+                    </div>
+                </div>
+                <?php } ?>
                 <div class="col-md-3">
                     <div class="form-group">
                         <label>Customer Name <span class="text-danger">*</span></label>
@@ -313,6 +331,44 @@
         total_calculate_fun()
         calculate_expenses()
         let incount = $('#rowunt').val();
+
+        // Live branch cascading: re-scope Customer/Agent/Item pickers when
+        // the Branch select changes, so they only show that branch's data.
+        // NOTE: a hidden input also shares id="m_sale_customer" elsewhere in
+        // this form (pre-existing markup) - target the <select> only.
+        BranchCascade.bind('#m_sale_branch', [{
+                listType: 'customer',
+                target: 'select#m_sale_customer',
+                mode: 'select',
+                idField: 'm_cust_id',
+                labelFn: function(c) { return c.m_cust_name + ' | ' + c.m_cust_mobile; },
+                placeholder: '--Select--'
+            },
+            {
+                listType: 'staff',
+                target: '#m_sale_user',
+                mode: 'select',
+                idField: 'm_user_id',
+                labelFn: function(s) { return s.m_user_name + ' | ' + s.m_user_mobile; },
+                placeholder: '--Select--'
+            },
+            {
+                listType: 'item',
+                target: '#items_datalist',
+                mode: 'datalist',
+                valueFn: function(it) { return it.m_item_name; },
+                attrsFn: function(it) {
+                    return {
+                        itemid: it.m_item_id,
+                        price: it.m_item_price,
+                        ifright: it.m_item_fright,
+                        crate: it.m_crate_name,
+                        unit: it.m_unit_name
+                    };
+                }
+            }
+        ], "<?php echo site_url('Master/branch_scoped_options'); ?>");
+
         $(document).on('change', '#item_serch_inp', function() {
             var price = $("#items_datalist option[value='" + $(this).val() + "']").attr('data-price')
             var unit = $("#items_datalist option[value='" + $(this).val() + "']").attr('data-unit')

@@ -66,6 +66,7 @@
                             <input type="date" max="<?= date('Y-m-d')?>" name="to_date" id="to_date" class="form-control" value="<?= $to_date ?>">
                         </div>
                     </div>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
                     <div class="col-2">
                         <div class="form-group">
                             <label for="">Branch</label>
@@ -81,6 +82,7 @@
                             </select>
                         </div>
                     </div>
+                    <?php } ?>
                     <div class="col-2">
                         <div class="form-group">
                             <label for="">Search</label>
@@ -90,7 +92,7 @@
                     <div class="col-4 mt-4">
                         <button class="btn btn-info" type="submit"><i class="bi bi-search mx-1"></i> Search</button>
                         <a class="btn btn-danger" href="<?= base_url('Accounts/cust_list') ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
-                        <a class="btn btn-primary" href="<?= base_url('Accounts/add_cust') ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
+                        <a class="btn btn-primary" href="<?= base_url('Accounts/add_cust' . (!empty($branch_id) ? '?branch_id=' . $branch_id : '')) ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
                         <button class="btn btn-success" type="button" onclick="printcustomtable()"><i class="bi bi-printer me-2"></i>Print</button>
 
                     </div>

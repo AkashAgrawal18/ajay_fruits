@@ -60,7 +60,7 @@
                 </h6>
             </div>
             <div class="col-6 text-end">
-                <a class="btn btn-primary btn-sm" href="<?= base_url('Sales/add_issue_item') ?>"><i
+                <a class="btn btn-primary btn-sm" href="<?= base_url('Sales/add_issue_item' . (!empty($branch_id) ? '?branch_id=' . $branch_id : '')) ?>"><i
                         class="bi bi-person-plus-fill"></i> Add New</a>
                 <button onclick="history.back()" class="btn btn-danger btn-sm">
                     <i class="bi bi-box-arrow-left me-2"></i>Exit
@@ -123,6 +123,23 @@
                             <input type="text" name="lot_no" id="lot_no" class="form-control" value="<?= $lot_no ?>">
                         </div>
                     </div>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                    <div class="col-2">
+                        <div class="form-group">
+                            <label for="">Branch</label>
+                            <select name="branch_id" id="branch_id" class="form-select select2">
+                                <option value="">All Branches</option>
+                                <?php if (!empty($branch_list)) {
+                                    foreach ($branch_list as $branch) {
+                                        $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                                ?>
+                                        <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                <?php }
+                                } ?>
+                            </select>
+                        </div>
+                    </div>
+                    <?php } ?>
                     <div class="col-4 mt-4">
                         <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i>
                             Search</button>

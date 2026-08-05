@@ -47,6 +47,7 @@
                             <li><a class="dropdown-item" href="<?= base_url('Sales/recieved_list/1') ?>">Payment Recieved</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Sales/recieved_list/2') ?>">Create Recieved</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Sales/voucher_list') ?>">Voucher</a></li>
+                            <li><a class="dropdown-item" href="<?= base_url('Accounts/customer_group_list') ?>">Customer Group</a></li>
                         </ul>
                     </div>
                     <div class="btn-group">
@@ -59,6 +60,13 @@
                             <li><a class="dropdown-item" href="<?= base_url('Sales/purchase_item_list') ?>">Stock in & out Report</a></li>
                             <?php if ($this->session->userdata('user_type') == 8) : ?>
                                 <li><a class="dropdown-item" href="<?= base_url('Accounts/branch_list') ?>">Branch List</a></li>
+                                <li><a class="dropdown-item" href="<?= base_url('Transfer/add_transfer') ?>">Create Transfer</a></li>
+                            <?php endif; ?>
+                            <li><a class="dropdown-item" href="<?= base_url('Reports/transfer_ledger') ?>">Transfer Ledger</a></li>
+                            <?php if ($this->session->userdata('user_type') == 8) : ?>
+                                <li><a class="dropdown-item" href="<?= base_url('Reports/branch_outstanding') ?>">Branch Outstanding</a></li>
+                            <?php else : ?>
+                                <li><a class="dropdown-item" href="<?= base_url('Reports/branch_ledger') ?>">Branch Ledger</a></li>
                             <?php endif; ?>
                         </ul>
                     </div>
@@ -312,12 +320,6 @@
                 <!--line -->
 
                 <div class="d-inline-flex justify-content-start px-2 gap-1">
-                    <a href="<?= base_url('Accounts/customer_group_list') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'customer_group_list') echo 'active' ?>">
-                        <img src="<?= base_url('assets/icons/groups.png') ?>" alt="" class="w-50 mx-auto" />
-                        <p class="m-0 mt-1">
-                            Group
-                        </p>
-                    </a>
                     <a href="<?= base_url('Reports/lotwise_item') ?>" class="d-block text-dark py-1 main-link">
                         <img src="<?= base_url('assets/icons/lotwise.png') ?>" alt="" class="w-50 mx-auto" />
                         <p class="m-0 mt-1">
@@ -380,18 +382,28 @@
                             Issue List
                         </p>
                     </a>
-                    <a href="<?= base_url('Sales/add_purchase') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'add_purchase') echo 'active' ?>">
-                        <img src="<?= base_url('assets/icons/ledger1.png') ?>" alt="" class="w-50 mx-auto " />
-                        <p class="m-0 mt-1">
-                            Add Purchase
-                        </p>
-                    </a>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                        <a href="<?= base_url('Sales/add_purchase') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'add_purchase') echo 'active' ?>">
+                            <img src="<?= base_url('assets/icons/ledger1.png') ?>" alt="" class="w-50 mx-auto " />
+                            <p class="m-0 mt-1">
+                                Add Purchase
+                            </p>
+                        </a>
+                    <?php } ?>
                     <a href="<?= base_url('Sales/purchase_list') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'purchase_list') echo 'active' ?>">
                         <img src="<?= base_url('assets/icons/plist.png') ?>" alt="" class="w-50 mx-auto" />
                         <p class="m-0 mt-1">
                             Purchase List
                         </p>
                     </a>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                        <a href="<?= base_url('Transfer/add_transfer') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'add_transfer') echo 'active' ?>">
+                            <img src="<?= base_url('assets/icons/merge.png') ?>" alt="" class="w-50 mx-auto" />
+                            <p class="m-0 mt-1">
+                                Transfer
+                            </p>
+                        </a>
+                    <?php } ?>
                 </div>
 
                 <!--line -->

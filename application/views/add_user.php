@@ -63,9 +63,10 @@ if ($pgtype == 1) {
             $group = explode(',', $edit_value->m_user_group);
             $login_allow = $edit_value->m_user_login_allow;
             $loginid = $edit_value->m_user_loginid;
-            $password = $edit_value->m_user_password;
+            $password = '';
             $opening = $edit_value->m_user_opening;
             $crateOP = explode(',', $edit_value->m_user_crateOP);
+            $user_branch = $edit_value->m_user_branch;
         } else {
             $id = '';
             $name = '';
@@ -87,6 +88,7 @@ if ($pgtype == 1) {
             $login_allow = 1;
             $opening = 0;
             $crateOP = array(0, 0, 0);
+            $user_branch = !empty($branch_id) ? $branch_id : '';
         }
 
         $cv10 = isset($crateOP[0]) ? $crateOP[0] : 0;
@@ -232,6 +234,17 @@ if ($pgtype == 1) {
 
                         </select>
                     </div>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Branch</label>
+                        <select name="m_user_branch" id="m_user_branch" class="form-control select2">
+                            <option value="0">Head Office</option>
+                            <?php foreach ($branch_list as $branch) { ?>
+                                <option value="<?= $branch->m_user_id ?>" <?= $user_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                            <?php } ?>
+                        </select>
+                    </div>
+                    <?php } ?>
                     <div class="col-12">
                         <label for="" class="mb-0 form-label small">Address</label>
                         <textarea rows="3" class="form-control" name="m_user_address" id="m_user_address" value="<?= $address ?>" placeholder="enter full address"><?= $address ?></textarea>
@@ -270,7 +283,7 @@ if ($pgtype == 1) {
                                                         echo 'd-none';
                                                     } ?>">
                             <label for="" class="mb-0 form-label small">Password</label>
-                            <input type="text" minlength="6" class="form-control" name="m_user_password" id="m_user_password" value="<?= $password ?>">
+                            <input type="text" minlength="6" class="form-control" name="m_user_password" id="m_user_password" value="<?= $password ?>" placeholder="<?= !empty($id) ? 'Leave blank to keep current password' : '' ?>">
                         </div>
 
                     <?php } ?>

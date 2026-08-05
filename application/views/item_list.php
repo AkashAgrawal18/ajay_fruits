@@ -32,6 +32,29 @@
     <div class="container-fluid">
         <div class="row justify-content-evenly g-0">
             <div class="col-7">
+                <?php if ($this->session->userdata('user_type') == 8) { ?>
+                <form action="<?= site_url('Master/item_list') ?>" method="POST" class="row align-items-center mb-2">
+                    <div class="col-3">
+                        <div class="form-group">
+                            <label for="">Branch</label>
+                            <select name="branch_id" id="branch_id" class="form-select select2">
+                                <option value="">All Branches</option>
+                                <?php if (!empty($branch_list)) {
+                                    foreach ($branch_list as $branch) {
+                                        $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                                ?>
+                                        <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                <?php }
+                                } ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-3 mt-4">
+                        <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i> Filter</button>
+                        <a class="btn btn-danger btn-sm" href="<?= site_url('Master/item_list') ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
+                    </div>
+                </form>
+                <?php } ?>
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <div class="input-group input-group-sm" style="max-width:320px;">
                         <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
@@ -108,6 +131,7 @@
                                     $iprice = $edit_value->m_item_price;
                                     $ifright = $edit_value->m_item_fright;
                                     $comm = $edit_value->m_item_comm;
+                                    $item_branch = $edit_value->m_item_branch;
                                 } else {
                                     $id = '';
                                     $title = '';
@@ -117,6 +141,7 @@
                                     $iprice = '';
                                     $ifright = '';
                                     $comm = '';
+                                    $item_branch = '';
                                 } ?>
 
 
@@ -129,6 +154,26 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <?php if ($this->session->userdata('user_type') == 8) { ?>
+                                <div class="row mb-1">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label>Branch</label>
+                                            <select name="m_item_branch" id="m_item_branch" class="form-control select2">
+                                                <option value="0">Head Office</option>
+                                                <?php if (!empty($branch_list)) {
+                                                    foreach ($branch_list as $branch) {
+                                                        $selected = ($item_branch == $branch->m_user_id) ? 'selected' : '';
+                                                ?>
+                                                    <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                                <?php }
+                                                } ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php } ?>
 
 
                                 <div class="row mb-1">

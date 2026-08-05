@@ -12,15 +12,14 @@ class Login_model extends CI_model
     // Admin login is global — no branch filter at login time
     // (branch is set into session after successful login)
     $pass = $this->input->post('login_pass');
-    $this->db->select('m_user_id,m_user_type,m_user_name,m_user_branch');
+    $this->db->select('m_user_id,m_user_type,m_user_name,m_user_branch,m_user_password');
     $this->db->where('m_user_loginid', $this->input->post('login_id'));
-    $this->db->where('m_user_password', $pass);
     $this->db->where('m_user_login_allow', 1);
     $this->db->where('m_user_status', 1);
-    $sql = $this->db->get('master_users_tbl');
+    $row = $this->db->get('master_users_tbl')->row();
 
-    if ($sql->num_rows() == 1) {
-      return $sql->result();
+    if (!empty($row) && password_verify($pass, $row->m_user_password)) {
+      return [$row];
     }
     return false;
   }
@@ -29,15 +28,14 @@ class Login_model extends CI_model
   {
     // Customer login is branch-scoped
     $pass = $this->input->post('login_pass');
-    $this->db->select('m_cust_id,m_cust_name,m_cust_branch');
+    $this->db->select('m_cust_id,m_cust_name,m_cust_branch,m_cust_password');
     $this->db->where('m_cust_loginid', $this->input->post('login_id'));
-    $this->db->where('m_cust_password', $pass);
     $this->db->where('m_cust_status', 1);
     $this->db->where('m_cust_branch', $this->branch_id());
-    $sql = $this->db->get('master_customer_tbl');
+    $row = $this->db->get('master_customer_tbl')->row();
 
-    if ($sql->num_rows() == 1) {
-      return $sql->result();
+    if (!empty($row) && password_verify($pass, $row->m_cust_password)) {
+      return [$row];
     }
     return false;
   }
@@ -97,10 +95,13 @@ class Login_model extends CI_model
 
     if (!empty($query)) {
       redirect($query->long_url);
-    } else {
-      $link  = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
-      $link .= '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-      redirect($link);
+      return;
     }
+
+    // This model backs routes.php's 404_override, so every unmatched URL in
+    // the application lands here. Redirecting to the current URL - as this
+    // previously did - turned every 404 into an infinite redirect loop
+    // (BUG-020). Serve a real 404 instead.
+    show_404();
   }
 }

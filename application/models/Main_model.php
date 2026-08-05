@@ -12,12 +12,73 @@ class Main_model extends CI_model
     return $this->session->userdata('user_type') == 8;
   }
 
+  /**
+   * A "branch" is a master_users_tbl row of m_user_type = 9 — the ledgers join
+   * on it (Report_model::transfer_ledger_data joins m_user_id = m_purcs_branch).
+   * So a branch account really is scoped by its own user id.
+   *
+   * That rule must NOT be applied to every non-superadmin, though: an ordinary
+   * type-1 user is not a branch, so scoping them by their own user id filters
+   * against a branch that does not exist and returns nothing (BUG-002), while
+   * their writes get stamped with a non-branch id (BUG-003).
+   *
+   * Returns null to mean "no branch filter".
+   */
   private function branch_id($override = null)
   {
-    if (!$this->is_superadmin()) {
+    $type = $this->session->userdata('user_type');
+
+    // Branch account: scoped to itself.
+    if ($type == 9) {
       return (int) $this->session->userdata('user_id');
     }
-    return ($override !== null && $override !== '') ? (int) $override : null;
+
+    // Superadmin: unscoped unless a branch was explicitly chosen.
+    if ($type == 8) {
+      return ($override !== null && $override !== '') ? (int) $override : null;
+    }
+
+    // Everyone else: unscoped. Head-office data carries branch 0.
+    return null;
+  }
+
+  /**
+   * Branch value to stamp on a new row. The *_branch columns are NOT NULL, so a
+   * null filter must persist as 0 (head office) rather than being written as
+   * NULL, which MySQL rejects outright (BUG-009).
+   */
+  private function branch_for_insert($override = null)
+  {
+    $branch = $this->branch_id($override);
+    return $branch === null ? 0 : (int) $branch;
+  }
+
+  /**
+   * Start of the current financial year (1 April), mirroring
+   * Login::_get_financial_year_start().
+   */
+  private function financial_year_start()
+  {
+    $year = (date('m') > 3) ? date('Y') : date('Y', strtotime('-1 year'));
+    return $year . '-04-01';
+  }
+
+  /**
+   * True when $date falls in a locked (previous) financial year and the lock is
+   * switched on. The lock used to be enforced only in the browser, so a crafted
+   * POST could write straight into closed books (BUG-018).
+   */
+  protected function date_is_locked($date)
+  {
+    if (empty($date)) {
+      return false;
+    }
+
+    if (!function_exists('get_settings') || !get_settings('date_lock_enabled')) {
+      return false;
+    }
+
+    return strtotime($date) < strtotime($this->financial_year_start());
   }
 
   private function where_branch($column, $override = null)
@@ -37,9 +98,9 @@ class Main_model extends CI_model
 
   // ===================== users =======================//
 
-  public function get_user_list($type, $from_date='', $to_date='', $city_dtl='', $orderby = '', $search = '', $branch_id = null)
+  public function get_user_list($type, $from_date = '', $to_date = '', $city_dtl = '', $orderby = '', $search = '', $branch_id = null)
   {
-  
+
     $this->where_branch('master_users_tbl.m_user_branch', $branch_id);
 
     if (!empty($from_date) && !empty($to_date)) {
@@ -53,8 +114,14 @@ class Main_model extends CI_model
       $this->db->where_in('m_user_city', $city_dtl);
     }
     if (!empty($search)) {
-      $wh = "(m_user_name LIKE '%$search%' OR m_user_mobile LIKE '%$search%' OR m_city_name LIKE '%$search%')";
-      $this->db->where($wh);
+      // Bound like() rather than interpolating into where("...") - a single
+      // string argument to where() is passed through unescaped, which made
+      // this search box a SQL injection point (BUG-029).
+      $this->db->group_start()
+        ->like('m_user_name', $search)
+        ->or_like('m_user_mobile', $search)
+        ->or_like('m_city_name', $search)
+        ->group_end();
     }
 
     $this->db->select('master_users_tbl.*,m_city_name,m_state_name');
@@ -104,6 +171,16 @@ class Main_model extends CI_model
     $this->db->join('master_state_tbl', 'master_state_tbl.m_state_id = master_users_tbl.m_user_state', 'left');
     $this->db->join('master_city_tbl', 'master_city_tbl.m_city_id = master_users_tbl.m_user_city', 'left');
     return $this->db->get('master_users_tbl')->row();
+  }
+
+  // Superadmin-only "view password" feature - caller must already have
+  // checked user_type == 8 before calling this.
+  public function get_user_password_enc($id, $branch_id = null)
+  {
+    $this->where_branch('m_user_branch', $branch_id);
+    return $this->db->select('m_user_password_enc')
+      ->where('m_user_id', $id)
+      ->get('master_users_tbl')->row();
   }
 
   public function get_user_group_dtl($group_id, $branch_id = null)
@@ -170,8 +247,15 @@ class Main_model extends CI_model
       "m_user_crateOP"      => $cbv10 . ',' . $cbv20 . ',' . $cbv25,
       "m_user_login_allow"  => $this->input->post('m_user_login_allow') ?: 0,
       "m_user_loginid"      => $this->input->post('m_user_loginid') ?: '',
-      "m_user_password"     => $this->input->post('m_user_password') ?: '',
     );
+
+    // Only touch the password if a new one was actually submitted - otherwise
+    // an edit save would blank out (or re-hash) the existing credential.
+    $newPassword = $this->input->post('m_user_password');
+    if (!empty($newPassword)) {
+      $data['m_user_password']     = password_hash($newPassword, PASSWORD_DEFAULT);
+      $data['m_user_password_enc'] = encrypt_password_for_admin($newPassword);
+    }
 
     if (!empty($userid)) {
       $data['m_user_updated_by'] = $this->session->userdata('user_id');
@@ -273,8 +357,12 @@ class Main_model extends CI_model
       $this->db->where('m_cust_city', $city_dtl);
     }
     if (!empty($search)) {
-      $wh = "(m_cust_name LIKE '%$search%' OR m_cust_mobile LIKE '%$search%' OR m_group_name LIKE '%$search%')";
-      $this->db->where($wh);
+      // Bound like() - see the note in get_user_list() (BUG-029).
+      $this->db->group_start()
+        ->like('m_cust_name', $search)
+        ->or_like('m_cust_mobile', $search)
+        ->or_like('m_group_name', $search)
+        ->group_end();
     }
 
     $this->db->order_by('m_cust_name');
@@ -615,11 +703,17 @@ class Main_model extends CI_model
       "m_cust_trademark"    => $this->input->post('m_cust_trademark'),
       "m_cust_group"        => $this->input->post('m_cust_group'),
       "m_cust_loginid"      => $this->input->post('m_cust_loginid'),
-      "m_cust_password"     => $this->input->post('m_cust_password'),
       "m_cust_opening"      => $openingbal,
       "m_cust_crateOP"      => $cbv10 . ',' . $cbv20 . ',' . $cbv25,
       "m_cust_status"       => 1,
     );
+
+    // Only touch the password if a new one was actually submitted - otherwise
+    // an edit save would blank out (or re-hash) the existing credential.
+    $newPassword = $this->input->post('m_cust_password');
+    if (!empty($newPassword)) {
+      $data['m_cust_password'] = password_hash($newPassword, PASSWORD_DEFAULT);
+    }
 
     if (!empty($custid)) {
       $data['m_cust_updated_by'] = $this->session->userdata('user_id');
@@ -629,7 +723,7 @@ class Main_model extends CI_model
       $this->db->update('master_customer_tbl', $data);
       return 2;
     } else {
-      $data['m_cust_branch']   = $branch;
+      $data['m_cust_branch']   = $branch ?? 0;
       $data['m_cust_added_by'] = $this->session->userdata('user_id');
       $data['m_cust_added_on'] = date('Y-m-d H:i:s');
       $this->db->insert('master_customer_tbl', $data);
@@ -690,7 +784,7 @@ class Main_model extends CI_model
         $res = 2;
       } else {
         if (empty($check)) {
-          $insert_data['m_custgrp_branch']   = $branch;
+          $insert_data['m_custgrp_branch']   = $branch ?? 0;
           $insert_data['m_custgrp_addedby']  = $this->session->userdata('user_id');
           $insert_data['m_custgrp_code']     = date('dmi') . $this->input->post('m_custgrp_user');
           $insert_data['m_custgrp_added_on'] = date('Y-m-d H:i:s');
@@ -748,8 +842,8 @@ class Main_model extends CI_model
       ->join('master_group_tbl', 'master_group_tbl.m_group_id = mut.m_user_group', 'left')
       ->join('master_users_tbl as issueby', 'issueby.m_user_id = staff_itemissue_tbl.si_issue_added_by', 'left');
 
-    if (!empty($from_date)) $this->db->where('DATE_FORMAT(si_issue_date,"%Y-%m-%d")>=', $from_date);
-    if (!empty($todate))    $this->db->where('DATE_FORMAT(si_issue_date,"%Y-%m-%d")<=', $todate);
+    if (!empty($from_date)) $this->db->where('si_issue_date>=', $from_date);
+    if (!empty($todate))    $this->db->where('si_issue_date<=', $todate);
     if (!empty($staff))     $this->db->where_in('si_issue_user', $staff);
 
     if (!empty($lot_no)) {
@@ -772,6 +866,11 @@ class Main_model extends CI_model
   {
     $post         = $this->input->post();
     $branch       = $this->branch_id($post['si_issue_branch'] ?? null);
+
+    if ($this->date_is_locked($post['si_issue_date'] ?? null)) {
+      return ['status' => 'error', 'message' => 'This date falls in a locked financial year.'];
+    }
+
     $issue_id     = $post['si_issue_id'] ?? [];
     $issue_item   = $post['si_issue_item'] ?? [];
     $pre_qty      = $post['pre_item_qty'] ?? [];
@@ -784,20 +883,25 @@ class Main_model extends CI_model
 
     $this->db->trans_start();
 
-    // SPO generation
+    // SPO generation: highest counter ever issued (locked FOR UPDATE), not the
+    // last inserted row - editing an older issue can leave a stale spo on the
+    // newest row and cause the next issue number to be reused.
     if (empty($post['si_issue_spo'])) {
-      $this->db->where('si_issue_type', 1);
-      $this->where_branch('si_issue_branch', $branch);
-      $lastSpo = $this->db->order_by('si_issue_id', 'desc')
-        ->limit(1)
-        ->get('staff_itemissue_tbl')->row();
-
-      if (!empty($lastSpo)) {
-        $spo_coun  = explode('/', $lastSpo->si_issue_spo);
-        $issue_spo = ((int)$spo_coun[0] + 1) . '/' . date('dm', strtotime($post['si_issue_date']));
-      } else {
-        $issue_spo = '1/' . date('dm', strtotime($post['si_issue_date']));
+      $where_parts = ['si_issue_type = 1'];
+      $binds       = [];
+      if ($branch !== null) {
+        $where_parts[] = 'si_issue_branch = ?';
+        $binds[] = (int) $branch;
       }
+      $where_sql = 'WHERE ' . implode(' AND ', $where_parts);
+
+      $maxSpo = $this->db->query(
+        "SELECT MAX(CAST(SUBSTRING_INDEX(si_issue_spo, '/', 1) AS UNSIGNED)) AS max_counter FROM staff_itemissue_tbl {$where_sql} FOR UPDATE",
+        $binds
+      )->row();
+
+      $next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 1;
+      $issue_spo    = $next_counter . '/' . date('dm', strtotime($post['si_issue_date']));
     } else {
       $issue_spo = $post['si_issue_spo'];
     }
@@ -836,7 +940,7 @@ class Main_model extends CI_model
         $this->update_cust_balance(null, null, ($qty - $pre), $item, $lot);
         $res = 2;
       } else {
-        $data['si_issue_branch']   = $branch;
+        $data['si_issue_branch']   = $branch ?? 0;
         $data['si_issue_spo']      = $issue_spo;
         $data['si_issue_status']   = 1;
         $data['si_issue_added_by'] = $this->session->userdata('user_id');
@@ -853,6 +957,8 @@ class Main_model extends CI_model
 
   public function lotwise_insert_issue()
   {
+    $this->db->trans_start();
+
     $branch       = $this->branch_id($this->input->post('si_issue_branch'));
     $issue_date   = $this->input->post('si_issue_date');
     $issue_crate  = $this->input->post('si_issue_crate');
@@ -864,17 +970,27 @@ class Main_model extends CI_model
     $issue_lotno  = $this->input->post('si_issue_lotno');
     $issue_total  = $this->input->post('si_issue_total');
 
-    foreach ($issue_user as $key => $cau) {
-      $this->db->where('si_issue_type', 1);
-      $this->where_branch('si_issue_branch', $branch);
-      $issue_dtl = $this->db->order_by('si_issue_id', 'desc')
-        ->group_by('si_issue_spo')
-        ->get('staff_itemissue_tbl')->result();
-      $spo_coun  = !empty($issue_dtl) ? explode('/', $issue_dtl[0]->si_issue_spo) : [0];
-      $issue_spo = !empty($issue_dtl)
-        ? ((int)$spo_coun[0] + 1) . '/' . date('dm', strtotime($issue_date[$key]))
-        : '1/' . date('dm', strtotime($issue_date[$key]));
+    // SPO generation: once per batch (not per item) so the whole lotwise issue
+    // shares one bill number. Uses the highest counter ever issued (locked FOR
+    // UPDATE), not the last inserted row - editing an older issue can leave a
+    // stale spo on the newest row and cause the next issue number to be reused.
+    $where_parts = ['si_issue_type = 1'];
+    $binds       = [];
+    if ($branch !== null) {
+      $where_parts[] = 'si_issue_branch = ?';
+      $binds[] = (int) $branch;
+    }
+    $where_sql = 'WHERE ' . implode(' AND ', $where_parts);
 
+    $maxSpo = $this->db->query(
+      "SELECT MAX(CAST(SUBSTRING_INDEX(si_issue_spo, '/', 1) AS UNSIGNED)) AS max_counter FROM staff_itemissue_tbl {$where_sql} FOR UPDATE",
+      $binds
+    )->row();
+
+    $next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 1;
+    $issue_spo    = $next_counter . '/' . date('dm', strtotime($issue_date[0]));
+
+    foreach ($issue_user as $key => $cau) {
       $insert_data = array(
         "si_issue_date"     => $issue_date[$key],
         "si_issue_type"     => 1,
@@ -886,7 +1002,7 @@ class Main_model extends CI_model
         "si_issue_crate"    => $issue_crate[$key],
         "si_issue_price"    => $issue_price[$key],
         "si_issue_total"    => $issue_total[$key],
-        "si_issue_branch"   => $branch,
+        "si_issue_branch"   => $branch ?? 0,
         "si_issue_status"   => 1,
         "si_issue_added_by" => $this->session->userdata('user_id'),
         "si_issue_spo"      => $issue_spo,
@@ -896,6 +1012,8 @@ class Main_model extends CI_model
       $res = $this->db->insert('staff_itemissue_tbl', $insert_data);
       $this->update_cust_balance(null, null, $issue_qty[$key], $issue_item[$key], $issue_lotno[$key]);
     }
+
+    $this->db->trans_complete();
     return $res;
   }
 
@@ -929,6 +1047,39 @@ class Main_model extends CI_model
 
   // ===================== sales =======================//
 
+  /**
+   * Batch version of get_edit_sales(): loads the lines for many invoices in one
+   * query and returns them grouped by SPO.
+   *
+   * sales_list.php used to call get_edit_sales() inside its row loop, firing
+   * one query per invoice - about 3,200 extra round trips on a one-month range,
+   * which pushed the page past PHP's execution limit (BUG-006).
+   */
+  public function get_sales_lines_by_spo(array $spos, $branch_id = null)
+  {
+    if (empty($spos)) {
+      return array();
+    }
+
+    $this->db->select('master_sales_tbl.*,m_item_name,m_item_fright,group.m_itgrp_title as groupname,crate.m_itgrp_title as cratetype,m_sale_customer,unit.m_itgrp_title as unitname,m_cust_name,m_cust_mobile,(select m_purcs_lot from master_purchase_tbl where m_sale_lot = m_purcs_id) as pur_lotno,(select m_purcs_available from master_purchase_tbl where m_sale_lot = m_purcs_id) as available_stock,m_user_name');
+    $this->db->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
+      ->join('master_customer_tbl mut', 'mut.m_cust_id = master_sales_tbl.m_sale_customer', 'left')
+      ->join('master_itemgroup_tbl as group', 'group.m_itgrp_id = mit.m_item_group', 'left')
+      ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')
+      ->join('master_itemgroup_tbl as unit', 'unit.m_itgrp_id = mit.m_item_unit', 'left')
+      ->join('master_users_tbl', 'master_users_tbl.m_user_id = master_sales_tbl.m_sale_user', 'left');
+    $this->where_branch('master_sales_tbl.m_sale_branch', $branch_id);
+    $this->db->where_in('m_sale_spo', array_values(array_unique($spos)));
+    $this->db->order_by('m_item_name');
+
+    $grouped = array();
+    foreach ($this->db->get('master_sales_tbl')->result() as $row) {
+      $grouped[$row->m_sale_spo][] = $row;
+    }
+
+    return $grouped;
+  }
+
   public function get_edit_sales($id = '', $lot_no = '', $branch_id = null)
   {
     $this->db->select('master_sales_tbl.*,m_item_name,m_item_fright,group.m_itgrp_title as groupname,crate.m_itgrp_title as cratetype,m_sale_customer,unit.m_itgrp_title as unitname,m_cust_name,m_cust_mobile,(select m_purcs_lot from master_purchase_tbl where m_sale_lot = m_purcs_id) as pur_lotno,(select m_purcs_available from master_purchase_tbl where m_sale_lot = m_purcs_id) as available_stock,m_user_name');
@@ -949,11 +1100,16 @@ class Main_model extends CI_model
   {
     $this->where_branch('master_sales_tbl.m_sale_branch', $branch_id);
 
-    if (!empty($from_date)) $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d")>=', $from_date);
-    if (!empty($todate))    $this->db->where('DATE_FORMAT(m_sale_date,"%Y-%m-%d")<=', $todate);
+    if (!empty($from_date)) $this->db->where('m_sale_date>=', $from_date);
+    if (!empty($todate))    $this->db->where('m_sale_date<=', $todate);
     if (!empty($search_in)) {
-      $wh = "(m_user_name LIKE '%$search_in%' OR m_user_mobile LIKE '%$search_in%' OR mut.m_cust_name LIKE '%$search_in%' OR mut.m_cust_mobile LIKE '%$search_in%')";
-      $this->db->where($wh);
+      // Bound like() - see the note in get_user_list() (BUG-029).
+      $this->db->group_start()
+        ->like('m_user_name', $search_in)
+        ->or_like('m_user_mobile', $search_in)
+        ->or_like('mut.m_cust_name', $search_in)
+        ->or_like('mut.m_cust_mobile', $search_in)
+        ->group_end();
     }
     if (!empty($group))     $this->db->where('m_cust_group', $group);
     if (!empty($customers)) $this->db->where('m_sale_customer', $customers);
@@ -991,21 +1147,27 @@ class Main_model extends CI_model
     $issue_price  = $post['m_sale_price'] ?? [];
     $m_sale_lot   = $post['m_sale_lot'] ?? [];
 
+    if ($this->date_is_locked($post['m_sale_date'] ?? null)) {
+      return ['status' => 'error', 'message' => 'This date falls in a locked financial year.'];
+    }
+
     $this->db->trans_start();
 
     // SPO generation
     if (empty($post['m_sale_spo'])) {
-      $this->where_branch('m_sale_branch', $branch);
-      $lastSpo = $this->db->order_by('m_sale_id', 'desc')
-        ->limit(1)
-        ->get('master_sales_tbl')->row();
+      // Use the highest counter ever issued (locked FOR UPDATE), not the last
+      // inserted row - editing an older invoice can leave a stale spo on the
+      // newest row and cause the next invoice number to be reused.
+      $where_sql = $branch !== null ? 'WHERE m_sale_branch = ?' : '';
+      $binds     = $branch !== null ? [(int) $branch] : [];
 
-      if (!empty($lastSpo)) {
-        $spo_coun = explode('/', $lastSpo->m_sale_spo);
-        $sale_spo = ((int)$spo_coun[0] + 1) . '/' . date('dm', strtotime($post['m_sale_date']));
-      } else {
-        $sale_spo = '1/' . date('dm', strtotime($post['m_sale_date']));
-      }
+      $maxSpo = $this->db->query(
+        "SELECT MAX(CAST(SUBSTRING_INDEX(m_sale_spo, '/', 1) AS UNSIGNED)) AS max_counter FROM master_sales_tbl {$where_sql} FOR UPDATE",
+        $binds
+      )->row();
+
+      $next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 1;
+      $sale_spo = $next_counter . '/' . date('dm', strtotime($post['m_sale_date']));
     } else {
       $sale_spo = $post['m_sale_spo'];
     }
@@ -1028,10 +1190,23 @@ class Main_model extends CI_model
         return ['status' => 'error', 'message' => "Stock not available for item {$item} in lot {$lot}"];
       }
 
-      $sale_total    = ($weight > 0) ? ($weight * $price) : ($qty * $price);
-      $saleTotalAmt += $sale_total;
+      // m_sale_qty is an INT column, so a fractional quantity was silently
+      // rounded on the way in while the line total was still computed from the
+      // fraction - the saved row then did not multiply out (BUG-014). Reject it
+      // rather than quietly changing either number.
+      if ($qty != floor($qty)) {
+        $this->db->trans_rollback();
+        return [
+          'status'  => 'error',
+          'message' => "Quantity must be a whole number (got {$qty} for item {$item}).",
+        ];
+      }
 
-      // Duplicate check
+      $sale_total = ($weight > 0) ? ($weight * $price) : ($qty * $price);
+
+      // Duplicate check. This must run BEFORE $saleTotalAmt is accumulated:
+      // a skipped line used to keep contributing to the invoice total, so the
+      // customer was billed for a row that was never written (BUG-011).
       if (empty($issue_id[$key])) {
         $this->db->where([
           'm_sale_date'     => $post['m_sale_date'],
@@ -1045,6 +1220,8 @@ class Main_model extends CI_model
         $exists = $this->db->get('master_sales_tbl')->row();
         if ($exists) continue;
       }
+
+      $saleTotalAmt += $sale_total;
 
       $data = [
         "m_sale_date"     => $post['m_sale_date'],
@@ -1082,7 +1259,7 @@ class Main_model extends CI_model
         }
         $res = 2;
       } else {
-        $data['m_sale_branch']   = $branch;
+        $data['m_sale_branch']   = $branch ?? 0;
         $data['m_sale_spo']      = $sale_spo;
         $data['m_sale_added_by'] = $this->session->userdata('user_id');
         $data['m_sale_added_on'] = date('Y-m-d H:i');
@@ -1126,18 +1303,41 @@ class Main_model extends CI_model
     $sale_lot      = $this->input->post('m_sale_lot');
     $sale_user     = $this->input->post('m_sale_user');
 
-    foreach ($sale_customer as $key => $cau) {
-      $this->where_branch('m_sale_branch', $branch);
-      $sale_dtl = $this->db->order_by('m_sale_id', 'desc')
-        ->group_by('m_sale_spo')
-        ->get('master_sales_tbl')->result();
-
-      if (!empty($sale_dtl)) {
-        $spo_coun = explode('/', $sale_dtl[0]->m_sale_spo);
-        $sale_spo = ((int)$spo_coun[0] + 1) . '/' . date('dm', strtotime($sale_date[$key]));
-      } else {
-        $sale_spo = '1/' . date('dm', strtotime($sale_date[$key]));
+    foreach ((array) $sale_date as $d) {
+      if ($this->date_is_locked($d)) {
+        return ['status' => 'error', 'message' => 'This date falls in a locked financial year.'];
       }
+    }
+
+    $this->db->trans_start();
+
+    foreach ($sale_customer as $key => $cau) {
+      // Availability guard, matching insert_sales(). Without it this bulk path
+      // happily oversold a lot and drove m_purcs_available negative (BUG-012).
+      $qty_wanted    = (float) ($sale_qty[$key] ?? 0);
+      $available_qty = $this->get_lot_available_qty($sale_item[$key] ?? null, $sale_lot[$key] ?? null, $branch);
+
+      if ($qty_wanted > $available_qty) {
+        $this->db->trans_rollback();
+        return [
+          'status'  => 'error',
+          'message' => "Stock not available for item {$sale_item[$key]} in lot {$sale_lot[$key]}",
+        ];
+      }
+
+      // Highest counter ever issued, locked - the same rule insert_sales()
+      // uses. The previous "last inserted row" logic could reuse a number
+      // after an older invoice was edited.
+      $where_sql = $branch !== null ? 'WHERE m_sale_branch = ?' : '';
+      $binds     = $branch !== null ? [(int) $branch] : [];
+
+      $maxSpo = $this->db->query(
+        "SELECT MAX(CAST(SUBSTRING_INDEX(m_sale_spo, '/', 1) AS UNSIGNED)) AS max_counter FROM master_sales_tbl {$where_sql} FOR UPDATE",
+        $binds
+      )->row();
+
+      $next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 1;
+      $sale_spo = $next_counter . '/' . date('dm', strtotime($sale_date[$key]));
 
       $sale_total = (!empty($sale_weight[$key]) && $sale_weight[$key] != "0.00" && $sale_weight[$key] != "0")
         ? ($sale_weight[$key] * $sale_price[$key])
@@ -1156,7 +1356,7 @@ class Main_model extends CI_model
         "m_sale_price"    => $sale_price[$key],
         "m_sale_total"    => $sale_total,
         "m_sale_lot"      => $sale_lot[$key],
-        "m_sale_branch"   => $branch,
+        "m_sale_branch"   => $branch ?? 0,
         "m_sale_added_by" => $this->session->userdata('user_id'),
         "m_sale_spo"      => $sale_spo,
         "m_sale_added_on" => date('Y-m-d H:i'),
@@ -1166,6 +1366,8 @@ class Main_model extends CI_model
       $saleTotalAmt = ((float)$sale_total + (float)$sale_fright[$key]);
       $this->update_cust_balance($cau, $saleTotalAmt, $sale_qty[$key], $sale_item[$key], $sale_lot[$key]);
     }
+
+    $this->db->trans_complete();
     return $res;
   }
 
@@ -1174,6 +1376,13 @@ class Main_model extends CI_model
     $this->db->where('m_sale_spo', $this->input->post('delete_id'));
     $this->where_branch('m_sale_branch', $branch_id);
     $sale_datil  = $this->db->get('master_sales_tbl')->result();
+
+    // An unknown or foreign delete_id returns no rows; indexing [0] here used
+    // to raise a PHP error while the caller still reported success (BUG-008,
+    // BUG-013).
+    if (empty($sale_datil)) {
+      return false;
+    }
 
     $pre_grandtotal = ($sale_datil[0]->m_sale_comm + $sale_datil[0]->m_sale_fright + $sale_datil[0]->m_sale_hamali + $sale_datil[0]->m_sale_others);
     foreach ($sale_datil as $kry) {
@@ -1228,18 +1437,20 @@ class Main_model extends CI_model
     return $this->db->get('master_purchase_tbl')->result();
   }
 
-  public function purchase_group($from_date = '', $todate = '', $supplier = '', $order_by = '', $branch_id = null)
+  public function purchase_group($from_date = '', $todate = '', $supplier = '', $order_by = '', $branch_id = null,$type = null)
   {
     $this->where_branch('master_purchase_tbl.m_purcs_branch', $branch_id);
-    if (!empty($from_date)) $this->db->where('DATE_FORMAT(m_purcs_date,"%Y-%m-%d")>=', $from_date);
-    if (!empty($todate))    $this->db->where('DATE_FORMAT(m_purcs_date,"%Y-%m-%d")<=', $todate);
+    if (!empty($from_date)) $this->db->where('m_purcs_date>=', $from_date);
+    if (!empty($todate))    $this->db->where('m_purcs_date<=', $todate);
     if (!empty($supplier))  $this->db->where_in('m_purcs_suplier', $supplier);
+    if (!empty($type))      $this->db->where('m_purcs_type', $type);
 
-    $this->db->select('m_purcs_spo,m_purcs_truckno,m_purcs_note,m_purcs_date,m_purcs_suplier,mut.m_user_name as supplier_name,mut.m_user_mobile as supplier_mobile,sum(m_purcs_qty) as tqty,sum(m_purcs_weight) as twght,sum(m_purcs_crate) as tcrate,master_users_tbl.m_user_name,sum(m_purcs_total) as total_amount,m_purcs_comm,m_purcs_comrate,m_purcs_fright,m_purcs_hamali,m_purcs_charity,m_purcs_packaging,m_purcs_loading,m_purcs_advance,m_purcs_others,(m_purcs_comm + m_purcs_fright + m_purcs_hamali + m_purcs_charity + m_purcs_packaging + m_purcs_loading + m_purcs_advance + m_purcs_others) as total_expense,mut.m_user_address as supplier_address,m_city_name,m_state_name');
+    $this->db->select('m_purcs_spo,m_purcs_truckno,m_purcs_note,m_purcs_date,m_purcs_suplier,m_purcs_branch,m_purcs_type,mut.m_user_name as supplier_name,mut.m_user_mobile as supplier_mobile,sum(m_purcs_qty) as tqty,sum(m_purcs_weight) as twght,sum(m_purcs_crate) as tcrate,master_users_tbl.m_user_name,branchu.m_user_name as branch_name,sum(m_purcs_total) as total_amount,m_purcs_comm,m_purcs_comrate,m_purcs_fright,m_purcs_hamali,m_purcs_charity,m_purcs_packaging,m_purcs_loading,m_purcs_advance,m_purcs_others,(m_purcs_comm + m_purcs_fright + m_purcs_hamali + m_purcs_charity + m_purcs_packaging + m_purcs_loading + m_purcs_advance + m_purcs_others) as total_expense,mut.m_user_address as supplier_address,m_city_name,m_state_name');
     $this->db->join('master_users_tbl mut', 'mut.m_user_id = master_purchase_tbl.m_purcs_suplier', 'left')
       ->join('master_city_tbl', 'master_city_tbl.m_city_id = mut.m_user_city', 'left')
       ->join('master_state_tbl', 'master_state_tbl.m_state_id = mut.m_user_state', 'left')
-      ->join('master_users_tbl', 'master_users_tbl.m_user_id = master_purchase_tbl.m_purcs_user', 'left');
+      ->join('master_users_tbl', 'master_users_tbl.m_user_id = master_purchase_tbl.m_purcs_user', 'left')
+      ->join('master_users_tbl branchu', 'branchu.m_user_id = master_purchase_tbl.m_purcs_branch', 'left');
 
     $this->db->order_by('m_purcs_date', !empty($order_by) ? $order_by : 'desc');
     $this->db->group_by('m_purcs_spo');
@@ -1279,6 +1490,12 @@ class Main_model extends CI_model
 
   public function insert_purchase()
   {
+    if ($this->date_is_locked($this->input->post('m_purcs_date'))) {
+      return ['status' => 'error', 'message' => 'This date falls in a locked financial year.'];
+    }
+
+    $this->db->trans_start();
+
     $branch = $this->branch_id($this->input->post('m_purcs_branch'));
 
     $supp_tm = $this->db->select('m_user_trademark')->where('m_user_type', 2)->where('m_user_id', $this->input->post('m_purcs_suplier'))->get('master_users_tbl')->row();
@@ -1293,18 +1510,26 @@ class Main_model extends CI_model
     $m_purcs_total = $this->input->post('m_purcs_total');
     $m_purcs_lot  = $this->input->post('m_purcs_lot');
 
-    $this->where_branch('m_purcs_branch', $branch);
-    $purchase_dtl = $this->db->select('m_purcs_spo')
-      ->order_by('m_purcs_id', 'desc')
-      ->group_by('m_purcs_spo')
-      ->get('master_purchase_tbl')->result();
-
-    if (!empty($purchase_dtl)) {
-      $spo_coun  = explode('/', $purchase_dtl[0]->m_purcs_spo);
-      $purcs_spo = $supp_tm->m_user_trademark . '/' . ($spo_coun[1] + 1) . '/' . date('d/m', strtotime($this->input->post('m_purcs_date')));
-    } else {
-      $purcs_spo = $supp_tm->m_user_trademark . '/1/' . date('d/m', strtotime($this->input->post('m_purcs_date')));
+    // SPO generation: highest counter ever issued (locked FOR UPDATE), not the
+    // last inserted row - editing an older purchase can leave a stale spo on
+    // the newest row and cause the next invoice number to be reused. Restricted
+    // to m_purcs_type = 1 because Transfer rows (type 2) share this table and
+    // their spo format doesn't carry a numeric counter in this position.
+    $where_parts = ['m_purcs_type = 1'];
+    $binds       = [];
+    if ($branch !== null) {
+      $where_parts[] = 'm_purcs_branch = ?';
+      $binds[] = (int) $branch;
     }
+    $where_sql = 'WHERE ' . implode(' AND ', $where_parts);
+
+    $maxSpo = $this->db->query(
+      "SELECT MAX(CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(m_purcs_spo, '/', 2), '/', -1) AS UNSIGNED)) AS max_counter FROM master_purchase_tbl {$where_sql} FOR UPDATE",
+      $binds
+    )->row();
+
+    $next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 1;
+    $purcs_spo    = $supp_tm->m_user_trademark . '/' . $next_counter . '/' . date('d/m', strtotime($this->input->post('m_purcs_date')));
     $res = 0;
     $purTotalAmt = 0;
     foreach ($purchase as $key => $cau) {
@@ -1351,7 +1576,7 @@ class Main_model extends CI_model
         }
         $res = 2;
       } else {
-        $insert_data['m_purcs_branch']   = $branch;
+        $insert_data['m_purcs_branch']   = $branch ?? 0;
         $insert_data['m_purcs_spo']      = !empty($this->input->post('m_purcs_spo')) ? $this->input->post('m_purcs_spo') : $purcs_spo;
         $insert_data['m_purcs_added_by'] = $this->session->userdata('user_id');
         $insert_data['m_purcs_added_on'] = date('Y-m-d H:i');
@@ -1398,13 +1623,15 @@ class Main_model extends CI_model
           $this->where_branch('m_exp_branch', $branch);
           $this->db->update('master_expenses_tbl', $insertt_data);
         } else {
-          $insertt_data['m_exp_branch']   = $branch;
+          $insertt_data['m_exp_branch']   = $branch ?? 0;
           $insertt_data['m_exp_added_by'] = $this->session->userdata('user_id');
           $insertt_data['m_exp_added_on'] = date('Y-m-d H:i');
           $this->db->insert('master_expenses_tbl', $insertt_data);
         }
       }
     }
+
+    $this->db->trans_complete();
     return $res;
   }
 
@@ -1413,6 +1640,11 @@ class Main_model extends CI_model
     $this->db->where('m_purcs_spo', $this->input->post('delete_id'));
     $this->where_branch('m_purcs_branch', $branch_id);
     $pur_datil  = $this->db->get('master_purchase_tbl')->result();
+
+    // Same unchecked [0] as delete_sales() had (BUG-023).
+    if (empty($pur_datil)) {
+      return false;
+    }
 
     $pre_grandtotal = ($pur_datil[0]->m_purcs_comm + $pur_datil[0]->m_purcs_fright + $pur_datil[0]->m_purcs_hamali + $pur_datil[0]->m_purcs_charity + $pur_datil[0]->m_purcs_packaging + $pur_datil[0]->m_purcs_loading + $pur_datil[0]->m_purcs_advance + $pur_datil[0]->m_purcs_others);
     foreach ($pur_datil as $kry) {
@@ -1444,6 +1676,126 @@ class Main_model extends CI_model
     return true;
   }
 
+  // HO's own available stock (m_purcs_branch = 0 is the Head Office convention:
+  // superadmin purchases never send an m_purcs_branch override, so branch_id() returns
+  // null and the NOT NULL column coerces it to 0 on insert).
+  // landed_rate = item rate + (bill's total expense / bill's total purchased qty)
+  public function get_ho_stock_list()
+  {
+    $this->db->select("
+      master_purchase_tbl.m_purcs_id,
+      master_purchase_tbl.m_purcs_available,
+      master_purchase_tbl.m_purcs_price,
+      master_purchase_tbl.m_purcs_lot,
+      master_purchase_tbl.m_purcs_spo,
+      mit.m_item_name,
+      (master_purchase_tbl.m_purcs_comm + master_purchase_tbl.m_purcs_fright + master_purchase_tbl.m_purcs_hamali + master_purchase_tbl.m_purcs_charity + master_purchase_tbl.m_purcs_packaging + master_purchase_tbl.m_purcs_loading + master_purchase_tbl.m_purcs_advance + master_purchase_tbl.m_purcs_others) as bill_total_expense,
+      COALESCE(billqty.total_qty, master_purchase_tbl.m_purcs_qty) as bill_total_qty,
+      ROUND(master_purchase_tbl.m_purcs_price + ((master_purchase_tbl.m_purcs_comm + master_purchase_tbl.m_purcs_fright + master_purchase_tbl.m_purcs_hamali + master_purchase_tbl.m_purcs_charity + master_purchase_tbl.m_purcs_packaging + master_purchase_tbl.m_purcs_loading + master_purchase_tbl.m_purcs_advance + master_purchase_tbl.m_purcs_others) / COALESCE(billqty.total_qty, master_purchase_tbl.m_purcs_qty)), 2) as landed_rate
+    ");
+    $this->db->join('master_item_tbl mit', 'mit.m_item_id = master_purchase_tbl.m_purcs_item', 'left');
+    $this->db->join('(SELECT m_purcs_spo, SUM(m_purcs_qty) as total_qty FROM master_purchase_tbl WHERE m_purcs_type = 1 GROUP BY m_purcs_spo) billqty', 'billqty.m_purcs_spo = master_purchase_tbl.m_purcs_spo', 'left');
+    $this->db->where('master_purchase_tbl.m_purcs_branch', 0);
+    $this->db->where('master_purchase_tbl.m_purcs_type', 1);
+    $this->db->where('master_purchase_tbl.m_purcs_available >', 0);
+    $this->db->order_by('mit.m_item_name');
+    return $this->db->get('master_purchase_tbl')->result();
+  }
+
+  // items: array of ['lot_id' => m_purcs_id, 'qty' => .., 'rate' => issue rate per unit]
+  public function insert_transfer($items, $to_branch, $transfer_date = null)
+  {
+    $this->db->trans_start();
+
+    $transfer_date = !empty($transfer_date) ? $transfer_date : date('Y-m-d');
+    $spo         = 'TRF/' . date('dmY') . '/' . $to_branch . '/' . substr((string) time(), -5) . rand(100, 999);
+    $total_value = 0;
+
+    foreach ($items as $it) {
+      $lot_id = $it['lot_id'];
+      $qty    = (float) $it['qty'];
+      $rate   = (float) $it['rate'];
+
+      $src = $this->db->where('m_purcs_id', $lot_id)->get('master_purchase_tbl')->row();
+
+      if (!$src || $qty <= 0 || $rate <= 0 || $qty > $src->m_purcs_available) {
+        $this->db->trans_rollback();
+        return false;
+      }
+
+      // reduce source (HO) availability
+      $this->db->where('m_purcs_id', $lot_id)
+        ->set('m_purcs_available', 'm_purcs_available - ' . $qty, false)
+        ->update('master_purchase_tbl');
+
+      $line_total   = round($qty * $rate, 2);
+      $total_value += $line_total;
+
+      $insert = [
+        'm_purcs_date'        => $transfer_date,
+        'm_purcs_suplier'     => $src->m_purcs_suplier,
+        'm_purcs_item'        => $src->m_purcs_item,
+        'm_purcs_qty'         => $qty,
+        'm_purcs_available'   => $qty,
+        'm_purcs_price'       => $rate,
+        'm_purcs_total'       => $line_total,
+        'm_purcs_lot'         => $src->m_purcs_lot,
+        'm_purcs_truckno'     => $src->m_purcs_truckno,
+        'm_purcs_spo'         => $spo,
+        'm_purcs_branch'      => $to_branch,
+        'm_purcs_from_branch' => $src->m_purcs_branch,
+        'm_purcs_type'        => 2,
+        // Explicit: the column is NOT NULL with no default, so omitting it let
+        // MySQL's implicit default write 0 while every purchase row carries 1
+        // (BUG-015).
+        'm_purcs_status'      => 1,
+        'm_purcs_ref_lot'     => $lot_id,
+        'm_purcs_added_by'    => $this->session->userdata('user_id'),
+        'm_purcs_added_on'    => date('Y-m-d H:i'),
+      ];
+      $this->db->insert('master_purchase_tbl', $insert);
+    }
+
+    // branch now owes HO the issued value (mirrors insert_purchase()'s +amount on supplier balance)
+    if ($total_value > 0) {
+      $this->update_userbalance($to_branch, $total_value);
+    }
+
+    $this->db->trans_complete();
+    return $this->db->trans_status();
+  }
+
+  public function delete_transfer($spo, $branch_id = null)
+  {
+    $this->db->where('m_purcs_spo', $spo)->where('m_purcs_type', 2);
+    $this->where_branch('m_purcs_branch', $branch_id);
+    $rows = $this->db->get('master_purchase_tbl')->result();
+
+    if (empty($rows)) return false;
+
+    $total_value = 0;
+    $to_branch   = $rows[0]->m_purcs_branch;
+
+    foreach ($rows as $row) {
+      if (!empty($row->m_purcs_ref_lot)) {
+        $this->db->where('m_purcs_id', $row->m_purcs_ref_lot)
+          ->set('m_purcs_available', 'm_purcs_available + ' . (float) $row->m_purcs_qty, false)
+          ->update('master_purchase_tbl');
+      }
+      $total_value += (float) $row->m_purcs_total;
+    }
+
+    if ($total_value > 0) {
+      $this->update_userbalance($to_branch, $total_value * -1);
+    }
+
+    $this->db->where('m_purcs_spo', $spo)->where('m_purcs_type', 2);
+    $this->where_branch('m_purcs_branch', $branch_id);
+    $this->db->delete('master_purchase_tbl');
+
+    return true;
+  }
+
   // ===================== received payment/crate =======================//
 
   public function get_received_list($type, $from_date, $to_date, $scustomer = '', $account = '', $method = '', $group = '', $search_in = '', $order_by = '', $branch_id = null)
@@ -1457,15 +1809,22 @@ class Main_model extends CI_model
     $this->db->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate', 'left');
     $this->db->join('master_group_tbl method', 'method.m_group_id = master_recieved_tbl.m_recvd_method', 'left');
 
-    if (!empty($from_date))   $this->db->where('DATE_FORMAT(m_recvd_date,"%Y-%m-%d")>=', $from_date);
-    if (!empty($to_date))     $this->db->where('DATE_FORMAT(m_recvd_date,"%Y-%m-%d")<=', $to_date);
+    if (!empty($from_date))   $this->db->where('m_recvd_date>=', $from_date);
+    if (!empty($to_date))     $this->db->where('m_recvd_date<=', $to_date);
     if (!empty($group))       $this->db->where_in('m_cust_group', $group);
     if (!empty($account))     $this->db->where_in('m_recvd_account', $account);
     if (!empty($method))      $this->db->where_in('m_recvd_method', $method);
     if (!empty($scustomer))   $this->db->where_in('m_recvd_customer', $scustomer);
     if (!empty($search_in)) {
-      $wh = "(mutt.m_user_name LIKE '%$search_in%' OR mutt.m_user_mobile LIKE '%$search_in%' OR m_cust_name LIKE '%$search_in%' OR m_cust_mobile LIKE '%$search_in%' OR mut.m_user_name LIKE '%$search_in%' OR mut.m_user_mobile LIKE '%$search_in%')";
-      $this->db->where($wh);
+      // Bound like() - see the note in get_user_list() (BUG-029).
+      $this->db->group_start()
+        ->like('mutt.m_user_name', $search_in)
+        ->or_like('mutt.m_user_mobile', $search_in)
+        ->or_like('m_cust_name', $search_in)
+        ->or_like('m_cust_mobile', $search_in)
+        ->or_like('mut.m_user_name', $search_in)
+        ->or_like('mut.m_user_mobile', $search_in)
+        ->group_end();
     }
     $this->db->where('m_recvd_type', $type);
     $this->db->order_by('m_recvd_date', !empty($order_by) ? $order_by : 'desc');
@@ -1494,6 +1853,10 @@ class Main_model extends CI_model
     $m_recvd_date    = $this->input->post('m_recvd_date');
     $m_recvd_account = $this->input->post('m_recvd_account');
     $user_id         = $this->session->userdata('user_id');
+
+    if ($this->date_is_locked($m_recvd_date)) {
+      return false;
+    }
 
     if ($m_recvd_type == 1) {
       $m_recvd_customer = $this->input->post('m_recvd_customer');
@@ -1526,7 +1889,7 @@ class Main_model extends CI_model
             "m_recvd_user"     => $m_recvd_user[$index] ?? '',
             "m_recvd_date"     => $m_recvd_date,
             "m_recvd_type"     => $m_recvd_type,
-            "m_recvd_branch"   => $branch,
+            "m_recvd_branch"   => $branch ?? 0,
             "m_recvd_added_by" => $user_id,
             "m_recvd_added_on" => date('Y-m-d H:i'),
           ];
@@ -1534,6 +1897,9 @@ class Main_model extends CI_model
 
           if ($m_recvd_account == 1) {
             $this->update_cust_balance($customer, -$m_recvd_amount[$index]);
+          } elseif ($m_recvd_account == 8) {
+            // Branch paying HO reduces what the branch owes (mirrors supplier payment)
+            $this->update_userbalance($customer, -$m_recvd_amount[$index]);
           } elseif (in_array($m_recvd_account, [2, 3, 4, 6])) {
             $this->update_userbalance($customer, $m_recvd_amount[$index]);
           }
@@ -1570,7 +1936,7 @@ class Main_model extends CI_model
             "m_recvd_voucher"  => $voucher_no,
             "m_recvd_date"     => $m_recvd_date,
             "m_recvd_type"     => $m_recvd_type,
-            "m_recvd_branch"   => $branch,
+            "m_recvd_branch"   => $branch ?? 0,
             "m_recvd_added_by" => $user_id,
             "m_recvd_added_on" => date('Y-m-d H:i'),
           ];
@@ -1623,6 +1989,13 @@ class Main_model extends CI_model
         } else {
           $this->update_cust_balance($postData['m_recvd_customer'], ($postData['m_recvd_amount'] - $postData['preamount']) * (-1));
         }
+      } elseif ($postData['m_recvd_account'] == 8) {
+        if (!$isSameCustomer) {
+          $this->update_userbalance($postData['precust'], $postData['preamount']);
+          $this->update_userbalance($postData['m_recvd_customer'], ($postData['m_recvd_amount'] * (-1)));
+        } else {
+          $this->update_userbalance($postData['m_recvd_customer'], ($postData['m_recvd_amount'] - $postData['preamount']) * (-1));
+        }
       } elseif (in_array($postData['m_recvd_account'], [2, 3, 4, 6])) {
         if (!$isSameCustomer) {
           $this->update_userbalance($postData['precust'], $postData['preamount'] * (-1));
@@ -1659,6 +2032,8 @@ class Main_model extends CI_model
         if ($value->m_recvd_type == 1) {
           if ($value->m_recvd_account == 1) {
             $this->update_cust_balance($value->m_recvd_customer, $value->m_recvd_amount);
+          } elseif ($value->m_recvd_account == 8) {
+            $this->update_userbalance($value->m_recvd_customer, $value->m_recvd_amount);
           } elseif (in_array($value->m_recvd_account, [2, 3, 4, 6])) {
             $this->update_userbalance($value->m_recvd_customer, $value->m_recvd_amount * (-1));
           }
@@ -1686,14 +2061,19 @@ class Main_model extends CI_model
     $this->db->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_payment_tbl.m_payment_crate', 'left');
     $this->db->join('master_group_tbl method', 'method.m_group_id = master_payment_tbl.m_payment_method', 'left');
 
-    if (!empty($from_date))        $this->db->where('DATE_FORMAT(m_payment_date,"%Y-%m-%d")>=', $from_date);
-    if (!empty($to_date))          $this->db->where('DATE_FORMAT(m_payment_date,"%Y-%m-%d")<=', $to_date);
+    if (!empty($from_date))        $this->db->where('m_payment_date>=', $from_date);
+    if (!empty($to_date))          $this->db->where('m_payment_date<=', $to_date);
     if (!empty($payment_account))  $this->db->where('m_payment_account', $payment_account);
     if (!empty($payment_method))   $this->db->where('m_payment_method', $payment_method);
     if (!empty($scustomer))        $this->db->where_in('m_payment_supplier', $scustomer);
     if (!empty($search_in)) {
-      $wh = "(method.m_group_name LIKE '%$search_in%' OR mgt.m_group_name LIKE '%$search_in%' OR  mut.m_user_name LIKE '%$search_in%' OR mut.m_user_mobile LIKE '%$search_in%')";
-      $this->db->where($wh);
+      // Bound like() - see the note in get_user_list() (BUG-029).
+      $this->db->group_start()
+        ->like('method.m_group_name', $search_in)
+        ->or_like('mgt.m_group_name', $search_in)
+        ->or_like('mut.m_user_name', $search_in)
+        ->or_like('mut.m_user_mobile', $search_in)
+        ->group_end();
     }
     $this->db->where('m_payment_type', $type);
     if ($order_by == 1) {
@@ -1729,6 +2109,10 @@ class Main_model extends CI_model
     $m_payment_method  = $this->input->post('m_payment_method');
     $m_payment_account = $this->input->post('m_payment_account');
 
+    if ($this->date_is_locked($m_payment_date)) {
+      return false;
+    }
+
     if ($m_payment_type == 1) {
       $m_payment_supplier = $this->input->post('m_payment_supplier');
       $m_payment_amount   = $this->input->post('m_payment_amount');
@@ -1757,7 +2141,7 @@ class Main_model extends CI_model
             "m_payment_remark"   => $m_payment_remark[$cou],
             "m_payment_date"     => $m_payment_date,
             "m_payment_type"     => $m_payment_type,
-            "m_payment_branch"   => $branch,
+            "m_payment_branch"   => $branch ?? 0,
             "m_payment_added_by" => $this->session->userdata('user_id'),
             "m_payment_added_on" => date('Y-m-d H:i'),
           ];
@@ -1792,7 +2176,7 @@ class Main_model extends CI_model
             "m_payment_voucher"  => $voucher_no,
             "m_payment_date"     => $m_payment_date,
             "m_payment_type"     => $m_payment_type,
-            "m_payment_branch"   => $branch,
+            "m_payment_branch"   => $branch ?? 0,
             "m_payment_added_by" => $this->session->userdata('user_id'),
             "m_payment_added_on" => date('Y-m-d H:i'),
           ];
@@ -1897,13 +2281,19 @@ class Main_model extends CI_model
     $this->db->join('master_users_tbl mut', 'mut.m_user_id = master_voucher_tbl.m_voucher_accountid', 'left');
     $this->db->join('master_group_tbl mgt', 'mgt.m_group_id = master_voucher_tbl.m_voucher_accountid', 'left');
 
-    if (!empty($from_date)) $this->db->where('DATE_FORMAT(m_voucher_date,"%Y-%m-%d")>=', $from_date);
-    if (!empty($to_date))   $this->db->where('DATE_FORMAT(m_voucher_date,"%Y-%m-%d")<=', $to_date);
+    if (!empty($from_date)) $this->db->where('m_voucher_date>=', $from_date);
+    if (!empty($to_date))   $this->db->where('m_voucher_date<=', $to_date);
     if (!empty($type))      $this->db->where('m_voucher_type', $type);
     if (!empty($scustomer)) $this->db->where_in('m_voucher_accountid', $scustomer);
     if (!empty($search_in)) {
-      $wh = "(mct.m_cust_name LIKE '%$search_in%' OR mgt.m_group_name LIKE '%$search_in%' OR  mut.m_user_name LIKE '%$search_in%' OR mut.m_user_mobile LIKE '%$search_in%' OR mct.m_cust_mobile LIKE '%$search_in%')";
-      $this->db->where($wh);
+      // Bound like() - see the note in get_user_list() (BUG-029).
+      $this->db->group_start()
+        ->like('mct.m_cust_name', $search_in)
+        ->or_like('mgt.m_group_name', $search_in)
+        ->or_like('mut.m_user_name', $search_in)
+        ->or_like('mut.m_user_mobile', $search_in)
+        ->or_like('mct.m_cust_mobile', $search_in)
+        ->group_end();
     }
     $this->db->order_by('m_voucher_date', !empty($order_by) ? $order_by : 'desc');
     return $this->db->get('master_voucher_tbl')->result();
@@ -1930,6 +2320,10 @@ class Main_model extends CI_model
     $m_voucher_account   = $postData['m_voucher_account'];
     $insertBatch         = [];
 
+    if ($this->date_is_locked($postData['m_voucher_date'] ?? null)) {
+      return false;
+    }
+
     foreach ($m_voucher_accountid as $index => $accountId) {
       if ($postData['m_voucher_amount'][$index] == 0) continue;
 
@@ -1945,7 +2339,7 @@ class Main_model extends CI_model
         "m_voucher_date"      => $postData['m_voucher_date'],
         "m_voucher_type"      => $voucherType,
         "m_voucher_status"    => 1,
-        "m_voucher_branch"    => $branch,
+        "m_voucher_branch"    => $branch ?? 0,
         "m_voucher_added_by"  => $userId,
         "m_voucher_added_on"  => $currentDate,
       ];
@@ -2143,65 +2537,73 @@ class Main_model extends CI_model
     $result = array();
 
     $sql = "
-        SELECT DISTINCT c.m_cust_mobile, s.m_sale_customer AS customer_id 
+        SELECT DISTINCT c.m_cust_mobile, s.m_sale_customer AS customer_id
         FROM master_sales_tbl s
         JOIN master_customer_tbl c ON s.m_sale_customer = c.m_cust_id
-        WHERE s.m_sale_date = '$to_date' " . $this->branch_sql('s.m_sale_branch', $branch_id);
-    if (!empty($group)) $sql .= " AND c.m_cust_group = '$group' ";
-    $sql .= " UNION 
-        SELECT DISTINCT c.m_cust_mobile, r.m_recvd_customer AS customer_id 
+        WHERE s.m_sale_date = ? " . $this->branch_sql('s.m_sale_branch', $branch_id);
+    $binds = [$to_date];
+    if (!empty($group)) {
+      $sql .= " AND c.m_cust_group = ? ";
+      $binds[] = $group;
+    }
+    $sql .= " UNION
+        SELECT DISTINCT c.m_cust_mobile, r.m_recvd_customer AS customer_id
         FROM master_recieved_tbl r
         JOIN master_customer_tbl c ON r.m_recvd_customer = c.m_cust_id
-        WHERE r.m_recvd_date = '$to_date'
+        WHERE r.m_recvd_date = ?
         AND r.m_recvd_account IN ('0', '1') " . $this->branch_sql('r.m_recvd_branch', $branch_id);
-    if (!empty($group)) $sql .= " AND c.m_cust_group = '$group' ";
+    $binds[] = $to_date;
+    if (!empty($group)) {
+      $sql .= " AND c.m_cust_group = ? ";
+      $binds[] = $group;
+    }
 
-    $query = $this->db->query($sql)->result();
+    $query = $this->db->query($sql, $binds)->result();
     if (empty($query)) return null;
 
     foreach ($query as $value) {
       $customer_id = $value->customer_id;
       $opening     = $this->get_opening_balance($customer_id, $to_date);
 
-      $sale_data = $this->db->select('m_sale_spo, SUM(m_sale_qty) AS total_qty, SUM(m_sale_total) AS sub_total, SUM(m_sale_crate) AS total_crate, (m_sale_comm + m_sale_fright + m_sale_hamali + m_sale_others) AS total_expense')
+      $this->db->select('m_sale_spo, SUM(m_sale_qty) AS total_qty, SUM(m_sale_total) AS sub_total, SUM(m_sale_crate) AS total_crate, (m_sale_comm + m_sale_fright + m_sale_hamali + m_sale_others) AS total_expense')
         ->where('m_sale_customer', $customer_id)->where('m_sale_date', $to_date);
       $this->where_branch('m_sale_branch', $branch_id);
-      $this->db->group_by('m_sale_spo')->get('master_sales_tbl')->result();
+      $sale_data = $this->db->group_by('m_sale_spo')->get('master_sales_tbl')->result();
 
       $total_sqty   = array_sum(array_column($sale_data, 'total_qty'));
       $sub_total    = array_sum(array_column($sale_data, 'sub_total'));
       $total_expense = array_sum(array_column($sale_data, 'total_expense'));
       $grand_total  = $sub_total + $total_expense;
 
-      $sale_items = $this->db->select('m_sale_spo, m_sale_qty, m_sale_total, m_sale_price, m_item_name, m_item_fright, m_sale_customer, unit.m_itgrp_title AS unitname, m_item_crate,m_sale_crate')
+      $this->db->select('m_sale_spo, m_sale_qty, m_sale_total, m_sale_price, m_item_name, m_item_fright, m_sale_customer, unit.m_itgrp_title AS unitname, m_item_crate,m_sale_crate')
         ->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
         ->join('master_itemgroup_tbl as unit', 'unit.m_itgrp_id = mit.m_item_unit', 'left')
         ->where('m_sale_customer', $customer_id)->where('m_sale_date', $to_date);
       $this->where_branch('m_sale_branch', $branch_id);
-      $this->db->order_by('m_item_name')->get('master_sales_tbl')->result();
+      $sale_items = $this->db->order_by('m_item_name')->get('master_sales_tbl')->result();
 
-      $amount_received = $this->db->select_sum('m_recvd_amount', 'total_received')
+      $this->db->select_sum('m_recvd_amount', 'total_received')
         ->where('m_recvd_customer', $customer_id)->where('m_recvd_account', 1)->where('m_recvd_type', 1)->where('m_recvd_date', $to_date);
       $this->where_branch('m_recvd_branch', $branch_id);
-      $this->db->get('master_recieved_tbl')->row();
+      $amount_received = $this->db->get('master_recieved_tbl')->row();
 
-      $crate_received = $this->db->select("m_itgrp_id, m_itgrp_title, COALESCE((SELECT SUM(m_recvd_qty) FROM master_recieved_tbl WHERE m_recvd_customer = '$customer_id' AND m_recvd_date = '$to_date' AND m_recvd_type = 2 AND m_recvd_crate = master_itemgroup_tbl.m_itgrp_id " . $this->branch_sql('s.m_recvd_branch', $branch_id) . "), 0) AS total_qty")
+      $crate_received = $this->db->select("m_itgrp_id, m_itgrp_title, COALESCE((SELECT SUM(m_recvd_qty) FROM master_recieved_tbl WHERE m_recvd_customer = " . $this->db->escape($customer_id) . " AND m_recvd_date = " . $this->db->escape($to_date) . " AND m_recvd_type = 2 AND m_recvd_crate = master_itemgroup_tbl.m_itgrp_id " . $this->branch_sql('s.m_recvd_branch', $branch_id) . "), 0) AS total_qty")
         ->where('m_itgrp_type', 3)->order_by('m_itgrp_title')->get('master_itemgroup_tbl')->result();
 
-      $vouch_amtcdrt = $this->db->select('sum(m_voucher_amount) as tamountcdt')
+      $this->db->select('sum(m_voucher_amount) as tamountcdt')
         ->where('m_voucher_accountid', $customer_id)->where('m_voucher_account', 1)->where('m_voucher_type', 1)->where('m_voucher_status', 1)->where('m_voucher_date', $to_date);
       $this->where_branch('m_voucher_branch', $branch_id);
-      $this->db->get('master_voucher_tbl')->row();
+      $vouch_amtcdrt = $this->db->get('master_voucher_tbl')->row();
 
-      $receipt_no = $this->db->select("m_recvd_voucher")
+      $this->db->select("m_recvd_voucher")
         ->where('m_recvd_customer', $customer_id)->where_in('m_recvd_account', ['0', '1'])->where('m_recvd_date', $to_date);
       $this->where_branch('m_recvd_branch', $branch_id);
-      $this->db->get('master_recieved_tbl')->row();
+      $receipt_no = $this->db->get('master_recieved_tbl')->row();
 
       if (!empty($sale_items) || !empty($amount_received) || !empty($crate_received)) {
         $result[] = (object)[
           'opening'        => $opening,
-          'invoice_no'     => !empty($sale_data) ? $sale_data[0]->m_sale_spo : $receipt_no->m_recvd_voucher,
+          'invoice_no'     => !empty($sale_data) ? $sale_data[0]->m_sale_spo : ($receipt_no->m_recvd_voucher ?? null),
           'total_sqty'     => $total_sqty,
           'sub_total'      => $sub_total,
           'total_expense'  => $total_expense,
@@ -2218,20 +2620,20 @@ class Main_model extends CI_model
 
   public function get_cust_day_summary($cust_id, $to_date, $branch_id = null)
   {
-    $cust_detail = $this->db->select('m_cust_id, m_cust_name,m_cust_hndiname, m_cust_mobile,m_cust_address,m_cust_balance,m_cust_10bal,m_cust_20bal,m_cust_25bal')
+    $this->db->select('m_cust_id, m_cust_name,m_cust_hndiname, m_cust_mobile,m_cust_address,m_cust_balance,m_cust_10bal,m_cust_20bal,m_cust_25bal')
       ->where('m_cust_id', $cust_id);
     $this->where_branch('m_cust_branch', $branch_id);
-    $this->db->get('master_customer_tbl')->row();
+    $cust_detail = $this->db->get('master_customer_tbl')->row();
 
     $total_sqty    = 0;
     $sub_total     = 0;
     $total_expense = 0;
     $grand_total   = 0;
 
-    $saletotal = $this->db->select('m_sale_spo,SUM(m_sale_qty) AS tqty, SUM(m_sale_total) AS sub_total, SUM(m_sale_crate) AS tcrate, (m_sale_comm + m_sale_fright + m_sale_hamali + m_sale_others) AS texpense')
+    $this->db->select('m_sale_spo,SUM(m_sale_qty) AS tqty, SUM(m_sale_total) AS sub_total, SUM(m_sale_crate) AS tcrate, (m_sale_comm + m_sale_fright + m_sale_hamali + m_sale_others) AS texpense')
       ->where('m_sale_customer', $cust_id)->where('m_sale_date', $to_date);
     $this->where_branch('m_sale_branch', $branch_id);
-    $this->db->group_by('m_sale_spo')->get('master_sales_tbl')->result();
+    $saletotal = $this->db->group_by('m_sale_spo')->get('master_sales_tbl')->result();
     if (!empty($saletotal)) {
       foreach ($saletotal as $value) {
         $total_sqty    += $value->tqty;
@@ -2241,29 +2643,29 @@ class Main_model extends CI_model
       $grand_total += $sub_total + $total_expense;
     }
 
-    $saleitems = $this->db->select('m_sale_spo, m_sale_qty, m_sale_total, m_sale_price, m_item_name, m_item_fright, m_sale_customer, unit.m_itgrp_title AS unitname,m_item_crate')
+    $this->db->select('m_sale_spo, m_sale_qty, m_sale_total, m_sale_price, m_item_name, m_item_fright, m_sale_customer, unit.m_itgrp_title AS unitname,m_item_crate')
       ->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
       ->join('master_itemgroup_tbl as unit', 'unit.m_itgrp_id = mit.m_item_unit', 'left')
       ->where('m_sale_customer', $cust_id)->where('m_sale_date', $to_date);
     $this->where_branch('m_sale_branch', $branch_id);
-    $this->db->order_by('m_item_name')->get('master_sales_tbl')->result();
+    $saleitems = $this->db->order_by('m_item_name')->get('master_sales_tbl')->result();
 
-    $amountrcvdquery = $this->db->select('sum(m_recvd_amount) as total_recieve')
+    $this->db->select('sum(m_recvd_amount) as total_recieve')
       ->where('m_recvd_customer', $cust_id)->where('m_recvd_account', 1)->where('m_recvd_type', 1)->where('m_recvd_date', $to_date);
     $this->where_branch('m_recvd_branch', $branch_id);
-    $this->db->get('master_recieved_tbl')->row();
+    $amountrcvdquery = $this->db->get('master_recieved_tbl')->row();
 
-    $vouch_amtcdrt = $this->db->select('sum(m_voucher_amount) as tamountcdt')
+    $this->db->select('sum(m_voucher_amount) as tamountcdt')
       ->where('m_voucher_accountid', $cust_id)->where('m_voucher_account', 1)->where('m_voucher_type', 1)->where('m_voucher_status', 1)->where('m_voucher_date', $to_date);
     $this->where_branch('m_voucher_branch', $branch_id);
-    $this->db->get('master_voucher_tbl')->row();
+    $vouch_amtcdrt = $this->db->get('master_voucher_tbl')->row();
 
     $cratercvdquery = $this->db->select("m_itgrp_id,m_itgrp_title, COALESCE((SELECT SUM(m_recvd_qty) FROM master_recieved_tbl WHERE m_recvd_customer = '$cust_id' AND m_recvd_date = '$to_date' AND m_recvd_type = 2 AND m_recvd_crate = master_itemgroup_tbl.m_itgrp_id" . $this->branch_sql('m_recvd_branch', $branch_id) . "), 0) AS total_qty")
       ->where('m_itgrp_type', 3)->order_by('m_itgrp_title')->get('master_itemgroup_tbl')->result();
 
-    $recipt_no = $this->db->select('m_recvd_voucher')->where('m_recvd_customer', $cust_id)->where_in('m_recvd_account', [0, 1])->where('m_recvd_date', $to_date);
+    $this->db->select('m_recvd_voucher')->where('m_recvd_customer', $cust_id)->where_in('m_recvd_account', [0, 1])->where('m_recvd_date', $to_date);
     $this->where_branch('m_recvd_branch', $branch_id);
-    $this->db->get('master_recieved_tbl')->row();
+    $recipt_no = $this->db->get('master_recieved_tbl')->row();
 
     return (!empty($saleitems) || !empty($recipt_no)) ? (object)[
       'cust_detail'    => $cust_detail,
@@ -2281,18 +2683,19 @@ class Main_model extends CI_model
 
   public function get_custid_by_date($to_date, $branch_id = null)
   {
-    return $this->db->query("
-        SELECT DISTINCT c.m_cust_mobile, s.m_sale_customer AS customer_id 
+    $sql = "
+        SELECT DISTINCT c.m_cust_mobile, s.m_sale_customer AS customer_id
         FROM master_sales_tbl s
         JOIN master_customer_tbl c ON s.m_sale_customer = c.m_cust_id
-        WHERE s.m_sale_date = '$to_date' " . $this->branch_sql('s.m_sale_branch', $branch_id) . "
+        WHERE s.m_sale_date = ? " . $this->branch_sql('s.m_sale_branch', $branch_id) . "
         UNION
-        SELECT DISTINCT c.m_cust_mobile, r.m_recvd_customer AS customer_id 
+        SELECT DISTINCT c.m_cust_mobile, r.m_recvd_customer AS customer_id
         FROM master_recieved_tbl r
         JOIN master_customer_tbl c ON r.m_recvd_customer = c.m_cust_id
-        WHERE r.m_recvd_date = '$to_date' " . $this->branch_sql('r.m_recvd_branch', $branch_id) . "
+        WHERE r.m_recvd_date = ? " . $this->branch_sql('r.m_recvd_branch', $branch_id) . "
         AND (r.m_recvd_account = '1' OR r.m_recvd_account = '0')
-    ")->result_array();
+    ";
+    return $this->db->query($sql, [$to_date, $to_date])->result_array();
   }
 
   public function get_last_saledate($cust_id, $branch = null)
@@ -2385,10 +2788,17 @@ class Main_model extends CI_model
     $update_data = array(
       "m_user_name"     => $this->input->post('m_user_name'),
       "m_user_loginid"  => $this->input->post('m_user_loginid'),
-      "m_user_password" => $this->input->post('m_user_password'),
       "m_user_mobile"   => $this->input->post('m_user_mobile'),
       "m_user_image"    => $this->input->post('pre_m_user_image'),
     );
+
+    // Only touch the password if a new one was actually submitted - otherwise
+    // saving the profile form would blank out the existing credential.
+    $newPassword = $this->input->post('m_user_password');
+    if (!empty($newPassword)) {
+      $update_data['m_user_password']     = password_hash($newPassword, PASSWORD_DEFAULT);
+      $update_data['m_user_password_enc'] = encrypt_password_for_admin($newPassword);
+    }
 
     if (!empty($_FILES['m_user_image']['name'])) {
       $config['upload_path']   = 'uploads/users/';
@@ -2428,7 +2838,6 @@ class Main_model extends CI_model
       "m_app_title"         => $this->input->post('m_app_title'),
       "m_app_email"         => $this->input->post('m_app_mail'),
       "date_lock_enabled"   => $this->input->post('date_lock_enabled'),
-      "date_lock_password"  => $this->input->post('date_lock_password'),
       "m_app_mobile"        => $this->input->post('m_app_contact'),
       "m_app_alt_mobile"    => $this->input->post('m_app_alt_contact'),
       "m_app_address"       => $this->input->post('m_app_address'),
@@ -2443,12 +2852,28 @@ class Main_model extends CI_model
       "m_app_black_logo"    => $m_app_black_logo,
       "m_app_white_logo"    => $m_app_white_logo,
     );
+
+    // Only touch the date-lock password if a new one was actually submitted -
+    // otherwise saving settings would blank out the existing one.
+    $newLockPassword = $this->input->post('date_lock_password');
+    if (!empty($newLockPassword)) {
+      $data['date_lock_password'] = password_hash($newLockPassword, PASSWORD_DEFAULT);
+    }
+
     $this->db->update('application_settings', $data);
 
     $update_data = array(
-      "m_user_password"     => $this->input->post('m_admin_pass'),
       "m_user_loginid" => $this->input->post('m_admin_login_id'),
     );
+
+    // Only touch the password if a new one was actually submitted - otherwise
+    // saving settings would blank out the superadmin's existing credential.
+    $newAdminPass = $this->input->post('m_admin_pass');
+    if (!empty($newAdminPass)) {
+      $update_data['m_user_password']     = password_hash($newAdminPass, PASSWORD_DEFAULT);
+      $update_data['m_user_password_enc'] = encrypt_password_for_admin($newAdminPass);
+    }
+
     $this->db->where('m_user_id', $this->session->userdata('user_id'))->update('master_users_tbl', $update_data);
     return true;
   }
@@ -2474,10 +2899,18 @@ class Main_model extends CI_model
 
   public function update_cust_bal_cron($cust_id, $from_date, $type, $branch_id = null)
   {
-    $opening_bal = $this->db->select('m_cust_opening,m_cust_crateOP')
+    // NOTE: assign the *result* of get(), not the query builder. Inserting
+    // where_branch() between the builder call and get() previously left these
+    // variables holding the CI_DB driver object while the rows were discarded,
+    // which made this whole cron fatal on its first customer (BUG-010).
+    $this->db->select('m_cust_opening,m_cust_crateOP')
       ->where('m_cust_id', $cust_id);
     $this->where_branch('m_cust_branch', $branch_id);
-    $this->db->get('master_customer_tbl')->row();
+    $opening_bal = $this->db->get('master_customer_tbl')->row();
+
+    if (empty($opening_bal)) {
+      return false;
+    }
 
     if ($type == 1) {
       $sub_total     = 0;
@@ -2485,10 +2918,10 @@ class Main_model extends CI_model
       $grand_total   = 0;
 
       if (!empty($from_date)) $this->db->where('m_sale_date <=', $from_date);
-      $salequery = $this->db->select('sum(m_sale_total) as sub_total,(m_sale_comm+m_sale_fright+m_sale_hamali+m_sale_others) as texpense')
+      $this->db->select('sum(m_sale_total) as sub_total,(m_sale_comm+m_sale_fright+m_sale_hamali+m_sale_others) as texpense')
         ->where('m_sale_customer', $cust_id);
       $this->where_branch('m_sale_branch', $branch_id);
-      $this->db->group_by('m_sale_spo')->get('master_sales_tbl')->result();
+      $salequery = $this->db->group_by('m_sale_spo')->get('master_sales_tbl')->result();
       if (!empty($salequery)) {
         foreach ($salequery as $key) {
           $sub_total     += $key->sub_total;
@@ -2498,24 +2931,30 @@ class Main_model extends CI_model
       }
 
       if (!empty($from_date)) $this->db->where('m_recvd_date <=', $from_date);
-      $amountrcvdquery = $this->db->select('sum(m_recvd_amount) as tamountrcvd')
+      $this->db->select('sum(m_recvd_amount) as tamountrcvd')
         ->where('m_recvd_customer', $cust_id)->where('m_recvd_account', 1)->where('m_recvd_type', 1);
       $this->where_branch('m_recvd_branch', $branch_id);
-      $this->db->get('master_recieved_tbl')->result();
+      $amountrcvdquery = $this->db->get('master_recieved_tbl')->result();
 
       if (!empty($from_date)) $this->db->where('m_voucher_date <=', $from_date);
-      $vouch_amtcdrt = $this->db->select('sum(m_voucher_amount) as tamountcdt')
+      $this->db->select('sum(m_voucher_amount) as tamountcdt')
         ->where('m_voucher_accountid', $cust_id)->where('m_voucher_account', 1)->where('m_voucher_type', 1)->where('m_voucher_status', 1);
       $this->where_branch('m_voucher_branch', $branch_id);
-      $this->db->get('master_voucher_tbl')->result();
+      $vouch_amtcdrt = $this->db->get('master_voucher_tbl')->result();
 
       if (!empty($from_date)) $this->db->where('m_voucher_date <=', $from_date);
-      $vouch_amtdbt = $this->db->select('sum(m_voucher_amount) as tamountdbt')
+      $this->db->select('sum(m_voucher_amount) as tamountdbt')
         ->where('m_voucher_accountid', $cust_id)->where('m_voucher_account', 1)->where('m_voucher_type', 2)->where('m_voucher_status', 1);
       $this->where_branch('m_voucher_branch', $branch_id);
-      $this->db->get('master_voucher_tbl')->result();
+      $vouch_amtdbt = $this->db->get('master_voucher_tbl')->result();
 
-      $balance_amt = $opening_bal->m_cust_opening + (($grand_total + $vouch_amtdbt[0]->tamountdbt) - ($amountrcvdquery[0]->tamountrcvd + $vouch_amtcdrt[0]->tamountcdt));
+      // SUM() over an empty set yields a single row of NULLs, so these are
+      // coalesced rather than assumed present.
+      $tamountdbt  = isset($vouch_amtdbt[0]->tamountdbt) ? (float) $vouch_amtdbt[0]->tamountdbt : 0;
+      $tamountrcvd = isset($amountrcvdquery[0]->tamountrcvd) ? (float) $amountrcvdquery[0]->tamountrcvd : 0;
+      $tamountcdt  = isset($vouch_amtcdrt[0]->tamountcdt) ? (float) $vouch_amtcdrt[0]->tamountcdt : 0;
+
+      $balance_amt = $opening_bal->m_cust_opening + (($grand_total + $tamountdbt) - ($tamountrcvd + $tamountcdt));
       $this->db->set('m_cust_balance', $balance_amt)->where('m_cust_id', $cust_id);
       $this->where_branch('m_cust_branch', $branch_id);
       $this->db->update('master_customer_tbl');
@@ -2532,19 +2971,19 @@ class Main_model extends CI_model
         }
 
         if (!empty($from_date)) $this->db->where('m_sale_date <=', $from_date);
-        $crategiven = $this->db->select('sum(m_sale_crate) as tcrate,m_itgrp_title')
+        $this->db->select('sum(m_sale_crate) as tcrate,m_itgrp_title')
           ->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
           ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')
           ->where('m_sale_customer', $cust_id)->where('m_item_crate', $key->m_itgrp_id);
         $this->where_branch('master_sales_tbl.m_sale_branch', $branch_id);
-        $this->db->group_by('m_item_crate')->get('master_sales_tbl')->row();
+        $crategiven = $this->db->group_by('m_item_crate')->get('master_sales_tbl')->row();
 
         if (!empty($from_date)) $this->db->where('m_recvd_date <=', $from_date);
-        $cratercvdquery = $this->db->select('sum(m_recvd_qty) as tcrateqty,m_itgrp_title')
+        $this->db->select('sum(m_recvd_qty) as tcrateqty,m_itgrp_title')
           ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate', 'left')
           ->where('m_recvd_customer', $cust_id)->where('m_recvd_type', 2)->where('m_recvd_crate', $key->m_itgrp_id);
         $this->where_branch('master_recieved_tbl.m_recvd_branch', $branch_id);
-        $this->db->group_by('m_recvd_crate')->get('master_recieved_tbl')->row();
+        $cratercvdquery = $this->db->group_by('m_recvd_crate')->get('master_recieved_tbl')->row();
 
         $createbalance = (int)$crattype_bal + (($crategiven ? $crategiven->tcrate : 0) - ($cratercvdquery ? $cratercvdquery->tcrateqty : 0));
 

@@ -33,25 +33,29 @@
    <div class="container-fluid">
       <div class="row justify-content-evenly g-0">
          <div class="col-7">
-            <!-- <form action="#" method="POST" class="row align-items-center">
-               <div class="col-2">
-                  <a href="#" class="btn btn-warning btn-sm w-100">
-                     <i class="bi bi-receipt-cutoff me-2"></i>Lot Report
-                  </a>
-               </div>
-               <div class="col-4">
-                  <div class="input-group">
-                     <input type="date" class="form-control">
-                     <button class="btn btn-info">View Lot</button>
+            <?php if ($this->session->userdata('user_type') == 8) { ?>
+            <form action="<?= site_url('Master/') . $paglink ?>" method="POST" class="row align-items-center mb-2">
+               <div class="col-3">
+                  <div class="form-group">
+                     <label for="">Branch</label>
+                     <select name="branch_id" id="branch_id" class="form-select select2">
+                        <option value="">All Branches</option>
+                        <?php if (!empty($branch_list)) {
+                           foreach ($branch_list as $branch) {
+                              $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                        ?>
+                              <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                        <?php }
+                        } ?>
+                     </select>
                   </div>
                </div>
-               <div class="col-6">
-                  <div class="input-group">
-                     <input type="text" class="form-control" placeholder="Search for Items, Lots or Chalaan">
-                     <button class="btn btn-info"><i class="bi bi-search mx-1"></i></button>
-                  </div>
+               <div class="col-3 mt-4">
+                  <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i> Filter</button>
+                  <a class="btn btn-danger btn-sm" href="<?= site_url('Master/') . $paglink ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
                </div>
-            </form> -->
+            </form>
+            <?php } ?>
             <div class="table-responsive bg-light" style="height: 64vh;">
                <table id="itemgroup_tbl" class="my_custom_datatable table table-light table-bordered table-hover">
                   <thead>
@@ -131,10 +135,12 @@
                            $id = $edit_value->m_itgrp_id;
                            $title = $edit_value->m_itgrp_title;
                            $type = $edit_value->m_itgrp_type;
+                           $itgrp_branch = $edit_value->m_itgrp_branch;
                            // $status = $edit_value->m_itgrp_status;
                         } else {
                            $id = '';
                            $title = '';
+                           $itgrp_branch = '';
                            // $status = 1;
                         } ?>
 
@@ -149,6 +155,26 @@
                               </div>
                            </div>
                         </div>
+
+                        <?php if ($this->session->userdata('user_type') == 8) { ?>
+                        <div class="row mb-1">
+                           <div class="col-md-12">
+                              <div class="form-group">
+                                 <label>Branch</label>
+                                 <select name="m_itgrp_branch" id="m_itgrp_branch" class="form-control select2">
+                                    <option value="0">Head Office</option>
+                                    <?php if (!empty($branch_list)) {
+                                       foreach ($branch_list as $branch) {
+                                          $selected = ($itgrp_branch == $branch->m_user_id) ? 'selected' : '';
+                                    ?>
+                                       <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                    <?php }
+                                    } ?>
+                                 </select>
+                              </div>
+                           </div>
+                        </div>
+                        <?php } ?>
 
                         <!-- <div class="row mb-1">
                            <div class="col-md-12">

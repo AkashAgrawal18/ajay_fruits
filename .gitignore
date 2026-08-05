@@ -1,0 +1,9 @@
+# Claude Code workspace (agent definitions, local settings)
+.claude/
+
+# Automated test suite and its tooling (includes phpunit.phar)
+tests/
+
+# Internal documentation (test scope, bug reports)
+docs/
+TESTING.md

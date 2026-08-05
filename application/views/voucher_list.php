@@ -70,6 +70,23 @@
                             <input type="text" name="search_in" id="search_in" class="form-control" placeholder="Enter Name,Mobile..." value="<?= $search_in ?>">
                         </div>
                     </div>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                    <div class="col-2">
+                        <div class="form-group">
+                            <label for="">Branch</label>
+                            <select name="branch_id" id="branch_id" class="form-select select2">
+                                <option value="">All Branches</option>
+                                <?php if (!empty($branch_list)) {
+                                    foreach ($branch_list as $branch) {
+                                        $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                                ?>
+                                        <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                <?php }
+                                } ?>
+                            </select>
+                        </div>
+                    </div>
+                    <?php } ?>
 
                     <div class="col-4 mt-4">
                         <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i> Search</button>
@@ -284,6 +301,22 @@
                                         <input type="date" name="m_voucher_date" id="m_voucher_date" class="form-control" required="" value="<?= date('Y-m-d') ?>">
                                     </div>
                                 </div>
+                                <?php if ($this->session->userdata('user_type') == 8) { ?>
+                                <div class="col-4">
+                                    <div class="form-group">
+                                        <label>Branch</label>
+                                        <select name="m_voucher_branch" id="m_voucher_branch" class="form-control">
+                                            <option value="0" <?= empty($branch_id) ? 'selected' : '' ?>>Head Office</option>
+                                            <?php if (!empty($branch_list)) {
+                                                foreach ($branch_list as $branch) {
+                                                    $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                                                    echo '<option value="' . $branch->m_user_id . '" ' . $selected . '>' . $branch->m_user_name . '</option>';
+                                                }
+                                            } ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <?php } ?>
 
 
                             </div>
@@ -353,6 +386,15 @@
             get_account_list(acct_type,'')
         });
 
+        // Live branch cascading: re-scope the currently selected account
+        // type's picker when the modal's own Branch select changes.
+        $(document).on('change', '#m_voucher_branch', function() {
+            let acct_type = $('#m_voucher_account').val();
+            if (acct_type) {
+                get_account_list(acct_type, '')
+            }
+        });
+
         $(document).on('click', '.myeditpayModal', function() {
             let filed_id = $(this).data('value');
             let acct_type = $('#m_voucher_account'+filed_id).val();
@@ -415,16 +457,27 @@
 
     }
 
-    function get_account_list(acct_type, filed_id) {
+    var accountListRequests = {};
 
-        $.ajax({
+    function get_account_list(acct_type, filed_id) {
+        // Abort a same-target request still in flight so a slower, stale
+        // response (e.g. from the account type or branch picked a moment
+        // ago) can't land after a newer one and overwrite it.
+        if (accountListRequests[filed_id]) {
+            accountListRequests[filed_id].abort();
+        }
+
+        accountListRequests[filed_id] = $.ajax({
                 type: "POST",
                 url: "<?php echo site_url('Sales/get_vourcher_accounts'); ?>",
                 data: {
-                    acct_type
+                    acct_type,
+                    branch_id: $('#m_voucher_branch').val()
                 },
                 dataType: "JSON",
                 success: function(data) {
+                    // The rotated CSRF token in this response is picked up
+                    // globally by the ajaxSuccess hook in footer.php.
                     if (data != '') {
                         $('#m_supplier_list'+filed_id).empty()
 

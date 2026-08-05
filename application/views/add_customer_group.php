@@ -29,10 +29,12 @@
                 $custgrp_name = $edit_value->m_custgrp_name;
                 $custgrp_code = $edit_value->m_custgrp_code;
                 $custgrp_user = $edit_value->m_custgrp_user;
+                $custgrp_branch = $edit_value->m_custgrp_branch;
             } else {
                 $custgrp_name = '';
                 $custgrp_code = '';
                 $custgrp_user = '';
+                $custgrp_branch = !empty($branch_id) ? $branch_id : '';
             } ?>
 
 
@@ -45,6 +47,22 @@
                                 <input type="text" name="m_custgrp_name" id="m_custgrp_name" class="form-control" placeholder="Enter Group Name" value="<?= $custgrp_name ?>">
                             </div>
                         </div>
+                        <?php if ($this->session->userdata('user_type') == 8) { ?>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Branch</label>
+                                <select name="m_custgrp_branch" id="m_custgrp_branch" class="form-select select2">
+                                    <option value="0">Head Office</option>
+                                    <?php if (!empty($branch_list)) {
+                                        foreach ($branch_list as $branch) {
+                                    ?>
+                                        <option value="<?= $branch->m_user_id ?>" <?= $custgrp_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                                    <?php }
+                                    } ?>
+                                </select>
+                            </div>
+                        </div>
+                        <?php } ?>
 
                         <div class="col-md-3">
                             <div class="form-group">
@@ -167,6 +185,32 @@
     $(document).ready(function(e) {
 
         let incount = $('#rowunt').val();
+
+        // Live branch cascading: re-scope Staff/Customer pickers when the
+        // Branch select changes, so they only show that branch's data.
+        BranchCascade.bind('#m_custgrp_branch', [{
+                listType: 'staff',
+                target: '#m_custgrp_user',
+                mode: 'select',
+                idField: 'm_user_id',
+                labelFn: function(s) { return s.m_user_name + ' | ' + s.m_user_mobile; },
+                placeholder: '--Select--'
+            },
+            {
+                listType: 'customer',
+                target: '#items_datalist',
+                mode: 'datalist',
+                valueFn: function(c) { return c.m_cust_name; },
+                attrsFn: function(c) {
+                    return {
+                        custid: c.m_cust_id,
+                        mobile: c.m_cust_mobile,
+                        address: c.m_cust_address
+                    };
+                }
+            }
+        ], "<?php echo site_url('Master/branch_scoped_options'); ?>");
+
         $(document).on('change', '#item_serch_inp', function() {
             var custid = $("#items_datalist option[value='" + $(this).val() + "']").attr('data-custid');
             var custname = $(this).val();

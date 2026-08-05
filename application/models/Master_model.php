@@ -11,12 +11,31 @@ class Master_model extends CI_model
     return $this->session->userdata('user_type') == 8;
   }
 
+  /**
+   * See Main_model::branch_id() for the rationale. Only a type-9 branch account
+   * is scoped by its own user id; applying that to every non-superadmin filters
+   * ordinary users against a non-existent branch (BUG-002/BUG-003).
+   */
   private function branch_id($override = null)
   {
-    if (!$this->is_superadmin()) {
+    $type = $this->session->userdata('user_type');
+
+    if ($type == 9) {
       return (int) $this->session->userdata('user_id');
     }
-    return ($override !== null && $override !== '') ? (int) $override : null;
+
+    if ($type == 8) {
+      return ($override !== null && $override !== '') ? (int) $override : null;
+    }
+
+    return null;
+  }
+
+  /** Branch to stamp on inserts; *_branch columns are NOT NULL (BUG-009). */
+  private function branch_for_insert($override = null)
+  {
+    $branch = $this->branch_id($override);
+    return $branch === null ? 0 : (int) $branch;
   }
 
   private function where_branch($column, $override = null)
@@ -37,8 +56,8 @@ class Master_model extends CI_model
   }
 
   // ===================== itemgroup =======================//
-  // itemgroup, item, group, designation, perm, userperm are shared/config
-  // tables per-branch — branch column added per the ALTER statements.
+  // itemgroup, item, group are shared/config tables per-branch —
+  // branch column added per the ALTER statements.
 
   public function all_itemgroup($type, $branch_id = null)
   {
@@ -83,7 +102,7 @@ class Master_model extends CI_model
       $this->db->where('m_itgrp_id', $machineid)->update('master_itemgroup_tbl', $insert_data);
       return 2;
     } else {
-      $insert_data['m_itgrp_branch'] = $branch;
+      $insert_data['m_itgrp_branch'] = $branch ?? 0;
       $this->db->insert('master_itemgroup_tbl', $insert_data);
       return 1;
     }
@@ -145,7 +164,7 @@ class Master_model extends CI_model
       $this->db->where('m_item_id', $itemid)->update('master_item_tbl', $insert_data);
       return 2;
     } else {
-      $insert_data['m_item_branch'] = $branch;
+      $insert_data['m_item_branch'] = $branch ?? 0;
       $this->db->insert('master_item_tbl', $insert_data);
       return 1;
     }
@@ -248,7 +267,7 @@ class Master_model extends CI_model
       $this->db->where('m_group_id', $id)->update('master_group_tbl', $s_data);
       return 2;
     } else {
-      $s_data['m_group_branch'] = $branch;
+      $s_data['m_group_branch'] = $branch ?? 0;
       $this->db->insert('master_group_tbl', $s_data);
       return 1;
     }
@@ -361,175 +380,6 @@ class Master_model extends CI_model
       ->join('master_state_tbl state', 'state.m_state_id = city.m_city_state', 'left')
       ->order_by('m_city_name')
       ->get('master_city_tbl city')->result();
-  }
-
-  // ===================== perm =======================//
-  // Permissions are branch-scoped (m_perm_branch).
-
-  public function all_perm($branch_id = null)
-  {
-    $this->where_branch('m_perm_branch', $branch_id);
-    return $this->db->select('*')->get('master_permission_tbl')->result();
-  }
-
-  public function all_active_perm($branch_id = null)
-  {
-    $this->where_branch('m_perm_branch', $branch_id);
-    return $this->db->select('*')
-      ->where('m_perm_status', 1)
-      ->get('master_permission_tbl')->result();
-  }
-
-  public function insert_perm()
-  {
-    $permid   = $this->input->post('m_perm_id');
-    $permname = $this->input->post('m_perm_submodule_slug');
-    $branch   = $this->branch_id($this->input->post('m_perm_branch'));
-
-    $this->where_branch('m_perm_branch', $branch);
-    $check = $this->db->where('m_perm_submodule_slug', $permname)->get('master_permission_tbl')->result();
-
-    if (!empty($check) && empty($permid)) return false;
-
-    $insert_data = array(
-      "m_perm_name"           => $this->input->post('m_perm_name'),
-      "m_perm_status"         => $this->input->post('m_perm_status'),
-      "m_perm_module"         => $this->input->post('m_perm_module'),
-      "m_perm_module_slug"    => $this->input->post('m_perm_module_slug'),
-      "m_perm_submodule_slug" => $permname,
-      "m_perm_added_on"       => date('Y-m-d H:i:s'),
-    );
-
-    if (!empty($permid)) {
-      $this->where_branch('m_perm_branch', $branch);
-      $this->db->where('m_perm_id', $permid)->update('master_permission_tbl', $insert_data);
-      return 2;
-    } else {
-      $insert_data['m_perm_branch'] = $branch;
-      $this->db->insert('master_permission_tbl', $insert_data);
-      return 1;
-    }
-  }
-
-  public function get_edit_perm($id, $branch_id = null)
-  {
-    $this->where_branch('m_perm_branch', $branch_id);
-    return $this->db->select('*')
-      ->where('m_perm_id', $id)
-      ->get('master_permission_tbl')->row();
-  }
-
-  public function delete_perm($branch_id = null)
-  {
-    $this->where_branch('m_perm_branch', $branch_id);
-    $this->db->where('m_perm_id', $this->input->post('delete_id'));
-    $this->db->delete('master_permission_tbl');
-    return true;
-  }
-
-  // ===================== userperm =======================//
-  // master_user_permission_tbl has m_userperm_branch.
-
-  public function all_userperm_list($branch_id = null)
-  {
-    $this->where_branch('m_userperm_branch', $branch_id);
-    return $this->db->select('*')->get('master_user_permission_tbl')->result();
-  }
-
-  public function insert_userperm()
-  {
-    $permid     = $this->input->post('permid');
-    $modulee    = $this->input->post('modulee');
-    $submodule  = $this->input->post('submodule');
-    $userpermid = $this->input->post('userpermid');
-    $userid     = $this->input->post('userid');
-    $name       = $this->input->post('name');
-    $value      = $this->input->post('value');
-    $branch     = $this->branch_id($this->input->post('branch'));
-
-    $insert_data = array(
-      "m_userperm_userId"    => $userid,
-      "m_userperm_module"    => $modulee,
-      "m_userperm_submodule" => $submodule,
-      "m_userperm_permId"    => $permid,
-      $name                  => $value,
-    );
-
-    if (!empty($userpermid)) {
-      $this->where_branch('m_userperm_branch', $branch);
-      $this->db->where('m_userperm_id', $userpermid)->update('master_user_permission_tbl', $insert_data);
-      return 2;
-    } else {
-      $insert_data['m_userperm_branch']   = $branch;
-      $insert_data['m_userperm_added_on'] = date('Y-m-d H:i:s');
-      $this->db->insert('master_user_permission_tbl', $insert_data);
-      return 1;
-    }
-  }
-
-  public function get_userperm_userId($id, $branch_id = null)
-  {
-    $this->where_branch('m_userperm_branch', $branch_id);
-    return $this->db->select('*')
-      ->where('m_userperm_userId', $id)
-      ->order_by('m_userperm_permId', 'ASC')
-      ->get('master_user_permission_tbl')->result();
-  }
-
-  // ===================== Designation =======================//
-  // master_designation_tbl has m_design_branch.
-
-  public function get_all_design($branch_id = null)
-  {
-    $this->where_branch('m_design_branch', $branch_id);
-    return $this->db->select('*')
-      ->order_by('m_design_name')
-      ->get('master_designation_tbl')->result();
-  }
-
-  public function get_edit_design($edid, $branch_id = null)
-  {
-    $this->where_branch('m_design_branch', $branch_id);
-    return $this->db->select('*')
-      ->where('m_design_id', $edid)
-      ->get('master_designation_tbl')->row();
-  }
-
-  public function insert_design()
-  {
-    $branch = $this->branch_id($this->input->post('m_design_branch'));
-    $s_data = array(
-      "m_design_name"     => $this->input->post('m_design_name'),
-      "m_design_code"     => $this->input->post('m_design_code'),
-      "m_design_status"   => $this->input->post('m_design_status'),
-      "m_design_added_on" => date('Y-m-d H:i'),
-    );
-    $id = $this->input->post('m_design_id');
-    if (!empty($id)) {
-      $this->where_branch('m_design_branch', $branch);
-      $this->db->where('m_design_id', $id)->update('master_designation_tbl', $s_data);
-      return 2;
-    } else {
-      $s_data['m_design_branch'] = $branch;
-      $this->db->insert('master_designation_tbl', $s_data);
-      return 1;
-    }
-  }
-
-  public function delete_design($branch_id = null)
-  {
-    $this->where_branch('m_design_branch', $branch_id);
-    $this->db->where('m_design_id', $this->input->post('delete_id'));
-    return $this->db->delete('master_designation_tbl');
-  }
-
-  public function get_active_design($branch_id = null)
-  {
-    $this->where_branch('m_design_branch', $branch_id);
-    return $this->db->select('design.m_design_name,design.m_design_id')
-      ->where('m_design_status', '1')
-      ->order_by('m_design_name')
-      ->get('master_designation_tbl design')->result();
   }
 
   // ===================== misc =======================//

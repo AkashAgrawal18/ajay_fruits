@@ -8,6 +8,95 @@ class Master extends CI_Controller
 	{
 	 echo "Welcome";
 	}
+
+	// Superadmin-only "live" branch cascading: when a form's Branch select
+	// changes, JS calls this once to refetch every sibling dropdown
+	// (customer/staff/supplier/item/group...) that needs re-scoping, without
+	// a page reload.
+	//
+	// Deliberately takes list_types[] (plural) and answers them all in ONE
+	// response. It used to be one request per dropdown, which broke on the
+	// second branch change: csrf_regenerate=TRUE rotates the CSRF token on
+	// every accepted POST, so three parallel requests produced three
+	// different new tokens and the client could not know which one the
+	// browser's cookie ended up holding - the next change then failed the
+	// CSRF check with a 403 and silently updated nothing (BUG-027).
+	// One request == one rotation == one unambiguous token, and it's a
+	// single round trip instead of three.
+	public function branch_scoped_options()
+	{
+		// Resolved after csrf_verify() has already rotated them during
+		// bootstrap, so this is the token the browser's new cookie holds.
+		// Always returned - including on the not-logged-in path below - so
+		// the client is never left holding a stale token it can't recover from.
+		$response = array(
+			'csrf_token_name'  => $this->security->get_csrf_token_name(),
+			'csrf_token_value' => $this->security->get_csrf_hash(),
+		);
+
+		if ($_SERVER["REQUEST_METHOD"] != "POST") {
+			show_404();
+			return;
+		}
+
+		if ($this->session->userdata('is_user_in') != true) {
+			$response['status']  = 'error';
+			$response['message'] = 'You are not Logged in Now!! Please login again.';
+			echo json_encode($response);
+			return;
+		}
+
+		$branch_id  = $this->input->post('branch_id');
+		$group_type = $this->input->post('group_type');
+		$types      = $this->input->post('list_types');
+
+		if (empty($types)) {
+			// Single-type callers still work.
+			$types = array($this->input->post('list_type'));
+		}
+		if (!is_array($types)) {
+			$types = array($types);
+		}
+
+		$lists = array();
+		foreach ($types as $type) {
+			$lists[$type] = $this->_branch_scoped_list($type, $branch_id, $group_type);
+		}
+
+		$response['status'] = 'success';
+		$response['lists']  = $lists;
+		echo json_encode($response);
+	}
+
+	/**
+	 * Resolves one dropdown's rows for a branch. Every model method here is
+	 * already branch-parameterized - this only picks which one to call.
+	 */
+	private function _branch_scoped_list($type, $branch_id, $group_type = null)
+	{
+		switch ($type) {
+			case 'customer':
+				// get_cust_list() (not get_cust_active_list()) so the result
+				// includes m_cust_address, needed by add_customer_group.php's picker.
+				return $this->Main_model->get_cust_list(null, null, null, null, null, $branch_id);
+			case 'staff':
+				return $this->Main_model->get_active_user_list(1, $branch_id);
+			case 'supplier':
+				return $this->Main_model->get_active_user_list(2, $branch_id);
+			case 'loader':
+				return $this->Main_model->get_active_user_list(3, $branch_id);
+			case 'general':
+				return $this->Main_model->get_active_user_list(4, $branch_id);
+			case 'investment':
+				return $this->Main_model->get_active_user_list(5, $branch_id);
+			case 'item':
+				return $this->Main_model->get_avilable_item(null, 1, $branch_id);
+			case 'group':
+				return $this->Master_model->get_all_group($group_type ?: 1, $branch_id);
+			default:
+				return array();
+		}
+	}
 	//========================= Item_group ===========================//
 
 	public function Item_group($id = '')
@@ -16,8 +105,10 @@ class Master extends CI_Controller
 		$data['pagename'] = "Item Group list";
 		$data['type'] = 1;
 		$data['id'] = $id;
+		$data['branch_id'] = $this->input->post('branch_id');
+		$data['branch_list'] = $this->Main_model->get_user_list(9);
 		$data['edit_value'] = $this->Master_model->get_edit_itemgroup($data['id']);
-		$data['all_value'] = $this->Master_model->all_itemgroup($data['type']);
+		$data['all_value'] = $this->Master_model->all_itemgroup($data['type'], $data['branch_id']);
 		$this->load->view('item_master_list', $data);
 	}
 
@@ -27,9 +118,10 @@ class Master extends CI_Controller
 		$data['pagename'] = "Item Unit list";
 		$data['type'] = 2;
 		$data['id'] = $id;
-		$data['id'] = $id;
+		$data['branch_id'] = $this->input->post('branch_id');
+		$data['branch_list'] = $this->Main_model->get_user_list(9);
 		$data['edit_value'] = $this->Master_model->get_edit_itemgroup($data['id']);
-		$data['all_value'] = $this->Master_model->all_itemgroup($data['type']);
+		$data['all_value'] = $this->Master_model->all_itemgroup($data['type'], $data['branch_id']);
 		$this->load->view('item_master_list', $data);
 	}
 
@@ -39,15 +131,18 @@ class Master extends CI_Controller
 		$data['pagename'] = "Item Crate list";
 		$data['type'] = 3;
 		$data['id'] = $id;
-		$data['id'] = $id;
+		$data['branch_id'] = $this->input->post('branch_id');
+		$data['branch_list'] = $this->Main_model->get_user_list(9);
 		$data['edit_value'] = $this->Master_model->get_edit_itemgroup($data['id']);
-		$data['all_value'] = $this->Master_model->all_itemgroup($data['type']);
+		$data['all_value'] = $this->Master_model->all_itemgroup($data['type'], $data['branch_id']);
 		$this->load->view('item_master_list', $data);
 	}
 
 	public function insert_itemgroup()
 	{
-
+		if ($this->ajax_login() === false) {
+			return;
+		}
 		if ($_SERVER["REQUEST_METHOD"] == "POST") {
 			if ($data = $this->Master_model->insert_itemgroup()) {
 
@@ -79,7 +174,9 @@ class Master extends CI_Controller
 
 	public function delete_itemgroup()
 	{
-
+		if ($this->ajax_login() === false) {
+			return;
+		}
 		if ($_SERVER["REQUEST_METHOD"] == "POST") {
 			if ($data = $this->Master_model->delete_itemgroup()) {
 				$info = array(
@@ -106,17 +203,22 @@ class Master extends CI_Controller
 		$data = $this->login_details();
 		$data['pagename'] = "All items list";
 		$data['id'] = $id;
+		$data['branch_id'] = $this->input->post('branch_id');
+		$data['branch_list'] = $this->Main_model->get_user_list(9);
 		$data['edit_value'] = $this->Master_model->get_edit_item($data['id']);
-		$data['group_lst'] = $this->Master_model->all_active_itemgroup(1);
-		$data['unit_lst'] = $this->Master_model->all_active_itemgroup(2);
-		$data['crate_lst'] = $this->Master_model->all_active_itemgroup(3);
-		$data['all_value'] = $this->Master_model->get_all_item();
+		$form_branch_id = !empty($data['edit_value']) ? $data['edit_value']->m_item_branch : $data['branch_id'];
+		$data['group_lst'] = $this->Master_model->all_active_itemgroup(1, $form_branch_id);
+		$data['unit_lst'] = $this->Master_model->all_active_itemgroup(2, $form_branch_id);
+		$data['crate_lst'] = $this->Master_model->all_active_itemgroup(3, $form_branch_id);
+		$data['all_value'] = $this->Master_model->get_all_item('', $data['branch_id']);
 		$this->load->view('item_list', $data);
 	}
 
 	public function insert_item()
 	{
-
+		if ($this->ajax_login() === false) {
+			return;
+		}
 		if ($_SERVER["REQUEST_METHOD"] == "POST") {
 			if ($data = $this->Master_model->insert_item()) {
 
@@ -148,7 +250,9 @@ class Master extends CI_Controller
 
 	public function delete_item()
 	{
-
+		if ($this->ajax_login() === false) {
+			return;
+		}
 		if ($_SERVER["REQUEST_METHOD"] == "POST") {
 			if ($data = $this->Master_model->delete_item()) {
 				$info = array(
@@ -167,6 +271,7 @@ class Master extends CI_Controller
 
 	public function import_items()
 	{
+		$this->require_login();
 		//$salon_id = $this->session->userdata('s_id');
 		if (isset($_FILES['import_file'])) {
 			require_once "Simplexlsx.class.php";
@@ -214,7 +319,9 @@ public function group_list()
 	$data['pagename'] = "Group List";
 	$data['type'] = 1;
 	$data['id'] = $this->input->get('id');
-	$data['all_value'] = $this->Master_model->get_all_group($data['type']);
+	$data['branch_id'] = $this->input->post('branch_id');
+	$data['branch_list'] = $this->Main_model->get_user_list(9);
+	$data['all_value'] = $this->Master_model->get_all_group($data['type'], $data['branch_id']);
 	$data['edit_value'] = $this->Master_model->get_edit_group($data['id']);
 	$this->load->view('group_list', $data);
 }
@@ -225,8 +332,10 @@ public function expense_account_list()
 	$data['pagename'] = "Expense Account";
 	$data['type'] = 2;
 	$data['id'] = $this->input->get('id');
-	$data['group_dtl'] = $this->Master_model->get_all_group(1);
-	$data['all_value'] = $this->Master_model->get_all_group($data['type']);
+	$data['branch_id'] = $this->input->post('branch_id');
+	$data['branch_list'] = $this->Main_model->get_user_list(9);
+	$data['group_dtl'] = $this->Master_model->get_all_group(1, $data['branch_id']);
+	$data['all_value'] = $this->Master_model->get_all_group($data['type'], $data['branch_id']);
 	$data['edit_value'] = $this->Master_model->get_edit_group($data['id']);
 	$this->load->view('group_list', $data);
 }
@@ -236,7 +345,9 @@ public function bank_account_list()
 	$data['pagename'] = "Bank Account List";
 	$data['type'] = 3;
 	$data['id'] = $this->input->get('id');
-	$data['all_value'] = $this->Master_model->get_all_group($data['type']);
+	$data['branch_id'] = $this->input->post('branch_id');
+	$data['branch_list'] = $this->Main_model->get_user_list(9);
+	$data['all_value'] = $this->Master_model->get_all_group($data['type'], $data['branch_id']);
 	$data['edit_value'] = $this->Master_model->get_edit_group($data['id']);
 	$this->load->view('group_list', $data);
 }
@@ -246,13 +357,18 @@ public function cash_account_list()
 	$data['pagename'] = "Cash Account List";
 	$data['type'] = 4;
 	$data['id'] = $this->input->get('id');
-	$data['all_value'] = $this->Master_model->get_all_group($data['type']);
+	$data['branch_id'] = $this->input->post('branch_id');
+	$data['branch_list'] = $this->Main_model->get_user_list(9);
+	$data['all_value'] = $this->Master_model->get_all_group($data['type'], $data['branch_id']);
 	$data['edit_value'] = $this->Master_model->get_edit_group($data['id']);
 	$this->load->view('group_list', $data);
 }
 
 public function insert_group()
 {
+	if ($this->ajax_login() === false) {
+		return;
+	}
 	if ($_SERVER["REQUEST_METHOD"] == "POST") {
 		if ($data = $this->Master_model->insert_group()) {
 
@@ -279,6 +395,9 @@ public function insert_group()
 
 public function delete_group()
 {
+	if ($this->ajax_login() === false) {
+		return;
+	}
 	if ($_SERVER["REQUEST_METHOD"] == "POST") {
 		if ($data = $this->Master_model->delete_group()) {
 
@@ -332,6 +451,9 @@ public function delete_group()
 
 	public function insert_state()
 	{
+		if ($this->ajax_login() === false) {
+			return;
+		}
 		if ($_SERVER["REQUEST_METHOD"] == "POST") {
 			if ($data = $this->Master_model->insert_state()) {
 
@@ -358,6 +480,9 @@ public function delete_group()
 
 	public function delete_state()
 	{
+		if ($this->ajax_login() === false) {
+			return;
+		}
 		if ($_SERVER["REQUEST_METHOD"] == "POST") {
 			if ($data = $this->Master_model->delete_state()) {
 
@@ -377,6 +502,7 @@ public function delete_group()
 
 	public function import_state_city()
 	{
+		$this->require_login();
 		//$salon_id = $this->session->userdata('s_id');
 		if (isset($_FILES['import_file'])) {
 			require_once "Simplexlsx.class.php";
@@ -438,7 +564,9 @@ public function delete_group()
 
 	public function insert_city()
 	{
-
+		if ($this->ajax_login() === false) {
+			return;
+		}
 		if ($_SERVER["REQUEST_METHOD"] == "POST") {
 			if ($data = $this->Master_model->insert_city()) {
 
@@ -465,7 +593,9 @@ public function delete_group()
 
 	public function delete_city()
 	{
-
+		if ($this->ajax_login() === false) {
+			return;
+		}
 		if ($_SERVER["REQUEST_METHOD"] == "POST") {
 			if ($data = $this->Master_model->delete_city()) {
 				$info = array(
@@ -487,170 +617,6 @@ public function delete_group()
 	//-------------------------- city ------------------------//
 
 
-	//========================= perm ===========================//
-
-	public function perm_list()
-	{
-		$data = $this->login_details();
-		$data['pagename'] = "All Permission list";
-		$data['id'] = $this->input->get('id');
-		$data['edit_value'] = $this->Master_model->get_edit_perm($data['id']);
-		$data['all_value'] = $this->Master_model->all_perm();
-		$this->load->view('permission_list', $data);
-	}
-
-	public function insert_perm()
-	{
-
-		if ($_SERVER["REQUEST_METHOD"] == "POST") {
-			if ($data = $this->Master_model->insert_perm()) {
-
-				if ($data == 1) {
-					$info = array(
-						'status' => 'success',
-						'message' => 'Data has been Added successfully!'
-					);
-				} else if ($data == 2) {
-					$info = array(
-						'status' => 'success',
-						'message' => 'Data Updated Successfully'
-					);
-				}
-			} else {
-				$info = array(
-					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
-				);
-			}
-			echo json_encode($info);
-		}
-	}
-
-	public function delete_perm()
-	{
-
-		if ($_SERVER["REQUEST_METHOD"] == "POST") {
-			if ($data = $this->Master_model->delete_perm()) {
-				$info = array(
-					'status' => 'success',
-					'message' => 'Data has been Deleted successfully!'
-				);
-			} else {
-				$info = array(
-					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
-				);
-			}
-			echo json_encode($info);
-		}
-	}
-	//========================= perm ===========================//
-
-
-	//========================= userperm ===========================//
-
-	public function userperm_list()
-	{
-		$data = $this->login_details();
-		$data['designid'] = $this->input->get('id');
-		$data['user_dtl'] = $this->Master_model->get_edit_design($data['designid']);
-		$data['edit_value'] = $this->Master_model->get_userperm_userId($data['designid']);
-		$data['all_value'] = $this->Master_model->all_active_perm();
-		$data['pagename'] = "All Permission for " . $data['user_dtl']->m_design_name;
-		$this->load->view('user_permission_list', $data);
-	}
-
-	public function insert_userperm()
-	{
-
-		if ($_SERVER["REQUEST_METHOD"] == "POST") {
-			if ($data = $this->Master_model->insert_userperm()) {
-
-				if ($data == 1) {
-					$info = array(
-						'status' => 'success',
-						'message' => 'Data has been Added successfully!'
-					);
-				} else if ($data == 2) {
-					$info = array(
-						'status' => 'success',
-						'message' => 'Data Updated Successfully'
-					);
-				}
-			} else {
-				$info = array(
-					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
-				);
-			}
-			echo json_encode($info);
-		}
-	}
-
-
-	//========================= userperm ===========================//
-
-	//========================= designation ===========================//
-
-	public function designation_list()
-	{
-		$data = $this->login_details();
-		$data['pagename'] = "Designation List";
-		$data['id'] = $this->input->get('id');
-		$data['all_value'] = $this->Master_model->get_all_design();
-		$data['edit_value'] = $this->Master_model->get_edit_design($data['id']);
-
-		$this->load->view('designation_list', $data);
-	}
-
-	public function insert_design()
-	{
-
-		if ($_SERVER["REQUEST_METHOD"] == "POST") {
-			if ($data = $this->Master_model->insert_design()) {
-
-				if ($data == 1) {
-					$info = array(
-						'status' => 'success',
-						'message' => 'Designation has been Added successfully!'
-					);
-				} else if ($data == 2) {
-					$info = array(
-						'status' => 'success',
-						'message' => 'Designation Updated Successfully'
-					);
-				}
-			} else {
-				$info = array(
-					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
-				);
-			}
-			echo json_encode($info);
-		}
-	}
-
-	public function delete_design()
-	{
-
-		if ($_SERVER["REQUEST_METHOD"] == "POST") {
-			if ($data = $this->Master_model->delete_design()) {
-				$info = array(
-					'status' => 'success',
-					'message' => 'Designation has been Deleted successfully!'
-				);
-			} else {
-				$info = array(
-					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
-				);
-			}
-			echo json_encode($info);
-		}
-	}
-	//========================= designation =========================
-
-	
 	//==========================Details===========================//
 	protected function login_details()
 	{
@@ -659,22 +625,13 @@ public function delete_group()
 		return $data;
 	}
 
-	// Only allow access for superadmin (m_user_type == 8)
-	protected function require_superadmin()
-	{
-		$ut = $this->session->userdata('user_type');
-		if (!isset($ut) || $ut != 8) {
-			redirect('Welcome');
-		}
-	}
-
 	//=========================/Details===========================//
 
 	//======================Login Validation======================//
 	protected function require_login()
     {
         $is_user_in = $this->session->userdata('is_user_in');
-        if (isset($is_user_in) || $is_user_in == true) {
+        if ($is_user_in == true) {
             return;
         } else if ($this->session->userdata('is_cust_in') == true) {
             redirect('Reports/account_ledger');
@@ -686,7 +643,7 @@ public function delete_group()
 	protected function ajax_login($nav_id = '')
 	{
 		$is_user_in = $this->session->userdata('is_user_in');
-		if (isset($is_user_in) || $is_user_in == true) {
+		if ($is_user_in == true) {
 			return true;
 		} else {
 			echo json_encode(array('status' => 'error', 'message' => 'You are not Logged in Now!! Please login again.'));

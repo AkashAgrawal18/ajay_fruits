@@ -48,6 +48,10 @@
         }
 
     }
+
+    .select2-container--open {
+        z-index: 10000 !important;
+    }
 </style>
 <!-- ========== Page Content ========== -->
 <section class="py-1" style="background: #bbf;">
@@ -59,7 +63,9 @@
                 </h6>
             </div>
             <div class="col-6 text-end">
-                <a class="btn btn-primary btn-sm" href="<?= base_url('Sales/add_purchase') ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
+                <?php if ($this->session->userdata('user_type') == 8) { ?>
+                    <a class="btn btn-primary btn-sm" href="<?= base_url('Sales/add_purchase' . (!empty($branch_id) ? '?branch_id=' . $branch_id : '')) ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
+                <?php } ?>
                 <button onclick="history.back()" class="btn btn-danger btn-sm">
                     <i class="bi bi-box-arrow-left me-2"></i>Exit
                 </button>
@@ -85,10 +91,11 @@
                             <input type="date" max="<?= date('Y-m-d') ?>" name="to_date" id="to_date" class="form-control" value="<?= $to_date ?>">
                         </div>
                     </div>
+
                     <div class="col-2">
                         <div class="form-group">
                             <label for="">Branch</label>
-                            <select name="branch_id" id="branch_id" class="form-select select2">
+                            <select name="branch_id" id="branch_id" class="form-select select2" <?= (!empty($branch_locked)) ? 'disabled' : '' ?>>
                                 <option value="">All Branches</option>
                                 <?php if (!empty($branch_list)) {
                                     foreach ($branch_list as $branch) {
@@ -98,6 +105,10 @@
                                 <?php }
                                 } ?>
                             </select>
+                            <?php if (!empty($branch_locked)) { ?>
+                                <!-- disabled select POST me value nahi bhejta, isliye hidden field zaroori -->
+                                <input type="hidden" name="branch_id" value="<?= $branch_id ?>">
+                            <?php } ?>
                         </div>
                     </div>
                     <div class="col-2">
@@ -126,11 +137,22 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-4 mt-4">
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                        <div class="col-1">
+                            <div class="form-group">
+                                <label for="">Type</label>
+                                <select name="type_pur" id="type_pur" class="form-select select2">
+                                    <option value="">All</option>
+                                    <option value="1" <?= ($type_pur == 1) ? 'selected' : '' ?>>Purchase</option>
+                                    <option value="2" <?= ($type_pur == 2) ? 'selected' : '' ?>>Transfer</option>
+                                </select>
+                            </div>
+                        </div>
+                    <?php } ?>
+                    <div class="col-3 mt-4">
                         <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i> Search</button>
                         <a class="btn btn-danger btn-sm" href="<?= base_url('Sales/purchase_list') ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
                         <button class="btn btn-success btn-sm" type="button" onclick="printcustomtable()"><i class="bi bi-printer me-2"></i>Print</button>
-
                     </div>
                 </form>
             </div>
@@ -181,10 +203,8 @@
                                         <td><?php echo $value->total_amount + $value->total_expense; ?></td>
                                         <td><?php echo $value->m_purcs_truckno; ?></td>
                                         <td><?php echo $value->m_user_name ?: 'Admin'; ?></td>
-
                                         <td class="wd-30">
                                             <div class="d-flex">
-
                                                 <button type="button" class="btn btn-primary btn-sm p-1 me-1" data-bs-toggle="modal" data-bs-target="#viewModal<?php echo $value->m_purcs_spo; ?>" title="View"><i class="bi bi-eye"></i></button>
                                                 <!-- view Modal start -->
                                                 <div class="modal fade" id="viewModal<?php echo $value->m_purcs_spo; ?>" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -405,10 +425,16 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <!-- view modal end -->
-                                                <a href="<?php echo base_url('Sales/add_purchase?id=') . $value->m_purcs_spo; ?>" class="btn btn-info btn-sm p-1 me-1" title="Edit" data-toggle="tooltip"><i class="bi bi-pencil-square"></i></a>
-                                                <button class="btn btn-danger btn-sm delete-purchase p-1" data-value="<?php echo $value->m_purcs_spo; ?>" title="Delete" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
 
+                                                <?php if ($this->session->userdata('user_type') == 8) { ?>
+                                                    <!-- view modal end -->
+                                                    <?php if ($value->m_purcs_type != 2) { ?>
+                                                        <a href="<?php echo base_url('Sales/add_purchase?id=') . $value->m_purcs_spo; ?>" class="btn btn-info btn-sm p-1 me-1" title="Edit" data-toggle="tooltip"><i class="bi bi-pencil-square"></i></a>
+                                                        <button class="btn btn-danger btn-sm delete-purchase p-1" data-value="<?php echo $value->m_purcs_spo; ?>" title="Delete" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
+                                                    <?php } else { ?>
+                                                        <button class="btn btn-danger btn-sm delete-transfer p-1" data-value="<?php echo $value->m_purcs_spo; ?>" title="Delete Transfer" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
+                                                    <?php } ?>
+                                                <?php } ?>
                                             </div>
                                         </td>
                                     </tr>
@@ -439,4 +465,50 @@
 <?php $this->view('footer'); ?>
 <?php $this->view('js/sale_js') ?>
 <?php $this->view('js/custom_js'); ?>
+<script>
+    $(document).ready(function() {
+        $("#purchase_tbl").on("click", ".delete-transfer", function() {
+            var clkbtn = $(this);
+            clkbtn.prop('disabled', true);
+            var dlt_id = $(this).data('value');
+
+            swal({
+                title: "Are you sure?",
+                text: "Once deleted, the stock will be restored to Head Office and the branch balance will be reversed!",
+                icon: "warning",
+                buttons: true,
+                dangerMode: true,
+            }).then((willDelete) => {
+                if (willDelete) {
+                    $.ajax({
+                        type: "POST",
+                        url: "<?php echo site_url('Transfer/delete_transfer'); ?>",
+                        data: {
+                            delete_id: dlt_id
+                        },
+                        dataType: "JSON",
+                        success: function(data) {
+                            if (data.status == 'success') {
+                                swal(data.message, {
+                                    icon: "success",
+                                    timer: 1000
+                                });
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 1000);
+                            } else {
+                                clkbtn.prop('disabled', false);
+                                swal(data.message, {
+                                    icon: "error"
+                                });
+                            }
+                        }
+                    });
+                } else {
+                    clkbtn.prop('disabled', false);
+                }
+            });
+        });
+    });
+</script>
 <!-- ========================Footer================Fix======= -->

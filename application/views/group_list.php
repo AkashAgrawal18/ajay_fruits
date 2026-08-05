@@ -70,6 +70,30 @@
 
             ?>
 
+            <?php if ($this->session->userdata('user_type') == 8) { ?>
+            <form action="<?= site_url('Master/' . $redlink) ?>" method="POST" class="row align-items-center mb-2">
+               <div class="col-3">
+                  <div class="form-group">
+                     <label for="">Branch</label>
+                     <select name="branch_id" id="branch_id" class="form-select select2">
+                        <option value="">All Branches</option>
+                        <?php if (!empty($branch_list)) {
+                           foreach ($branch_list as $branch) {
+                              $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                        ?>
+                              <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                        <?php }
+                        } ?>
+                     </select>
+                  </div>
+               </div>
+               <div class="col-3 mt-4">
+                  <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i> Filter</button>
+                  <a class="btn btn-danger btn-sm" href="<?= site_url('Master/' . $redlink) ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
+               </div>
+            </form>
+            <?php } ?>
+
             <div class="table-responsive bg-light" style="height: 64vh;">
                <table id="group_tbl" class="my_custom_datatable table table-striped table-bordered dt-responsive nowra">
                   <thead>
@@ -157,9 +181,9 @@
                                                       } ?></h5>
                   </div>
                   <!-- <div class="col-md-6 text-end">
-                     <?php if ($logged_user_type == 1 || has_perm($logged_user_id, 'Mtr', 'group', 'Add')) {   ?>
+                     <?php // if ($logged_user_type == 1) {   ?>
                         <button class="btn btn-warning btn-sm custom_btn1" type="button" data-bs-toggle="modal" data-bs-target="#myImportModal" title="Excel Import"><i class="bx bx-import"></i>Import</button>
-                     <?php } ?>
+                     <?php // } ?>
                   </div> -->
                </div>
 
@@ -177,6 +201,7 @@
                            $grp_number = $edit_value->m_group_number;
                            $grp_opening = $edit_value->m_group_opening;
                            $grp_remark = $edit_value->m_group_remark;
+                           $grp_branch = $edit_value->m_group_branch;
                         } else {
                            $id = '';
                            $title = '';
@@ -186,6 +211,7 @@
                            $grp_number = '';
                            $grp_opening = 0;
                            $grp_remark = '';
+                           $grp_branch = '';
                         } ?>
 
 
@@ -200,6 +226,26 @@
                               </div>
                            </div>
                         </div>
+
+                        <?php if ($this->session->userdata('user_type') == 8) { ?>
+                        <div class="row mb-2">
+                           <div class="col-md-12">
+                              <div class="form-group">
+                                 <label>Branch</label>
+                                 <select name="m_group_branch" id="m_group_branch" class="form-control select2">
+                                    <option value="0">Head Office</option>
+                                    <?php if (!empty($branch_list)) {
+                                       foreach ($branch_list as $branch) {
+                                          $selected = ($grp_branch == $branch->m_user_id) ? 'selected' : '';
+                                    ?>
+                                       <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                    <?php }
+                                    } ?>
+                                 </select>
+                              </div>
+                           </div>
+                        </div>
+                        <?php } ?>
                         <?php if ($type == 2) { ?>
                            <div class="row mb-2">
                               <div class="col-md-12">

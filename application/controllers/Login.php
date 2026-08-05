@@ -101,7 +101,7 @@ public function change_date() {
         exit;
     }
 
-    $is_valid = get_settings('date_lock_password') === $password; // Validate password from DB
+    $is_valid = password_verify($password, (string) get_settings('date_lock_password')); // Validate password from DB
     if (!$is_valid) {
         echo json_encode(['status' => 'error', 'message' => 'Invalid password']);
         exit;

@@ -4,6 +4,23 @@
 
 
     //============================User============================//
+
+    // Live branch cascading: re-scope the Group picker when the Branch
+    // select changes on the Add/Edit Staff form or the Add/Edit Customer
+    // form (both use id="group" - only one of the two branch selects exists
+    // per page render).
+    var groupCascadeTarget = [{
+      listType: 'group',
+      groupType: 1,
+      target: '#group',
+      mode: 'select',
+      idField: 'm_group_id',
+      labelFn: function(g) { return g.m_group_name; },
+      placeholder: 'Select Group'
+    }];
+    BranchCascade.bind('#m_user_branch', groupCascadeTarget, "<?php echo site_url('Master/branch_scoped_options'); ?>");
+    BranchCascade.bind('#m_cust_branch', groupCascadeTarget, "<?php echo site_url('Master/branch_scoped_options'); ?>");
+
     $("form#frm-add-user").submit(function(e) {
       e.preventDefault();
       var clkbtn = $("#btn-add-user");
@@ -114,6 +131,39 @@
           clkbtn.prop('disabled', false);
           swal("Your Data is safe!", {
             icon: "info",
+            timer: 2000,
+          });
+        }
+      });
+    });
+
+    $("#user_tbl").on("click", ".view-password", function() {
+      var clkbtn = $(this);
+      clkbtn.prop('disabled', true);
+      var uid = $(this).data('value');
+
+      $.ajax({
+        type: "POST",
+        url: "<?php echo site_url('Accounts/view_password'); ?>",
+        data: {
+          id: uid
+        },
+        dataType: "JSON",
+        success: function(data) {
+          clkbtn.prop('disabled', false);
+          if (data.status == 'success') {
+            swal("Password", data.password, "info");
+          } else {
+            swal(data.message, {
+              icon: "error",
+              timer: 5000,
+            });
+          }
+        },
+        error: function(jqXHR, status, err) {
+          clkbtn.prop('disabled', false);
+          swal("Some Problem Occurred!! please try again", {
+            icon: "error",
             timer: 2000,
           });
         }

@@ -93,6 +93,23 @@
                             </select>
                         </div>
                     </div>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                    <div class="col-2">
+                        <div class="form-group">
+                            <label for="">Branch</label>
+                            <select name="branch_id" id="branch_id" class="form-select select2">
+                                <option value="">All Branches</option>
+                                <?php if (!empty($branch_list)) {
+                                    foreach ($branch_list as $branch) {
+                                        $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                                ?>
+                                        <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                <?php }
+                                } ?>
+                            </select>
+                        </div>
+                    </div>
+                    <?php } ?>
                     <div class="col-4 mt-4">
                         <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i> Search</button>
                         <a class="btn btn-danger btn-sm" href="<?= base_url('Reports/lotwise_item') ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>

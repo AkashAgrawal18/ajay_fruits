@@ -15,8 +15,61 @@ class Api_Controller extends CI_Controller
     echo "Not Found";
   }
 
+  //================== API authentication (BUG-017) ==================//
+  // This controller has no session and is CSRF-exempt, so identity must come
+  // from the bearer token issued by user_login(). Endpoints previously trusted
+  // a caller-supplied user_id, which let anyone read or write any account.
+
+  /** Token from the Authorization header, or a `token` field for older clients. */
+  protected function _bearer_token()
+  {
+    $header = $this->input->get_request_header('Authorization', TRUE);
+    if (!empty($header) && preg_match('/Bearer\s+(\S+)/i', $header, $m)) {
+      return $m[1];
+    }
+
+    return $this->input->post('token') ?: $this->input->get('token');
+  }
+
+  /**
+   * Returns the authenticated user id, or emits a 401 JSON body and returns
+   * null. Callers must `return` immediately when this yields null.
+   *
+   * Also pins user_id in the request to the authenticated user so existing
+   * endpoint bodies that read $this->input->post('user_id') cannot be spoofed.
+   */
+  protected function _require_api_user()
+  {
+    $user_id = $this->Api_Model->user_id_from_token($this->_bearer_token());
+
+    if ($user_id === null) {
+      $this->output->set_status_header(401);
+      echo json_encode(array(
+        'response' => 'error',
+        'message'  => 'Unauthorized. Please log in again.',
+        'details'  => array(),
+      ));
+      return null;
+    }
+
+    $_POST['user_id'] = $user_id;
+    return $user_id;
+  }
+
+  /** Ends a session by invalidating the presented token. */
+  public function user_logout()
+  {
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+      $this->Api_Model->revoke_token($this->_bearer_token());
+      echo json_encode(array('response' => 'success', 'message' => 'Logged out'));
+    }
+  }
+
   public function user_details()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $user_id = $this->input->post('user_id');
       if ($details = $this->Api_Model->user_details($user_id)) {
@@ -44,17 +97,23 @@ class Api_Controller extends CI_Controller
       $password = $this->input->post('m_user_password');
       $check = $this->Api_Model->check_mobile($mobile);
       if (empty($check)) {
-        $info = array(
+        // Previously this built the response and then fell through to the
+        // login attempt, which overwrote it with "Wrong Password" (BUG-024).
+        echo json_encode(array(
           'response' => 'error',
           'message' => 'This Mobile No. Does not exists',
           'user' => array()
-        );
+        ));
+        return;
       }
 
       if ($user = $this->Api_Model->user_login($mobile, $password)) {
         $info = array(
           'response' => 'success',
           'message' => 'Login successfully',
+          // Clients must send this on every subsequent call, as
+          // `Authorization: Bearer <token>` (BUG-017).
+          'token' => $this->Api_Model->create_token($user[0]->m_user_id),
           'user' => $this->Api_Model->user_details($user[0]->m_user_id),
         );
       } else {
@@ -72,6 +131,9 @@ class Api_Controller extends CI_Controller
 
   public function get_all_city()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($list = $this->Api_Model->get_all_city()) {
         $info = array(
@@ -89,6 +151,9 @@ class Api_Controller extends CI_Controller
   }
   public function get_all_state()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($list = $this->Api_Model->get_all_state()) {
         $info = array(
@@ -108,6 +173,9 @@ class Api_Controller extends CI_Controller
 
   public function get_all_items()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($list = $this->Api_Model->get_all_items()) {
         $info = array(
@@ -126,6 +194,9 @@ class Api_Controller extends CI_Controller
 
   public function get_all_unit()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($list = $this->Api_Model->all_itemgroup(2)) {
         $info = array(
@@ -143,6 +214,9 @@ class Api_Controller extends CI_Controller
   }
   public function get_all_crate()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($list = $this->Api_Model->all_itemgroup(3, 1)) {
         $info = array(
@@ -161,6 +235,9 @@ class Api_Controller extends CI_Controller
 
   public function get_all_group()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($list = $this->Api_Model->all_itemgroup(1)) {
         $info = array(
@@ -179,6 +256,9 @@ class Api_Controller extends CI_Controller
 
   public function get_user_customers()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $user_group = $this->input->post('m_user_group');
       if ($list = $this->Api_Model->get_user_customers($user_group)) {
@@ -198,6 +278,9 @@ class Api_Controller extends CI_Controller
 
   public function get_user_items()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($list = $this->Api_Model->get_user_items()) {
         $info = array(
@@ -217,6 +300,9 @@ class Api_Controller extends CI_Controller
 
   public function customer_details()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $cust_id = $this->input->post('cust_id');
       if ($details = $this->Api_Model->customer_details($cust_id)) {
@@ -238,6 +324,9 @@ class Api_Controller extends CI_Controller
 
   public function get_sale_details()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       if ($details = $this->Api_Model->get_sale_details()) {
@@ -259,6 +348,9 @@ class Api_Controller extends CI_Controller
 
   public function get_user_sales()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $user_id = $this->input->post('user_id');
       $fdate = $this->input->post('fdate');
@@ -279,6 +371,9 @@ class Api_Controller extends CI_Controller
 
   public function insert_sale()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       if ($details = $this->Api_Model->insert_sale()) {
@@ -302,6 +397,9 @@ class Api_Controller extends CI_Controller
 
   public function insert_expense()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       if ($details = $this->Api_Model->insert_expense()) {
@@ -324,6 +422,9 @@ class Api_Controller extends CI_Controller
 
   public function insert_payment_recieved()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $details = $this->Api_Model->insert_payment_recieved();
       if ($details == 'dupli') {
@@ -354,6 +455,9 @@ class Api_Controller extends CI_Controller
 
   public function insert_crate_recived()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       if ($details = $this->Api_Model->insert_crate_recived()) {
@@ -375,6 +479,9 @@ class Api_Controller extends CI_Controller
 
   public function get_user_payment_received()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $user_id =  $this->input->post('user_id');
       $fdate =  $this->input->post('fdate');
@@ -403,6 +510,9 @@ class Api_Controller extends CI_Controller
 
   public function get_user_crate_received()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $user_id =  $this->input->post('user_id');
       $fdate =  $this->input->post('fdate') ?: date('Y-m-d');
@@ -424,6 +534,9 @@ class Api_Controller extends CI_Controller
 
   public function get_customer_balance()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       if ($list = $this->Api_Model->get_customer_balance($this->input->post("cust_id"))) {
@@ -443,6 +556,9 @@ class Api_Controller extends CI_Controller
 
   public function get_customer_crateledger()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       if ($list = $this->Api_Model->get_crate_balance($this->input->post("customer_id"))) {
@@ -462,6 +578,9 @@ class Api_Controller extends CI_Controller
 
   public function get_bill_link()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $info = array(
         'response' => 'success',
@@ -478,6 +597,9 @@ class Api_Controller extends CI_Controller
 
   public function get_cratebill_link()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $info = array(
         'response' => 'success',
@@ -494,6 +616,9 @@ class Api_Controller extends CI_Controller
 
   public function get_paymentbill_link()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $info = array(
         'response' => 'success',
@@ -510,6 +635,9 @@ class Api_Controller extends CI_Controller
 
   public function get_payment_report_link()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $fdate =  $this->input->post('fdate') ?: date('Y-m-d');
       $info = array(
@@ -527,6 +655,9 @@ class Api_Controller extends CI_Controller
 
   public function get_crate_report_link()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $fdate =  $this->input->post('fdate') ?: date('Y-m-d');
       $info = array(
@@ -544,6 +675,9 @@ class Api_Controller extends CI_Controller
 
   public function get_sale_report_link()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $fdate =  $this->input->post('fdate') ?: date('Y-m-d');
       $info = array(
@@ -562,6 +696,9 @@ class Api_Controller extends CI_Controller
 
   public function get_user_today_stock()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $user_id = $this->input->post('user_id');
       if ($list = $this->Api_Model->get_user_today_stock($user_id)) {
@@ -581,6 +718,9 @@ class Api_Controller extends CI_Controller
 
   public function get_user_balance_stock()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $user_id = $this->input->post('user_id');
       $fdate = $this->input->post('fdate') ?: date('Y-m-d');
@@ -601,6 +741,9 @@ class Api_Controller extends CI_Controller
 
   public function todays_stats()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $user_id = $this->input->post('user_id');
       $fdate = $this->input->post('fdate') ?: date('Y-m-d');
@@ -622,6 +765,9 @@ class Api_Controller extends CI_Controller
 
   public function insert_return_item()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $user_id = $this->input->post('user_id');
       $date = $this->input->post('from_date');
@@ -642,6 +788,9 @@ class Api_Controller extends CI_Controller
 
   public function insert_customer()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       if ($list = $this->Api_Model->insert_customer()) {
@@ -666,6 +815,9 @@ class Api_Controller extends CI_Controller
 
   public function insert_issue_item()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       if ($list = $this->Api_Model->insert_issue_item()) {
@@ -687,6 +839,9 @@ class Api_Controller extends CI_Controller
 
   public function insert_purchase()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       if ($list = $this->Api_Model->insert_purchase()) {
@@ -708,6 +863,9 @@ class Api_Controller extends CI_Controller
 
   public function get_all_agents()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($list = $this->Api_Model->get_all_agents()) {
         $info = array(
@@ -726,6 +884,9 @@ class Api_Controller extends CI_Controller
 
   public function get_all_supplier()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($list = $this->Api_Model->get_all_supplier()) {
         $info = array(
@@ -744,6 +905,9 @@ class Api_Controller extends CI_Controller
 
   public function get_item_issue_list()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $from_date = $this->input->post('from_date');
       $todate = $this->input->post('todate');
@@ -766,6 +930,9 @@ class Api_Controller extends CI_Controller
 
   public function get_purchase_list()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $from_date = $this->input->post('from_date');
       $todate = $this->input->post('todate');
@@ -788,6 +955,9 @@ class Api_Controller extends CI_Controller
 
   public function get_purchase_detail()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       $m_purcs_spo = $this->input->post('m_purcs_spo');
@@ -809,6 +979,9 @@ class Api_Controller extends CI_Controller
 
   public function get_issue_detail()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
       $si_issue_spo = $this->input->post('si_issue_spo');
@@ -830,6 +1003,9 @@ class Api_Controller extends CI_Controller
 
   public function get_payment_methods()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($list = $this->Api_Model->get_payment_methods()) {
         $info = array(
@@ -848,6 +1024,9 @@ class Api_Controller extends CI_Controller
 
   public function get_item_avil_lot()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
@@ -869,6 +1048,9 @@ class Api_Controller extends CI_Controller
 
   public function get_avil_items()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 
@@ -889,6 +1071,9 @@ class Api_Controller extends CI_Controller
 
   public function get_agents_performance()
   {
+    if ($this->_require_api_user() === null) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $fdate =  $this->input->post('fdate') ?: date('Y-m-d');
       if ($list = $this->Api_Model->get_agents_performance($fdate)) {

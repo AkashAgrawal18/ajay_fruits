@@ -17,15 +17,19 @@ class Reports extends CI_Controller
             $data = $this->login_details();
         }
         $data['pagename'] = "Account Ledger";
+        $data['branch_id'] = $this->session->userdata('is_cust_in') == true ? null : $this->input->post('branch_id');
         $data['all_crates'] = $this->Master_model->all_itemgroup(3);
-        $data['cust_dtl'] = $this->Main_model->get_cust_active_list();
-        $data['supl_dtl'] = $this->Main_model->get_active_user_list(2);
-        $data['expense_lst'] = $this->Master_model->get_all_active_group(2);
-        $data['bank_lst'] = $this->Master_model->get_all_active_group(3);
-        $data['cash_lst'] = $this->Master_model->get_all_active_group(4);
-        $data['agent_dtl'] = $this->Main_model->get_active_user_list(1);
-        $data['general_lst'] = $this->Main_model->get_active_user_list(4);
-        $data['investement_lst'] = $this->Main_model->get_active_user_list(5);
+        $data['cust_dtl'] = $this->Main_model->get_cust_active_list('', $data['branch_id']);
+        $data['supl_dtl'] = $this->Main_model->get_active_user_list(2, $data['branch_id']);
+        $data['expense_lst'] = $this->Master_model->get_all_active_group(2, $data['branch_id']);
+        $data['bank_lst'] = $this->Master_model->get_all_active_group(3, $data['branch_id']);
+        $data['cash_lst'] = $this->Master_model->get_all_active_group(4, $data['branch_id']);
+        $data['agent_dtl'] = $this->Main_model->get_active_user_list(1, $data['branch_id']);
+        $data['general_lst'] = $this->Main_model->get_active_user_list(4, $data['branch_id']);
+        $data['investement_lst'] = $this->Main_model->get_active_user_list(5, $data['branch_id']);
+        if ($this->session->userdata('is_cust_in') != true) {
+            $data['branch_list'] = $this->Main_model->get_user_list(9);
+        }
         $data['pagetype'] = 3;
         $this->load->view('balance_report', $data);
     }
@@ -40,6 +44,7 @@ class Reports extends CI_Controller
         $data['bank_lst'] = $this->Master_model->get_all_active_group(3);
         $data['cash_lst'] = $this->Master_model->get_all_active_group(4);
         $data['agent_dtl'] = $this->Main_model->get_active_user_list(1);
+        $data['branch_list'] = $this->Main_model->get_user_list(9);
         $data['pagetype'] = 2;
         $this->load->view('balance_report', $data);
     }
@@ -48,13 +53,15 @@ class Reports extends CI_Controller
     {
         $data = $this->login_details();
         $data['pagename'] = "Balance Report";
-        $data['all_crates'] = $this->Master_model->all_itemgroup(3);
-        $data['cust_dtl'] = $this->Main_model->get_cust_active_list();
-        $data['supl_dtl'] = $this->Main_model->get_active_user_list(2);
-        $data['expense_lst'] = $this->Master_model->get_all_active_group(2);
-        $data['bank_lst'] = $this->Master_model->get_all_active_group(3);
-        $data['cash_lst'] = $this->Master_model->get_all_active_group(4);
-        $data['agent_dtl'] = $this->Main_model->get_active_user_list(1);
+        $data['branch_id'] = $this->input->post('branch_id');
+        $data['all_crates'] = $this->Master_model->all_itemgroup(3, $data['branch_id']);
+        $data['cust_dtl'] = $this->Main_model->get_cust_active_list('', $data['branch_id']);
+        $data['supl_dtl'] = $this->Main_model->get_active_user_list(2, $data['branch_id']);
+        $data['expense_lst'] = $this->Master_model->get_all_active_group(2, $data['branch_id']);
+        $data['bank_lst'] = $this->Master_model->get_all_active_group(3, $data['branch_id']);
+        $data['cash_lst'] = $this->Master_model->get_all_active_group(4, $data['branch_id']);
+        $data['agent_dtl'] = $this->Main_model->get_active_user_list(1, $data['branch_id']);
+        $data['branch_list'] = $this->Main_model->get_user_list(9);
 
         $data['pagetype'] = 1;
         $this->load->view('balance_report', $data);
@@ -69,24 +76,25 @@ class Reports extends CI_Controller
         $data['agent'] = $this->input->post('agent');
         $data['cratetype'] = $this->input->post('cratetype');
         $data['orderby'] = $this->input->post('orderby');
+        $branch_id = $this->input->post('branch_id');
 
         if ($data['agent'] == 'o') {
             $agent_name = 'Admin';
         } else {
-            $agent_dtl = $this->Main_model->get_user_group_dtl($data['agent']);
+            $agent_dtl = $this->Main_model->get_user_group_dtl($data['agent'], $branch_id);
             $agent_name = empty($data['agent']) ? 'All/Admin' : $agent_dtl->m_user_name;
         }
 
         $data['subhead'] = '<div class="col-4">
         <h4 class="m-0">Agent- ' . $agent_name . '</h4>
-       
+
         </div>
         <div class="col-8 text-end">
         <h4 class="fw-bold">Customer Statements ' . date('d/m/Y', strtotime($data['from_date'])) . ' TO ' . date('d/m/Y', strtotime($data['todate'])) . '</h4>
         </div>';
 
         $data['tableheader'] = array('Sno', 'Customer Name', 'Opening Balance', 'Total Billing', 'Total Recipt', 'Net Balance');
-        $data['all_crates'] = $this->Master_model->all_itemgroup(3);
+        $data['all_crates'] = $this->Master_model->all_itemgroup(3, $branch_id);
 
         foreach ($data['all_crates'] as $craty) {
             $data['tableheader'][] = $craty->m_itgrp_title;
@@ -94,7 +102,7 @@ class Reports extends CI_Controller
         $data['tableheader'][] = 'Total Crate';
         $data['tableheader'][] = 'Last Bill';
         $data['tableheader'][] = 'Last Recipt';
-        $all_cust = $this->Main_model->get_cust_list(null, null, null, $data['orderby'], $data['agent']);
+        $all_cust = $this->Main_model->get_cust_list(null, null, null, $data['orderby'], $data['agent'], $branch_id);
         $tbody = '';
         $sum_ope = 0;
         $sum_bill = 0;
@@ -112,8 +120,8 @@ class Reports extends CI_Controller
                 $lastbilldate =  !empty($last_bill_date) ? date('d-m-Y', strtotime($last_bill_date->m_sale_date)) : '';
                 $lastrecptdate =  !empty($last_recipt) ? date('d-m-Y', strtotime($last_recipt->m_recvd_date)) : '';
 
-                $opening_balance = $this->Main_model->get_opening_balance($cust->m_cust_id, date('Y-m-d', strtotime($data['from_date'] . '-1day')));
-                $closing_balance = $this->Main_model->get_opening_balance($cust->m_cust_id, date('Y-m-d', strtotime($data['todate'])));
+                $opening_balance = $this->Main_model->get_opening_balance($cust->m_cust_id, date('Y-m-d', strtotime($data['from_date'] . '-1day')), $branch_id);
+                $closing_balance = $this->Main_model->get_opening_balance($cust->m_cust_id, date('Y-m-d', strtotime($data['todate'])), $branch_id);
                 $cratedata = '';
                 foreach ($closing_balance['crateitems'] as $craty) {
 
@@ -185,18 +193,19 @@ class Reports extends CI_Controller
         $data['agent'] = $this->input->post('agent');
         $data['cratetype'] = $this->input->post('cratetype');
         $data['orderby'] = $this->input->post('orderby');
+        $branch_id = $this->input->post('branch_id');
         $data['subhead'] = '<div class="col-12">
         <h4 class="text-center">Supplier Statements From ' . date('d-m-Y', strtotime($data['from_date'])) . ' To ' . date('d-m-Y', strtotime($data['todate'])) . '</h4>
     </div>';
 
         $data['tableheader'] = array('Sno', 'Suppiler Name', 'Opening Balance', 'Total Billing', 'Total Payment', 'Net Balance');
-        $data['all_crates'] = $this->Master_model->all_itemgroup(3);
+        $data['all_crates'] = $this->Master_model->all_itemgroup(3, $branch_id);
 
         foreach ($data['all_crates'] as $craty) {
             $data['tableheader'][] = $craty->m_itgrp_title;
         }
         $data['tableheader'][] = 'Total Crate';
-        $all_cust = $this->Main_model->get_user_list(2, null, null, null, $data['orderby']);
+        $all_cust = $this->Main_model->get_user_list(2, null, null, null, $data['orderby'], null, $branch_id);
         $tbody = '';
         $sum_ope = 0;
         $sum_bill = 0;
@@ -209,8 +218,8 @@ class Reports extends CI_Controller
         if (!empty($all_cust)) {
 
             foreach ($all_cust as $key => $cust) {
-                $opening_balance = $this->Report_model->get_sup_opening_balance($cust->m_user_id, date('Y-m-d', strtotime($data['from_date'] . '-1day')));
-                $closing_balance = $this->Report_model->get_sup_opening_balance($cust->m_user_id, date('Y-m-d', strtotime($data['todate'])));
+                $opening_balance = $this->Report_model->get_sup_opening_balance($cust->m_user_id, date('Y-m-d', strtotime($data['from_date'] . '-1day')), $branch_id);
+                $closing_balance = $this->Report_model->get_sup_opening_balance($cust->m_user_id, date('Y-m-d', strtotime($data['todate'])), $branch_id);
                 $cratedata = '';
 
                 foreach ($closing_balance['crateitems'] as $craty) {
@@ -278,6 +287,7 @@ class Reports extends CI_Controller
         $data['from_date'] = $this->input->post('from_date') ?: date('Y-m-d');
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
         $data['customers'] = $this->input->post('customers');
+        $branch_id = $this->input->post('branch_id');
 
         $summary = $this->input->post('summary');
 
@@ -291,7 +301,7 @@ class Reports extends CI_Controller
             $data['tableheader'] = array('Sno', 'Date', 'Customer Name', 'Sale No', 'Total Qty', 'Total Amount', 'Commission', 'Fright', 'Hamali', 'Other', 'Net Total');
         }
 
-        $all_value = $this->Main_model->sales_group($data['from_date'], $data['todate'], $data['customers'], null, null, $data['orderby']);
+        $all_value = $this->Main_model->sales_group($data['from_date'], $data['todate'], $data['customers'], null, null, $data['orderby'], null, $branch_id);
         $tbody = '';
         $filedfoot = '';
         $sum_tqty = 0;
@@ -480,6 +490,7 @@ class Reports extends CI_Controller
         $data['from_date'] = $this->input->post('from_date') ?: date('Y-m-d');
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
         $data['customers'] = $this->input->post('customers');
+        $branch_id = $this->input->post('branch_id');
 
         $data['orderby'] = 'asc';
         $data['subhead'] = '<div class="col-12">
@@ -487,7 +498,7 @@ class Reports extends CI_Controller
         </div>';
 
 
-        $all_value = $this->Main_model->get_received_list($type, $data['from_date'], $data['todate'], $data['customers'], null, null, null, null, $data['orderby']);
+        $all_value = $this->Main_model->get_received_list($type, $data['from_date'], $data['todate'], $data['customers'], null, null, null, null, $data['orderby'], $branch_id);
         $tbody = '';
         $sum_tqty = 0;
         $sum_gndamt = 0;
@@ -541,13 +552,14 @@ class Reports extends CI_Controller
         $data['from_date'] = $this->input->post('from_date') ?: date('Y-m-d');
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
         $data['suppiler'] = $this->input->post('suppiler');
+        $branch_id = $this->input->post('branch_id');
 
         $data['orderby'] = $this->input->post('orderby');
         $data['subhead'] = '<div class="col-12">
         <h4 class="text-center">' . $data['pagename'] . ' From ' . date('d-m-Y', strtotime($data['from_date'])) . ' To ' . date('d-m-Y', strtotime($data['todate'])) . '</h4>
         </div>';
 
-        $all_value = $this->Main_model->get_payment_list($type, $data['from_date'], $data['todate'], $data['suppiler'], null, null, null, $data['orderby']);
+        $all_value = $this->Main_model->get_payment_list($type, $data['from_date'], $data['todate'], $data['suppiler'], null, null, null, $data['orderby'], $branch_id);
         $tbody = '';
         $sum_tqty = 0;
         $sum_gndamt = 0;
@@ -619,6 +631,7 @@ class Reports extends CI_Controller
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
         // $data['customers'] = $this->input->post('customers');
         $data['customers'] = '';
+        $branch_id = $this->input->post('branch_id');
 
         $summary = $this->input->post('summary');
 
@@ -632,7 +645,7 @@ class Reports extends CI_Controller
             $data['tableheader'] = array('Sno', 'Date', 'Supplier Name', 'Voucher No', 'Total Qty', 'Total Amount', 'Commission', 'Fright', 'Hamali', 'Other', 'Net Total');
         }
 
-        $all_value = $this->Main_model->purchase_group($data['from_date'], $data['todate'], $data['customers'], $data['orderby']);
+        $all_value = $this->Main_model->purchase_group($data['from_date'], $data['todate'], $data['customers'], $data['orderby'], $branch_id);
         $tbody = '';
         $filedfoot = '';
         $sum_tqty = 0;
@@ -711,6 +724,7 @@ class Reports extends CI_Controller
         $data['pagelink'] = "export_customer_cash_ledger";
 
         $data['account_name'] = $this->input->post('account_name');
+        $branch_id = $this->session->userdata('is_cust_in') == true ? null : $this->input->post('branch_id');
         $cust_dtl = $this->Main_model->get_cust_dtl($data['account_name']);
 
         $data['from_date'] = $this->input->post('from_date') ?: $cust_dtl->m_cust_added_on;
@@ -734,9 +748,9 @@ class Reports extends CI_Controller
                                     <th scope="col">BALANCE</th>
                                 </tr>';
 
-        $all_value = $this->Report_model->customer_detailed_leger($data['from_date'], $data['todate'], $data['account_name']);
-        $opening_balance = $this->Main_model->get_opening_balance($data['account_name'], date('Y-m-d', strtotime($data['from_date'] . '-1day')));
-        $closing_balance = $this->Main_model->get_opening_balance($data['account_name'], $data['todate']);
+        $all_value = $this->Report_model->customer_detailed_leger($data['from_date'], $data['todate'], $data['account_name'], $branch_id);
+        $opening_balance = $this->Main_model->get_opening_balance($data['account_name'], date('Y-m-d', strtotime($data['from_date'] . '-1day')), $branch_id);
+        $closing_balance = $this->Main_model->get_opening_balance($data['account_name'], $data['todate'], $branch_id);
         $balance = $opening_balance['balance_amount'];
 
         if ($balance > 0) {
@@ -898,15 +912,16 @@ class Reports extends CI_Controller
     {
 
         $account_name = $this->input->post('account_name');
+        $branch_id = $this->input->post('branch_id');
         $cust_dtl = $this->Main_model->get_cust_dtl($account_name);
 
         $from_date = $this->input->post('from_date') ?: $cust_dtl->m_cust_added_on;
         $todate = $this->input->post('to_date') ?: date('Y-m-d');
 
 
-        $all_value = $this->Report_model->customer_detailed_leger($from_date, $todate, $account_name);
-        $opening_balance = $this->Main_model->get_opening_balance($account_name, date('Y-m-d', strtotime($from_date . '-1day')));
-        $closing_balance = $this->Main_model->get_opening_balance($account_name, $todate);
+        $all_value = $this->Report_model->customer_detailed_leger($from_date, $todate, $account_name, $branch_id);
+        $opening_balance = $this->Main_model->get_opening_balance($account_name, date('Y-m-d', strtotime($from_date . '-1day')), $branch_id);
+        $closing_balance = $this->Main_model->get_opening_balance($account_name, $todate, $branch_id);
         $balance = $opening_balance['balance_amount'];
 
         if ($balance > 0) {
@@ -1073,6 +1088,7 @@ class Reports extends CI_Controller
         $data['pagename'] = "Customer Crate Ledger";
 
         $data['account_name'] = $this->input->post('account_name');
+        $branch_id = $this->session->userdata('is_cust_in') == true ? null : $this->input->post('branch_id');
         $cust_dtl = $this->Main_model->get_cust_dtl($data['account_name']);
         $data['from_date'] = $this->input->post('from_date') ?: $cust_dtl->m_cust_added_on;
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
@@ -1099,9 +1115,9 @@ class Reports extends CI_Controller
             <th scope="col">BALANCE</th>
         </tr>';
 
-        $all_value = $this->Report_model->customer_detailed_leger($data['from_date'], $data['todate'], $data['account_name']);
-        $opening_balance = $this->Main_model->get_opening_balance($data['account_name'], date('Y-m-d', strtotime($data['from_date'] . '-1day')));
-        $closing_balance = $this->Main_model->get_opening_balance($data['account_name'], $data['todate']);
+        $all_value = $this->Report_model->customer_detailed_leger($data['from_date'], $data['todate'], $data['account_name'], $branch_id);
+        $opening_balance = $this->Main_model->get_opening_balance($data['account_name'], date('Y-m-d', strtotime($data['from_date'] . '-1day')), $branch_id);
+        $closing_balance = $this->Main_model->get_opening_balance($data['account_name'], $data['todate'], $branch_id);
 
 
         $balance = $opening_balance['balance_crate'];
@@ -1224,6 +1240,7 @@ class Reports extends CI_Controller
         $data['pagename'] = "Supplier Cash Ledger";
 
         $data['suppiler'] = $this->input->post('account_name');
+        $branch_id = $this->input->post('branch_id');
         $supplier_dtl = $this->Main_model->get_user_dtl($data['suppiler']);
 
         $data['from_date'] = $this->input->post('from_date') ?: $supplier_dtl->m_user_added_on;
@@ -1251,9 +1268,9 @@ class Reports extends CI_Controller
             <th scope="col">BALANCE</th>
         </tr>';
 
-        $all_value = $this->Report_model->supplier_detailed_leger($data['from_date'], $data['todate'], $data['suppiler']);
-        $opening_balance = $this->Report_model->get_sup_opening_balance($data['suppiler'], date('Y-m-d', strtotime($data['from_date'] . '-1day')));
-        $closing_balance = $this->Report_model->get_sup_opening_balance($data['suppiler'], $data['todate']);
+        $all_value = $this->Report_model->supplier_detailed_leger($data['from_date'], $data['todate'], $data['suppiler'], $branch_id);
+        $opening_balance = $this->Report_model->get_sup_opening_balance($data['suppiler'], date('Y-m-d', strtotime($data['from_date'] . '-1day')), $branch_id);
+        $closing_balance = $this->Report_model->get_sup_opening_balance($data['suppiler'], $data['todate'], $branch_id);
 
         $balance = $opening_balance['balance_amount'];
 
@@ -1459,6 +1476,7 @@ class Reports extends CI_Controller
         $data['pagelink'] = "";
         $data['pagename'] = "Supplier Crate Statement";
         $data['suppiler'] = $this->input->post('account_name');
+        $branch_id = $this->input->post('branch_id');
         $supplier_dtl = $this->Main_model->get_user_dtl($data['suppiler']);
         $data['from_date'] = $this->input->post('from_date') ?: $supplier_dtl->m_user_added_on;
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
@@ -1482,9 +1500,9 @@ class Reports extends CI_Controller
             <th scope="col">BALANCE</th>
         </tr>';
 
-        $all_value =  $this->Report_model->supplier_detailed_leger($data['from_date'], $data['todate'], $data['suppiler']);
-        $opening_balance =  $this->Report_model->get_sup_opening_balance($data['suppiler'], date('Y-m-d', strtotime($data['from_date'] . '-1day')));
-        $closing_balance =  $this->Report_model->get_sup_opening_balance($data['suppiler'], $data['todate']);
+        $all_value =  $this->Report_model->supplier_detailed_leger($data['from_date'], $data['todate'], $data['suppiler'], $branch_id);
+        $opening_balance =  $this->Report_model->get_sup_opening_balance($data['suppiler'], date('Y-m-d', strtotime($data['from_date'] . '-1day')), $branch_id);
+        $closing_balance =  $this->Report_model->get_sup_opening_balance($data['suppiler'], $data['todate'], $branch_id);
 
         $balance = $opening_balance['balance_crate'];
         if ($balance > 0) {
@@ -1601,6 +1619,7 @@ class Reports extends CI_Controller
         $data['exporttype'] = 1;
         $data['pagelink'] = "";
         $data['account_name'] = $this->input->post('account_name');
+        $branch_id = $this->input->post('branch_id');
         $data['from_date'] = $this->input->post('from_date') ?: '';
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
         // $summary = $this->input->post('summary');
@@ -1608,8 +1627,8 @@ class Reports extends CI_Controller
         $exp_dtl = $this->Master_model->get_edit_group($data['account_name']);
         $data['pagename'] = $pagetype == 1 ? "Cash Ledger" : "Bank Ledger";
         $headname = $exp_dtl->m_group_name;
-        $opening =  $this->Report_model->cash_bank_leger($pagetype, null, date('Y-m-d', strtotime($data['from_date'] . '-1day')), $data['account_name'], 1);
-        $all_value =  $this->Report_model->cash_bank_leger($pagetype, $data['from_date'], $data['todate'], $data['account_name']);
+        $opening =  $this->Report_model->cash_bank_leger($pagetype, null, date('Y-m-d', strtotime($data['from_date'] . '-1day')), $data['account_name'], 1, $branch_id);
+        $all_value =  $this->Report_model->cash_bank_leger($pagetype, $data['from_date'], $data['todate'], $data['account_name'], '', $branch_id);
 
         $data['subhead'] = '<div class="col-6">
                                 <h4 class="m-0"><strong>' . $headname . '</strong></h4>
@@ -1738,6 +1757,7 @@ class Reports extends CI_Controller
         $data['exporttype'] = 1;
         $data['pagelink'] = "";
         $data['account_name'] = $this->input->post('account_name');
+        $branch_id = $this->input->post('branch_id');
         $data['from_date'] = $this->input->post('from_date') ?: '';
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
         // $summary = $this->input->post('summary');
@@ -1746,8 +1766,8 @@ class Reports extends CI_Controller
         $data['pagename'] = $pagetype == 1 ? "General Ledger" : "Investment Ledger";
         $data['pagename'] = "";
         $headname = $exp_dtl->m_user_name;
-        $opening =  $this->Report_model->general_invest_leger(null, date('Y-m-d', strtotime($data['from_date'] . '-1day')), $data['account_name'], 1);
-        $all_value =  $this->Report_model->general_invest_leger($data['from_date'], $data['todate'], $data['account_name']);
+        $opening =  $this->Report_model->general_invest_leger(null, date('Y-m-d', strtotime($data['from_date'] . '-1day')), $data['account_name'], 1, $branch_id);
+        $all_value =  $this->Report_model->general_invest_leger($data['from_date'], $data['todate'], $data['account_name'], '', $branch_id);
         $data['subhead'] = '<div class="col-6">
                 <h4 class="m-0"><strong>' . $headname . '</strong></h4>
                 <h4>Bhilai</h4>
@@ -1884,6 +1904,7 @@ class Reports extends CI_Controller
         $data['exporttype'] = 1;
         $data['pagelink'] = "";
         $data['expid'] = $this->input->post('account_name');
+        $branch_id = $this->input->post('branch_id');
         $exp_dtl = $this->Master_model->get_edit_group($data['expid']);
         $data['from_date'] = $this->input->post('from_date') ?: '';
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
@@ -1907,8 +1928,8 @@ class Reports extends CI_Controller
             <th scope="col">BALANCE</th>
         </tr>';
 
-        $opening =  $this->Report_model->expense_leger(null, $data['from_date'], $data['expid'], 1);
-        $all_value =  $this->Report_model->expense_leger($data['from_date'], $data['todate'], $data['expid']);
+        $opening =  $this->Report_model->expense_leger(null, $data['from_date'], $data['expid'], 1, $branch_id);
+        $all_value =  $this->Report_model->expense_leger($data['from_date'], $data['todate'], $data['expid'], '', $branch_id);
 
         $balance = $opening;
 
@@ -2029,6 +2050,7 @@ class Reports extends CI_Controller
         $data['pagelink'] = "";
         // $data['expid'] = $this->input->post('account_name');
         // $exp_dtl = $this->Master_model->get_edit_group($data['expid']);
+        $branch_id = $this->input->post('branch_id');
         $data['from_date'] = $this->input->post('from_date') ?: '';
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
         // $summary = $this->input->post('summary');
@@ -2047,8 +2069,8 @@ class Reports extends CI_Controller
             <th scope="col">Amount</th>
         </tr>';
 
-        $opening =  $this->Report_model->voucher_leger($pgtype, null, $data['from_date'], 1);
-        $all_value =  $this->Report_model->voucher_leger($pgtype, $data['from_date'], $data['todate']);
+        $opening =  $this->Report_model->voucher_leger($pgtype, null, $data['from_date'], 1, $branch_id);
+        $all_value =  $this->Report_model->voucher_leger($pgtype, $data['from_date'], $data['todate'], '', $branch_id);
 
         $balance = $opening;
 
@@ -2161,6 +2183,7 @@ class Reports extends CI_Controller
         $data['exporttype'] = 1;
         $data['pagelink'] = "";
         $data['expid'] = $this->input->post('account_name');
+        $branch_id = $this->input->post('branch_id');
         $exp_dtl = $this->Master_model->get_edit_group($data['expid']);
         $data['from_date'] = $this->input->post('from_date') ?: '';
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
@@ -2184,8 +2207,8 @@ class Reports extends CI_Controller
             <th scope="col">BALANCE</th>
         </tr>';
 
-        $opening = $this->Report_model->fright_ledger(null, $data['from_date'], $data['expid'], $exp_dtl->m_group_group, 1);
-        $all_value =  $this->Report_model->fright_ledger($data['from_date'], $data['todate'], $data['expid'], $exp_dtl->m_group_group);
+        $opening = $this->Report_model->fright_ledger(null, $data['from_date'], $data['expid'], $exp_dtl->m_group_group, 1, $branch_id);
+        $all_value =  $this->Report_model->fright_ledger($data['from_date'], $data['todate'], $data['expid'], $exp_dtl->m_group_group, '', $branch_id);
 
         $balance = $opening;
 
@@ -2273,6 +2296,7 @@ class Reports extends CI_Controller
         $data['exporttype'] = 1;
         $data['pagelink'] = "";
         $data['expid'] = $this->input->post('account_name');
+        $branch_id = $this->input->post('branch_id');
         $exp_dtl = $this->Main_model->get_user_dtl($data['expid']);
         $data['from_date'] = $this->input->post('from_date') ?: '';
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
@@ -2296,8 +2320,8 @@ class Reports extends CI_Controller
             <th scope="col">BALANCE</th>
         </tr>';
 
-        $opening =  $this->Report_model->staffcomm_ledger(null, $data['from_date'], $data['expid'], 1);
-        $all_value =  $this->Report_model->staffcomm_ledger($data['from_date'], $data['todate'], $data['expid']);
+        $opening =  $this->Report_model->staffcomm_ledger(null, $data['from_date'], $data['expid'], 1, $branch_id);
+        $all_value =  $this->Report_model->staffcomm_ledger($data['from_date'], $data['todate'], $data['expid'], '', $branch_id);
         $balance = $opening;
         if ($balance > 0) {
             $total_in = $balance;
@@ -2606,10 +2630,12 @@ class Reports extends CI_Controller
         $data['item_id'] = $this->input->post('item_id');
         // $data['from_date'] = $this->input->post('from_date');
         $data['to_date'] = $this->input->post('to_date') ?: date('Y-m-d');
-        $data['cust_dtl'] = $this->Main_model->get_cust_active_list();
-        $data['agent_dtl'] = $this->Main_model->get_active_user_list(1);
-        $data['all_items'] = $this->Master_model->get_all_item();
-        $data['all_value'] = $this->Report_model->get_lotwise_item($data['to_date'], $data['item_id']);
+        $data['branch_id'] = $this->input->post('branch_id');
+        $data['cust_dtl'] = $this->Main_model->get_cust_active_list('', $data['branch_id']);
+        $data['agent_dtl'] = $this->Main_model->get_active_user_list(1, $data['branch_id']);
+        $data['all_items'] = $this->Master_model->get_all_item('', $data['branch_id']);
+        $data['branch_list'] = $this->Main_model->get_user_list(9);
+        $data['all_value'] = $this->Report_model->get_lotwise_item($data['to_date'], $data['item_id'], '', $data['branch_id']);
         //    echo '<pre>'; print_r($data['all_value']); die ;
         $this->load->view('lotwise_list', $data);
     }
@@ -2651,6 +2677,242 @@ class Reports extends CI_Controller
     }
     //==========================Stock List===========================//
 
+    public function transfer_ledger()
+    {
+        $data = $this->login_details();
+        $user_type = $this->session->userdata('user_type');
+
+        // Sirf 8 aur 9 hi is report ko access kar sakte hain
+        if (!in_array($user_type, [8, 9])) {
+            show_error('Access Denied', 403);
+            return;
+        }
+
+        $data['pagename']   = "Stock Transfer Ledger";
+        $data['exporttype'] = 1;
+        $data['pagelink']   = "export_transfer_ledger";
+
+        $data['from_date'] = $this->input->post('from_date') ?: date('Y-m-d', strtotime('-30 days'));
+        $data['todate']    = $this->input->post('to_date') ?: date('Y-m-d');
+
+        // ===== Access control logic =====
+        if ($user_type == 9) {
+            // Branch user -> sirf apni branch ke transfers (aane/jaane wale dono)
+            $branch_id = $this->session->userdata('user_id');
+            $branch_name = $this->session->userdata('user_name'); // ya DB se le lo agar session me nahi hai
+        } else {
+            // Super Admin -> sab dikhega
+            $branch_id = null;
+            $branch_name = 'All Branches';
+        }
+
+        $data['subhead'] = '<div class="col-6">
+                            <h4 class="m-0"><strong>Stock Transfer Ledger</strong></h4>
+                            <h4>' . $branch_name . '</h4>
+                        </div>
+                        <div class="col-6 text-end">
+                            <h4 class="m-0"></h4>
+                            <h4 class="fw-bold">' . date('d/m/Y', strtotime($data['from_date'])) . ' TO ' . date('d/m/Y', strtotime($data['todate'])) . '</h4>
+                        </div>';
+
+        $data['tableheader'] = '<tr>
+                                <th scope="col">Sno</th>
+                                <th scope="col">DATE</th>
+                                <th scope="col">ITEM</th>
+                                <th scope="col">LOT NO</th>
+                                <th scope="col">QTY</th>
+                                <th scope="col">ISSUE RATE</th>
+                                <th scope="col">AMOUNT</th>
+                                <th scope="col">FROM BRANCH</th>
+                                <th scope="col">TO BRANCH</th>
+                                <th scope="col">TRANSFER REF</th>
+                                <th scope="col">ADDED BY</th>
+                            </tr>';
+
+        $all_value = $this->Report_model->transfer_ledger_data($data['from_date'], $data['todate'], $branch_id);
+
+        $tbody = '';
+        $total_qty = 0;
+        $total_amount = 0;
+
+        if (!empty($all_value)) {
+            foreach ($all_value as $i => $row) {
+                $total_qty += $row->m_purcs_qty;
+                $total_amount += $row->m_purcs_total;
+                $tbody .= '<tr>
+                <th scope="row">' . ($i + 1) . '</th>
+                <th scope="row">' . date('d/m/Y', strtotime($row->m_purcs_date)) . '</th>
+                <td>' . $row->m_item_name . '</td>
+                <td>' . $row->m_purcs_lot . '</td>
+                <td>' . $row->m_purcs_qty . '</td>
+                <td>' . $row->issue_rate . '</td>
+                <td>' . $row->m_purcs_total . '</td>
+                <td>' . ($row->from_branch_name ?: 'Main') . '</td>
+                <td>' . ($row->to_branch_name ?: 'Main') . '</td>
+                <td>' . $row->m_purcs_spo . '</td>
+                <td>' . ($row->added_by_name ?: 'Admin') . '</td>
+            </tr>';
+            }
+        } else {
+            $tbody = '<tr><td colspan="11" class="text-center">No transfer records found</td></tr>';
+        }
+
+        $data['Mainarray']  = $tbody;
+        $data['tablefoot']  = '<tr><th colspan="4">TOTAL</th><th>' . $total_qty . '</th><th></th><th>' . $total_amount . '</th><th colspan="4"></th></tr>';
+        $data['mainfooter'] = '<div class="text-end mt-2"><h4><strong>Total Transfers: ' . count($all_value) . '</strong> | Total Value: ₹' . $total_amount . '</h4></div>';
+
+        $this->load->view('afc_account', $data);
+    }
+
+    // Super Admin: outstanding balance summary across all branches
+    public function branch_outstanding()
+    {
+        $data = $this->login_details();
+        if ($this->session->userdata('user_type') != 8) {
+            show_error('Access Denied', 403);
+            return;
+        }
+
+        $data['pagename']   = "Branch Outstanding";
+        $data['exporttype'] = 1;
+        $data['pagelink']   = "";
+
+        $data['subhead'] = '<div class="col-6">
+                                <h4 class="m-0"><strong>Branch Outstanding</strong></h4>
+                            </div>
+                            <div class="col-6 text-end">
+                                <h4 class="m-0"><strong>As on ' . date('d/m/Y') . '</strong></h4>
+                            </div>';
+
+        $data['tableheader'] = '<tr>
+                                <th scope="col">Sno</th>
+                                <th scope="col">BRANCH</th>
+                                <th scope="col">MOBILE</th>
+                                <th scope="col">OUTSTANDING BALANCE</th>
+                                <th scope="col">ACTION</th>
+                            </tr>';
+
+        $all_value = $this->Report_model->branch_outstanding_list();
+        $tbody = '';
+        $total_balance = 0;
+
+        if (!empty($all_value)) {
+            foreach ($all_value as $i => $row) {
+                $total_balance += $row->m_user_balance;
+                $tbody .= '<tr>
+                <th scope="row">' . ($i + 1) . '</th>
+                <td>' . $row->m_user_name . '</td>
+                <td>' . $row->m_user_mobile . '</td>
+                <td>' . number_format($row->m_user_balance, 2) . '</td>
+                <td><a class="btn btn-primary btn-sm no-print" href="' . base_url('Reports/branch_ledger/' . $row->m_user_id) . '">View Ledger</a></td>
+            </tr>';
+            }
+        } else {
+            $tbody = '<tr><td colspan="5" class="text-center">No branches found</td></tr>';
+        }
+
+        $data['Mainarray']  = $tbody;
+        $data['tablefoot']  = '<tr><th colspan="3">TOTAL</th><th>' . number_format($total_balance, 2) . '</th><th></th></tr>';
+        $data['mainfooter'] = '<div class="text-end mt-2"><h4><strong>Total Outstanding: ₹' . number_format($total_balance, 2) . '</strong></h4></div>';
+
+        $this->load->view('afc_account', $data);
+    }
+
+    // Branch Ledger: Issue Bills (debit, branch owes more) vs Payments Received (credit)
+    public function branch_ledger($id = null)
+    {
+        $data = $this->login_details();
+        $user_type = $this->session->userdata('user_type');
+
+        if (!in_array($user_type, [8, 9])) {
+            show_error('Access Denied', 403);
+            return;
+        }
+
+        if ($user_type == 9) {
+            $branch_id = $this->session->userdata('user_id');
+        } else {
+            $branch_id = $id ?: $this->input->post('account_name');
+        }
+
+        if (empty($branch_id)) {
+            redirect('Reports/branch_outstanding');
+            return;
+        }
+
+        $branch_dtl = $this->Main_model->get_user_dtl($branch_id);
+
+        $data['pagename']   = "Branch Ledger";
+        $data['exporttype'] = 1;
+        $data['pagelink']   = "";
+
+        $data['from_date'] = $this->input->post('from_date') ?: date('Y-m-d', strtotime('-30 days'));
+        $data['todate']    = $this->input->post('to_date') ?: date('Y-m-d');
+
+        $data['subhead'] = '<div class="col-6">
+                                <h4 class="m-0"><strong>' . $branch_dtl->m_user_name . '</strong></h4>
+                            </div>
+                            <div class="col-6 text-end">
+                                <h4 class="m-0"><strong>Branch Ledger</strong></h4>
+                                <h4 class="fw-bold">' . date('d/m/Y', strtotime($data['from_date'])) . ' TO ' . date('d/m/Y', strtotime($data['todate'])) . '</h4>
+                            </div>';
+
+        $data['tableheader'] = '<tr>
+                                <th scope="col">Sno</th>
+                                <th scope="col">DATE</th>
+                                <th scope="col">PARTICULARS</th>
+                                <th scope="col">DEBIT (Issued)</th>
+                                <th scope="col">CREDIT (Paid)</th>
+                                <th scope="col">BALANCE</th>
+                            </tr>';
+
+        $opening_balance = $this->Report_model->get_branch_opening_balance($branch_id, $data['from_date']);
+        $balance = $opening_balance;
+
+        $rows = [];
+        foreach ($this->Report_model->branch_ledger_bills($branch_id, $data['from_date'], $data['todate']) as $b) {
+            $rows[] = ['date' => $b->m_purcs_date, 'particular' => 'Issue Bill No. ' . $b->m_purcs_spo . ' (Qty: ' . $b->tqty . ')', 'debit' => (float) $b->tamount, 'credit' => 0];
+        }
+        foreach ($this->Report_model->branch_ledger_payments($branch_id, $data['from_date'], $data['todate']) as $p) {
+            $rows[] = ['date' => $p->m_recvd_date, 'particular' => 'Payment Received No. ' . $p->m_recvd_voucher . (!empty($p->m_recvd_remark) ? ' (' . $p->m_recvd_remark . ')' : ''), 'debit' => 0, 'credit' => (float) $p->m_recvd_amount];
+        }
+
+        usort($rows, function ($a, $b) {
+            return strtotime($a['date']) - strtotime($b['date']);
+        });
+
+        $tbody = '<tr>
+            <th scope="row"></th>
+            <th scope="row">' . date('d/m/Y', strtotime($data['from_date'])) . '</th>
+            <th>Opening Balance</th>
+            <th>' . ($opening_balance > 0 ? number_format($opening_balance, 2) : '') . '</th>
+            <th>' . ($opening_balance < 0 ? number_format(abs($opening_balance), 2) : '') . '</th>
+            <th>' . number_format($opening_balance, 2) . '</th>
+        </tr>';
+
+        $total_debit = 0;
+        $total_credit = 0;
+
+        foreach ($rows as $i => $row) {
+            $balance += $row['debit'] - $row['credit'];
+            $total_debit += $row['debit'];
+            $total_credit += $row['credit'];
+            $tbody .= '<tr>
+                <th scope="row">' . ($i + 1) . '</th>
+                <th scope="row">' . date('d/m/Y', strtotime($row['date'])) . '</th>
+                <td>' . $row['particular'] . '</td>
+                <td>' . ($row['debit'] ? number_format($row['debit'], 2) : '') . '</td>
+                <td>' . ($row['credit'] ? number_format($row['credit'], 2) : '') . '</td>
+                <td>' . number_format($balance, 2) . '</td>
+            </tr>';
+        }
+
+        $data['Mainarray']  = $tbody;
+        $data['tablefoot']  = '<tr><th colspan="3">TOTAL</th><th>' . number_format($total_debit, 2) . '</th><th>' . number_format($total_credit, 2) . '</th><th>' . number_format($balance, 2) . '</th></tr>';
+        $data['mainfooter'] = '<div class="text-end mt-2"><h4><strong>Closing Balance: ₹' . number_format($balance, 2) . ' (Branch owes Head Office)</strong></h4></div>';
+
+        $this->load->view('afc_account', $data);
+    }
 
     //==========================Details===========================//
     protected function login_details()
@@ -2665,7 +2927,7 @@ class Reports extends CI_Controller
     protected function require_login()
     {
         $is_user_in = $this->session->userdata('is_user_in');
-        if (isset($is_user_in) || $is_user_in == true) {
+        if ($is_user_in == true) {
             return;
         } else if ($this->session->userdata('is_cust_in') == true) {
             redirect('Reports/account_ledger');
@@ -2677,7 +2939,7 @@ class Reports extends CI_Controller
     protected function ajax_login($nav_id = '')
     {
         $is_user_in = $this->session->userdata('is_user_in');
-        if (isset($is_user_in) || $is_user_in == true) {
+        if ($is_user_in == true) {
             return true;
         } else {
             echo json_encode(array('status' => 'error', 'message' => 'You are not Logged in Now!! Please login again.'));

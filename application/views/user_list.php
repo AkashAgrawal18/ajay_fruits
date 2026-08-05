@@ -65,10 +65,27 @@ if ($pgtype == 1) {
                             <input type="text" name="search_in" id="search_in" class="form-control" placeholder="Enter Name,mobile,city..." title="Enter Name/mobile/city to search" value="<?= $search_in ?>">
                         </div>
                     </div>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                    <div class="col-2">
+                        <div class="form-group">
+                            <label for="">Branch</label>
+                            <select name="branch_id" id="branch_id" class="form-select select2">
+                                <option value="">All Branches</option>
+                                <?php if (!empty($branch_list)) {
+                                    foreach ($branch_list as $branch) {
+                                        $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                                ?>
+                                        <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                <?php }
+                                } ?>
+                            </select>
+                        </div>
+                    </div>
+                    <?php } ?>
                     <div class="col-4 mt-4">
                         <button class="btn btn-info" type="submit"><i class="bi bi-search mx-1"></i> Search</button>
                         <a class="btn btn-danger" href="<?= base_url('Accounts/') . $paglink ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
-                        <a class="btn btn-primary" href="<?= base_url('Accounts/add_user?pgtype=') . $pgtype ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
+                        <a class="btn btn-primary" href="<?= base_url('Accounts/add_user?pgtype=' . $pgtype . (!empty($branch_id) ? '&branch_id=' . $branch_id : '')) ?>"><i class="bi bi-person-plus-fill"></i> Add New</a>
 
                     </div>
                 </form>
@@ -128,6 +145,9 @@ if ($pgtype == 1) {
                                         <td class="wd-30">
                                             <div class="d-flex">
                                                 <a href="<?php echo base_url('Accounts/add_user?type=' . $pgtype . '&id=') . $value->m_user_id; ?>" class="btn btn-info btn-sm p-1 me-1" title="Edit" data-toggle="tooltip"><i class="bi bi-pencil-square"></i></a>
+                                                <?php if (($pgtype == 1 || $pgtype == 9) && $this->session->userdata('user_type') == 8) { ?>
+                                                <button class="btn btn-secondary btn-sm view-password p-1 me-1" data-value="<?php echo $value->m_user_id; ?>" title="View Password" data-toggle="tooltip"><i class="bi bi-eye"></i></button>
+                                                <?php } ?>
                                                  <button class="btn btn-danger btn-sm delete-user p-1" data-value="<?php echo $value->m_user_id; ?>" title="Delete" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
                                             </div>
                                         </td>

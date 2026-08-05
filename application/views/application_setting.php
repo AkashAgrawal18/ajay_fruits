@@ -62,13 +62,13 @@
             <div class="col-md-2">
               <div class="form-group">
                 <label class="control-label">Login Password</label>
-                <input value="<?php echo $login_detail->m_user_pass  ?>" type="text" name="m_admin_pass" placeholder="App Password" class="form-control">
+                <input type="text" name="m_admin_pass" placeholder="Leave blank to keep current password" class="form-control">
               </div>
             </div>
             <div class="col-md-2">
               <div class="form-group">
                 <label class="control-label">Date Password</label>
-                <input value="<?php echo $app_details[0]->date_lock_password  ?>" type="text" name="date_lock_password" placeholder="App Date Password" class="form-control">
+                <input type="text" name="date_lock_password" placeholder="Leave blank to keep current password" class="form-control">
               </div>
             </div>
             <div class="col-md-2">

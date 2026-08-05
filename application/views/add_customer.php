@@ -39,7 +39,8 @@
             $address = $edit_value->m_cust_address;
             $trademark = $edit_value->m_cust_trademark;
             $loginid = $edit_value->m_cust_loginid;
-            $password = $edit_value->m_cust_password;
+            $password = '';
+            $cust_branch = $edit_value->m_cust_branch;
         } else {
             $id = '';
             $name = '';
@@ -60,6 +61,7 @@
             $trademark = '';
             $loginid = '';
             $password = '';
+            $cust_branch = !empty($branch_id) ? $branch_id : '';
         }
         $cv10 = isset($crateOP[0]) ? $crateOP[0] : 0;
         $cv20 = isset($crateOP[1]) ? $crateOP[1] : 0;
@@ -170,6 +172,17 @@
 
                         </select>
                     </div>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                    <div class="col-6">
+                        <label for="" class="mb-0 form-label small">Branch</label>
+                        <select name="m_cust_branch" id="m_cust_branch" class="form-control select2">
+                            <option value="0">Head Office</option>
+                            <?php foreach ($branch_list as $branch) { ?>
+                                <option value="<?= $branch->m_user_id ?>" <?= $cust_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                            <?php } ?>
+                        </select>
+                    </div>
+                    <?php } ?>
                     <div class="col-12">
                         <label for="" class="mb-0 form-label small">Address</label>
                         <textarea rows="3" class="form-control" name="m_cust_address" id="m_cust_address" value="<?= $address ?>" placeholder="enter full address"><?= $address ?></textarea>
@@ -240,7 +253,7 @@
 
                     <div class="col-6">
                         <label for="" class="mb-0 form-label small">Password</label>
-                        <input type="text" minlength="6" class="form-control" name="m_cust_password" id="m_cust_password" value="<?= $password ?>">
+                        <input type="text" minlength="6" class="form-control" name="m_cust_password" id="m_cust_password" value="<?= $password ?>" placeholder="<?= !empty($id) ? 'Leave blank to keep current password' : '' ?>">
                     </div>
 
 

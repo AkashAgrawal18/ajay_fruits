@@ -52,86 +52,76 @@ if (! function_exists('get_settings')) {
 
 
 
-if (! function_exists('has_perm')) {
+// Removed: currency(), currency_code_and_symbol() and get_frontend_settings().
+// They queried `settings`, `currency` and `frontend_settings`, none of which exist
+// in this schema, and nothing in the application called them (BUG-025).
 
+// Reversible encryption for staff/branch login passwords, kept alongside the
+// one-way password_hash() used for actual login (BUG-026 / superadmin
+// "view password" feature). Only ever call decrypt_password_for_admin() from
+// code already gated to superadmin - this deliberately undoes the hash.
+if (! function_exists('encrypt_password_for_admin')) {
 
-  function has_perm($userid, $module = '', $submodule = '', $field = '')
+  function encrypt_password_for_admin($plaintext)
   {
-    $CI  = &get_instance();
-    if (!empty($module)) {
-      $CI->db->where('m_userperm_module', $module);
-      $CI->db->where('m_userperm_list', 1);
+    if ($plaintext === '' || $plaintext === null) {
+      return '';
     }
-    if (!empty($submodule)) {
-      $CI->db->where('m_userperm_submodule', $submodule);
+
+    $CI = &get_instance();
+    $CI->config->load('integrations', TRUE, TRUE);
+    $secret = (string) $CI->config->item('password_enc_key', 'integrations');
+    if ($secret === '') {
+      return '';
     }
-    if (!empty($field)) {
-      if ($field == 'Edit') {
-        $CI->db->where('m_userperm_edit', 1);
-      }
-      if ($field == 'Delete') {
-        $CI->db->where('m_userperm_delete', 1);
-      }
-      if ($field == 'Add') {
-        $CI->db->where('m_userperm_add', 1);
-      }
-      if ($field == 'Filter') {
-        $CI->db->where('m_userperm_filter', 1);
-      }
-      if ($field == 'Export') {
-        $CI->db->where('m_userperm_export', 1);
-      }
+
+    $key    = hash('sha256', $secret, true);
+    $ivlen  = openssl_cipher_iv_length('aes-256-cbc');
+    $iv     = openssl_random_pseudo_bytes($ivlen);
+    $cipher = openssl_encrypt($plaintext, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+
+    if ($cipher === false) {
+      return '';
     }
-    return $CI->db->select('m_userperm_id')->where('m_userperm_userId', $userid)->get('master_user_permission_tbl')->row();
+
+    return base64_encode($iv . $cipher);
   }
 }
 
+if (! function_exists('decrypt_password_for_admin')) {
 
-if (! function_exists('currency')) {
-
-  function currency($price = "")
+  function decrypt_password_for_admin($encoded)
   {
-
-    $CI  = &get_instance();
-
-    $CI->load->database();
-
-    if ($price != "") {
-
-      $CI->db->where('key', 'system_currency');
-
-      $currency_code = $CI->db->get('settings')->row()->value;
-
-
-
-      $CI->db->where('code', $currency_code);
-
-      $symbol = $CI->db->get('currency')->row()->symbol;
-
-
-
-      $CI->db->where('key', 'currency_position');
-
-      $position = $CI->db->get('settings')->row()->value;
-
-
-
-      if ($position == 'right') {
-
-        return $price . ' ' . $symbol;
-      } elseif ($position == 'right-space') {
-
-        return $price . ' ' . $symbol;
-      } elseif ($position == 'left') {
-
-        return $symbol . ' ' . $price;
-      } elseif ($position == 'left-space') {
-
-        return $symbol . ' ' . $price;
-      }
+    if (empty($encoded)) {
+      return '';
     }
+
+    $CI = &get_instance();
+    $CI->config->load('integrations', TRUE, TRUE);
+    $secret = (string) $CI->config->item('password_enc_key', 'integrations');
+    if ($secret === '') {
+      return '';
+    }
+
+    $raw = base64_decode($encoded, true);
+    if ($raw === false) {
+      return '';
+    }
+
+    $key   = hash('sha256', $secret, true);
+    $ivlen = openssl_cipher_iv_length('aes-256-cbc');
+    if (strlen($raw) <= $ivlen) {
+      return '';
+    }
+
+    $iv     = substr($raw, 0, $ivlen);
+    $cipher = substr($raw, $ivlen);
+    $plain  = openssl_decrypt($cipher, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+
+    return $plain === false ? '' : $plain;
   }
 }
+
 if (! function_exists('IND_money_format')) {
 
   function IND_money_format($num)
@@ -157,55 +147,9 @@ if (! function_exists('IND_money_format')) {
 
 
 
-if (! function_exists('currency_code_and_symbol')) {
-
-  function currency_code_and_symbol($type = "")
-  {
-
-    $CI  = &get_instance();
-
-    $CI->load->database();
-
-    $CI->db->where('key', 'system_currency');
-
-    $currency_code = $CI->db->get('settings')->row()->value;
 
 
 
-    $CI->db->where('code', $currency_code);
-
-    $symbol = $CI->db->get('currency')->row()->symbol;
-
-    if ($type == "") {
-
-      return $symbol;
-    } else {
-
-      return $currency_code;
-    }
-  }
-}
-
-
-
-if (! function_exists('get_frontend_settings')) {
-
-  function get_frontend_settings($key = '')
-  {
-
-    $CI  = &get_instance();
-
-    $CI->load->database();
-
-
-
-    $CI->db->where('key', $key);
-
-    $result = $CI->db->get('frontend_settings')->row()->value;
-
-    return $result;
-  }
-}
 
 
 
@@ -270,9 +214,24 @@ if (! function_exists('ellipsis')) {
 if (! function_exists('get_sms_balance')) {
   function get_sms_balance()
   {
-    $url = 'http://sms.bulksmsind.in/getSMSCredit?username=Ajay%20Kushwaha&apikey=3f2f1020-d3ac-4b71-8027-040e44b12f4b';
-    $result = file_get_contents($url);
-    return $result;
+    // Credentials come from config/integrations.php (environment-backed).
+    // They used to be inline here and remain in git history — rotate them at
+    // the provider rather than relying on this move (BUG-022).
+    $CI = &get_instance();
+    $CI->config->load('integrations', TRUE, TRUE);
+
+    $username = (string) $CI->config->item('sms_username', 'integrations');
+    $apikey   = (string) $CI->config->item('sms_apikey', 'integrations');
+
+    if ($username === '' || $apikey === '') {
+      log_message('error', 'SMS credentials are not configured; skipping balance lookup.');
+      return '';
+    }
+
+    $url = 'http://sms.bulksmsind.in/getSMSCredit?username=' . rawurlencode($username)
+      . '&apikey=' . rawurlencode($apikey);
+
+    return @file_get_contents($url);
   }
 }
 

@@ -159,6 +159,27 @@ if ($is_cust_in == false) {
                                 </div>
                             </div>
                         </div>
+                        <?php if ($this->session->userdata('user_type') == 8) { ?>
+                        <div class="col-12">
+                            <div class="row align-items-center">
+                                <div class="col-auto" style="min-width: 100px;">
+                                    <label for="" class="mb-0 form-label small">Branch</label>
+                                </div>
+                                <div class="col-10">
+                                    <select name="branch_id" id="branch_id" class="form-select select2">
+                                        <option value="">All Branches</option>
+                                        <?php if (!empty($branch_list)) {
+                                            foreach ($branch_list as $branch) {
+                                                $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                                        ?>
+                                                <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                        <?php }
+                                        } ?>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <?php } ?>
                     </div>
                     <div class="d-flex flex-wrap align-items-center justify-content-start gap-3 mt-5">
                         <!-- <button class="btn btn-primary click-btn" id="btn-custblnc" data-linkk="<?= base_url('Reports/customer_balance_report') ?>" type="submit">Customer Balance</button> -->
@@ -267,6 +288,27 @@ if ($is_cust_in == false) {
                             </div>
                         </div>
                     </div>
+
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                    <div class="col-12">
+                        <div class="row g-4 align-items-center">
+                            <div class="col">
+                                <label for="" class="mb-0 form-label small">Branch</label>
+                            </div>
+                            <div class="col-10">
+                                <select name="branch_id" id="branch_id" class="form-select select2">
+                                    <option value="">All Branches</option>
+                                    <?php if (!empty($branch_list)) {
+                                        foreach ($branch_list as $branch) {
+                                    ?>
+                                        <option value="<?= $branch->m_user_id ?>"><?= $branch->m_user_name ?></option>
+                                    <?php }
+                                    } ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <?php } ?>
 
                     <div class="col-12" id="cust_div">
                         <div class="row g-4 align-items-center">
@@ -452,6 +494,27 @@ if ($is_cust_in == false) {
                                 </div>
                             </div>
                         </div>
+                        <?php if ($this->session->userdata('is_cust_in') == false && $this->session->userdata('user_type') == 8) { ?>
+                            <div class="col-12">
+                                <div class="row g-4 align-items-center">
+                                    <div class="col-2">
+                                        <label for="" class="mb-0 form-label small">Branch</label>
+                                    </div>
+                                    <div class="col-10">
+                                        <select name="branch_id" id="branch_id" class="form-select select2">
+                                            <option value="">All Branches</option>
+                                            <?php if (!empty($branch_list)) {
+                                                foreach ($branch_list as $branch) {
+                                                    $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                                            ?>
+                                                    <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
+                                            <?php }
+                                            } ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php } ?>
                         <?php if ($this->session->userdata('is_cust_in') == false) { ?>
                             <div class="col-12" id="cust_div">
                                 <div class="row g-4 align-items-center">
