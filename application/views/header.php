@@ -477,3 +477,29 @@
         </div>
     </nav>
 </header>
+
+<?php
+/**
+ * Outcome of a form post that redirected back here.
+ *
+ * The receipt / payment / voucher forms are ordinary posts, not AJAX: they
+ * throw the model's return value away and redirect, so a refused save used to
+ * come back as a silent page reload that looked exactly like success. The
+ * controllers now leave the reason in flashdata and it is shown here, on every
+ * page that includes the shared header.
+ */
+$flash_error   = $this->session->flashdata('form_error');
+$flash_success = $this->session->flashdata('form_success');
+if (!empty($flash_error) || !empty($flash_success)) : ?>
+    <script>
+        // JSON_HEX_TAG so a message can never close this <script> block - these
+        // strings are built from posted values (dates, ids).
+        // swal lives in footer.php, which has already run by DOMContentLoaded.
+        document.addEventListener('DOMContentLoaded', function() {
+            swal(<?= json_encode($flash_error ?: $flash_success, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>, {
+                icon: <?= $flash_error ? '"error"' : '"success"' ?>,
+                timer: <?= $flash_error ? 8000 : 2000 ?>,
+            });
+        });
+    </script>
+<?php endif; ?>

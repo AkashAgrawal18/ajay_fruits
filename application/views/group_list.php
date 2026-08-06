@@ -255,7 +255,7 @@
                                     <?php
                                     foreach ($group_dtl as $Svalue) {
 
-                                       if ($group == $Svalue->m_group_id) {
+                                       if (isset($grp_group) && $grp_group == $Svalue->m_group_id) {
                                           $option1 = "selected";
                                        } else {
                                           $option1 = "";

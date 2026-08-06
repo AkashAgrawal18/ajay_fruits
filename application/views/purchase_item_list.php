@@ -198,7 +198,7 @@
                                         <td><?php echo $value->m_purcs_spo; ?></td>
                                         <td><?php echo $value->m_purcs_lot; ?></td>
                                         <td><?php echo $value->m_item_name; ?></td>
-                                        <td><?php echo $value->m_purcs_price; ?></td>
+                                        <td><?php echo money2($value->m_purcs_price); ?></td>
                                         <td><?php echo $value->m_purcs_qty; ?></td>
                                         <td>
                                             <button class="btn btn-link p-0 show-lot-data text-primary" data-type="sale"

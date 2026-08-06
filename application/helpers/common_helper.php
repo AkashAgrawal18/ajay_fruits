@@ -122,26 +122,70 @@ if (! function_exists('decrypt_password_for_admin')) {
   }
 }
 
+if (! function_exists('money2')) {
+
+  /**
+   * A money amount as a plain string with exactly two decimals.
+   *
+   * Every amount column in this schema is a `double`, so sums drift (a customer
+   * balance is stored as 53946.078, and float addition yields tails like
+   * ...0000004). Use this wherever an amount is printed without thousands
+   * separators - form values, CSV/Excel cells, PDF cells, JSON.
+   */
+  function money2($num)
+  {
+    if ($num === null || $num === '' || !is_numeric($num)) {
+      return '0.00';
+    }
+    // +0 collapses "-0.00" to "0.00"
+    return number_format(round((float) $num, 2) + 0, 2, '.', '');
+  }
+}
+
 if (! function_exists('IND_money_format')) {
 
+  /**
+   * A money amount in Indian digit grouping (1,00,000.00) with exactly two
+   * decimals.
+   *
+   * The previous implementation split the integer and fractional parts by hand
+   * and got three things wrong:
+   *   -1234.56  -> "-1,234.-56"  (sprintf('%02d') keeps the fraction's sign)
+   *   -0.75     -> "0.-75"       ((int) of -0.75 is 0, so the sign vanished)
+   *   1234.999  -> "1,234.1"     (round() carried to 100, then rtrim ate the 0)
+   * and it trimmed trailing zeros, so amounts rendered with 0, 1 or 2 decimals
+   * depending on their value. Negative balances are ordinary here (a customer
+   * in credit), so the first two were visible in the balance and ledger pages.
+   *
+   * Formatting the rounded absolute value and re-applying the sign afterwards
+   * avoids all four problems.
+   */
   function IND_money_format($num)
   {
     if ($num === null || $num === '' || !is_numeric($num)) {
-      return '0';
+      return '0.00';
     }
 
-    $num = (float)$num;
-    $integer = (int)$num;
-    $decimal = rtrim(sprintf('%02d', round(($num - $integer) * 100)), '0');
+    $num = round((float) $num, 2);
+    $sign = ($num < 0) ? '-' : '';
+    $abs  = abs($num);
 
-    $str = (string)$integer;
-    if (strlen($str) > 3) {
-      $lastThree  = substr($str, -3);
-      $restUnits  = preg_replace('/\B(?=(\d{2})+(?!\d))/', ',', substr($str, 0, -3));
-      $str        = $restUnits . ',' . $lastThree;
+    // split on the rounded string so the carry in 1234.999 -> 1235.00 is kept
+    $fixed = number_format($abs, 2, '.', '');
+    list($int_part, $decimal) = explode('.', $fixed);
+
+    if (strlen($int_part) > 3) {
+      $lastThree = substr($int_part, -3);
+      $restUnits = preg_replace('/\B(?=(\d{2})+(?!\d))/', ',', substr($int_part, 0, -3));
+      $int_part  = $restUnits . ',' . $lastThree;
     }
 
-    return $str . ($decimal !== '' ? '.' . $decimal : '');
+    // "-0.00" reads wrong; a rounded-to-zero amount is just zero
+    if ($int_part === '0' && $decimal === '00') {
+      $sign = '';
+    }
+
+    return $sign . $int_part . '.' . $decimal;
   }
 }
 

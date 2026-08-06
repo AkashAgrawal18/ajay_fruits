@@ -225,3 +225,66 @@ ALTER TABLE `staff_itemissue_tbl`  MODIFY `si_issue_branch`  int(11) NOT NULL DE
 -- column explicitly - but inconsistent with the other branch columns.
 ALTER TABLE `master_sales_tbl`    MODIFY `m_sale_branch`  int(11) NOT NULL DEFAULT 0;
 ALTER TABLE `master_purchase_tbl` MODIFY `m_purcs_branch` int(11) NOT NULL DEFAULT 0;
+
+-- ============================================================================
+-- 2026-08-06 - Report performance indexes (BUG-L04)
+--
+-- Reports/cust_blncrate_report and Reports/turck_report both ran past PHP's
+-- max_execution_time (120s) and returned HTTP 500.
+--
+-- Root cause was two-part. The application side (per-customer / per-purchase
+-- query loops) is fixed in Report_model. The storage side is here: the balance
+-- queries filter master_sales_tbl by m_sale_customer, but the only composite
+-- index on that table starts with m_sale_lot, so the leftmost-prefix rule made
+-- it unusable and every lookup scanned all 87,895 rows. master_recieved_tbl
+-- (74,295 rows) and master_voucher_tbl had nothing but a PRIMARY KEY.
+--
+-- Purely additive - no data or column definitions change.
+-- Measured effect: crate balance report 120s timeout -> 5.9s,
+--                  truck report 120s timeout -> 7.1s over full history.
+-- ============================================================================
+ALTER TABLE `master_sales_tbl`
+  ADD INDEX `idx_sale_cust_date` (`m_sale_customer`, `m_sale_date`);
+
+ALTER TABLE `master_recieved_tbl`
+  ADD INDEX `idx_recvd_cust`         (`m_recvd_customer`, `m_recvd_account`, `m_recvd_type`, `m_recvd_date`),
+  ADD INDEX `idx_recvd_acct_cust_id` (`m_recvd_account`, `m_recvd_customer`, `m_recvd_id`),
+  ADD INDEX `idx_recvd_branch`       (`m_recvd_branch`);
+
+ALTER TABLE `master_voucher_tbl`
+  ADD INDEX `idx_voucher_acct` (`m_voucher_accountid`, `m_voucher_account`, `m_voucher_type`, `m_voucher_status`, `m_voucher_date`);
+
+-- ============================================================================
+-- 2026-08-06 - Two-decimal money handling (NOT APPLIED - for review)
+--
+-- Display is now fixed in code: common_helper.php gained money2() and a
+-- corrected IND_money_format(), and every money cell renders at two decimals.
+-- The statements below address the *storage* side and are deliberately left
+-- commented out, because rounding stored amounts changes financial records and
+-- is your decision, not a formatting change.
+--
+-- Why it matters: every amount column is `double`, so values drift. Rows whose
+-- stored value has more than two decimals, as of 2026-08-06:
+--     master_purchase_tbl.m_purcs_total     12
+--     master_users_tbl.m_user_balance        4
+--     master_sales_tbl.m_sale_price          2
+--     master_sales_tbl.m_sale_total          1
+--     master_customer_tbl.m_cust_balance     1
+--     master_voucher_tbl.m_voucher_amount    1
+-- (m_cust_balance / m_user_balance are caches the balance reports rewrite, so
+--  those two correct themselves the next time a balance report is run.)
+--
+-- Option A - round the stored values once, leaving the column types alone:
+-- UPDATE master_purchase_tbl SET m_purcs_total   = ROUND(m_purcs_total, 2)   WHERE m_purcs_total   <> ROUND(m_purcs_total, 2);
+-- UPDATE master_sales_tbl    SET m_sale_price    = ROUND(m_sale_price, 2)    WHERE m_sale_price    <> ROUND(m_sale_price, 2);
+-- UPDATE master_sales_tbl    SET m_sale_total    = ROUND(m_sale_total, 2)    WHERE m_sale_total    <> ROUND(m_sale_total, 2);
+-- UPDATE master_voucher_tbl  SET m_voucher_amount = ROUND(m_voucher_amount, 2) WHERE m_voucher_amount <> ROUND(m_voucher_amount, 2);
+--
+-- Option B - stop the drift at the source by moving money columns to DECIMAL,
+-- which stores exact base-10 values. Bigger change: test first, and note that
+-- MySQL will round existing values on conversion.
+-- ALTER TABLE `master_sales_tbl`    MODIFY `m_sale_total`     decimal(12,2) NOT NULL DEFAULT 0.00;
+-- ALTER TABLE `master_purchase_tbl` MODIFY `m_purcs_total`    decimal(12,2) NOT NULL DEFAULT 0.00;
+-- ALTER TABLE `master_recieved_tbl` MODIFY `m_recvd_amount`   decimal(12,2) NOT NULL DEFAULT 0.00;
+-- ALTER TABLE `master_voucher_tbl`  MODIFY `m_voucher_amount` decimal(12,2) NOT NULL DEFAULT 0.00;
+-- ============================================================================

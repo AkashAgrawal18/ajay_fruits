@@ -302,9 +302,9 @@
                                                                                     <td>' . $key->m_sale_qty . ' </td>
                                                                                     <td>' . $key->unitname . '</td>
                                                                                     <td>' . $key->m_sale_weight . '</td>
-                                                                                    <td>' . $key->m_sale_price . '</td>
+                                                                                    <td>' . money2($key->m_sale_price) . '</td>
                                                                                     <td>' . $key->cratetype . '</td>
-                                                                                    <td>' . $key->m_sale_total . '</td>
+                                                                                    <td>' . money2($key->m_sale_total) . '</td>
                                                                                    
                                                                                 </tr>';
                                                                                         }
@@ -346,24 +346,24 @@
                                                                                     <td>Commission</td>
                                                                                     <td>Percent</td>
                                                                                     <td><?= $value->m_sale_comrate ?></td>
-                                                                                    <td><?= $value->m_sale_comm ?></td>
+                                                                                    <td><?= money2($value->m_sale_comm) ?></td>
 
                                                                                     <td>Fright</td>
                                                                                     <td>Bill</td>
-                                                                                    <td><?= $value->m_sale_fright ?></td>
-                                                                                    <td><?= $value->m_sale_fright ?></td>
+                                                                                    <td><?= money2($value->m_sale_fright) ?></td>
+                                                                                    <td><?= money2($value->m_sale_fright) ?></td>
 
                                                                                 </tr>
                                                                                 <tr>
                                                                                     <td>Hamali</td>
                                                                                     <td>Bill</td>
-                                                                                    <td><?= $value->m_sale_hamali ?></td>
-                                                                                    <td><?= $value->m_sale_hamali ?></td>
+                                                                                    <td><?= money2($value->m_sale_hamali) ?></td>
+                                                                                    <td><?= money2($value->m_sale_hamali) ?></td>
 
                                                                                     <td>Other</td>
                                                                                     <td>Bill</td>
-                                                                                    <td><?= $value->m_sale_others ?></td>
-                                                                                    <td><?= $value->m_sale_others ?></td>
+                                                                                    <td><?= money2($value->m_sale_others) ?></td>
+                                                                                    <td><?= money2($value->m_sale_others) ?></td>
                                                                                 </tr>
 
                                                                             </tbody>

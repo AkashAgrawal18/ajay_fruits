@@ -1,6 +1,23 @@
 <?php date_default_timezone_set('Asia/Kolkata');
 class Master_model extends CI_model
 {
+  /** Why the last write failed - see Main_model for the rationale. */
+  protected $last_error = '';
+
+  /** Records why an operation failed and returns false. */
+  protected function fail($message)
+  {
+    $this->last_error = $message;
+    return false;
+  }
+
+  /** The reason for the last failure, then clears it. */
+  public function last_error()
+  {
+    $msg = $this->last_error;
+    $this->last_error = '';
+    return $msg;
+  }
 
   /**
    * Helper: returns the current branch ID from session.
@@ -83,11 +100,21 @@ class Master_model extends CI_model
     $machinename = $this->input->post('m_itgrp_title');
     $branch = $this->branch_id($this->input->post('m_itgrp_branch'));
 
+    // Item groups, units and crate sizes are three separate screens sharing
+    // this one table, told apart by m_itgrp_type. The duplicate check has to
+    // be scoped to the same type, or adding an item group named "Crate" is
+    // refused because a *unit* of that name exists.
+    $type = $this->input->post('m_itgrp_type');
+    $labels = array(1 => 'An item group', 2 => 'A unit', 3 => 'A crate size');
+    $label = isset($labels[$type]) ? $labels[$type] : 'A record';
+
     $this->where_branch('m_itgrp_branch', $branch);
-    $check = $this->db->where('m_itgrp_title', $machinename)->get('master_itemgroup_tbl')->result();
+    $check = $this->db->where('m_itgrp_title', $machinename)
+      ->where('m_itgrp_type', $type)
+      ->get('master_itemgroup_tbl')->result();
 
     if (!empty($check) && empty($machineid)) {
-      return 'This Name Already Store in the Database';
+      return $label . ' named "' . $machinename . '" already exists in this branch. Use a different name, or edit the existing one.';
     }
 
     $insert_data = array(
@@ -120,7 +147,13 @@ class Master_model extends CI_model
   {
     $this->where_branch('m_itgrp_branch', $branch_id);
     $this->db->where('m_itgrp_id', $this->input->post('delete_id'));
-    return $this->db->delete('master_itemgroup_tbl');
+    $this->db->delete('master_itemgroup_tbl');
+
+    // a delete that matched no rows is still a successful query
+    if ($this->db->affected_rows() < 1) {
+      return $this->fail('That unit/crate/group was not found. It may already have been deleted, or it belongs to a different branch.');
+    }
+    return true;
   }
 
   // ===================== item =======================//
@@ -186,6 +219,10 @@ class Master_model extends CI_model
     $this->where_branch('m_item_branch', $branch_id);
     $this->db->where('m_item_id', $this->input->post('delete_id'));
     $this->db->delete('master_item_tbl');
+
+    if ($this->db->affected_rows() < 1) {
+      return $this->fail('That item was not found. It may already have been deleted, or it belongs to a different branch.');
+    }
     return true;
   }
 
@@ -277,7 +314,12 @@ class Master_model extends CI_model
   {
     $this->where_branch('m_group_branch', $branch_id);
     $this->db->where('m_group_id', $this->input->post('delete_id'));
-    return $this->db->delete('master_group_tbl');
+    $this->db->delete('master_group_tbl');
+
+    if ($this->db->affected_rows() < 1) {
+      return $this->fail('That group was not found. It may already have been deleted, or it belongs to a different branch.');
+    }
+    return true;
   }
 
   public function get_payment_methods($branch_id = null)
@@ -323,7 +365,12 @@ class Master_model extends CI_model
   public function delete_state()
   {
     $this->db->where('m_state_id', $this->input->post('delete_id'));
-    return $this->db->delete('master_state_tbl');
+    $this->db->delete('master_state_tbl');
+
+    if ($this->db->affected_rows() < 1) {
+      return $this->fail('That state was not found. It may already have been deleted.');
+    }
+    return true;
   }
 
   public function get_all_city()
@@ -361,7 +408,12 @@ class Master_model extends CI_model
   public function delete_city()
   {
     $this->db->where('m_city_id', $this->input->post('delete_id'));
-    return $this->db->delete('master_city_tbl');
+    $this->db->delete('master_city_tbl');
+
+    if ($this->db->affected_rows() < 1) {
+      return $this->fail('That city was not found. It may already have been deleted.');
+    }
+    return true;
   }
 
   public function get_active_country()

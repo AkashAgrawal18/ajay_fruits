@@ -157,7 +157,7 @@
                                         <td><?php echo $account_type; ?></td>
                                         <td><?php echo $value->m_user_name; ?></td>
                                         <td><?= $value->m_voucher_type == 1 ? "Credit" : "Debit"; ?></td>
-                                        <td><?php echo $value->m_voucher_amount; ?></td>
+                                        <td><?php echo money2($value->m_voucher_amount); ?></td>
                                         <td><?php echo $value->m_voucher_remark  ?></td>
 
                                         <td class="actionth">

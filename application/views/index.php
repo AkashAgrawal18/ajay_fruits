@@ -54,7 +54,7 @@
                             <div class="d-flex flex-column pt-4 pb-3 text-center px-3 text-white text-shadow-1" style="min-height: 7.2rem; max-height: 7.5rem;">
                                 <h6 class="fw-bold">₹ <? //= $dashcounts->spcash_outstan 
                                                         ?></h6>
-                                    <smallIND_money_format( class="fw-bold) mb-0">Total Payable</smallIND_money_format>
+                                    <small class="fw-bold mb-0">Total Payable</small>
                                     <small class="mb-0">To Supplier</small>
 
                             </div>

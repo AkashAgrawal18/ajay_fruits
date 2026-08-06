@@ -100,8 +100,8 @@
                                 echo '<tr>
                         <td>' . $key->m_item_name . '</td>
                         <td>' . $key->m_sale_qty . ' ' . $key->unitname . '</td>
-                        <td>' . $key->m_sale_price . '</td>
-                        <td>' . $key->m_sale_total . '</td>
+                        <td>' . money2($key->m_sale_price) . '</td>
+                        <td>' . money2($key->m_sale_total) . '</td>
                     </tr>';
                             } ?>
                             <tr>

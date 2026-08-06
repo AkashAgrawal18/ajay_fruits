@@ -2,6 +2,41 @@
 
 class Main_model extends CI_model
 {
+  /** Crate item-groups, memoised per request (see get_opening_balance). */
+  private $crate_types_cache = null;
+
+  /**
+   * Why the last write failed.
+   *
+   * These methods signal failure by returning false, which left every caller
+   * with nothing to say but "Some problem Occurred!! please try again" - the
+   * same sentence whether the date was locked, the record belonged to another
+   * branch, or there was no stock. Failure paths now call fail() with the
+   * actual reason and the controller reports it.
+   */
+  protected $last_error = '';
+
+  /**
+   * Records why an operation failed and returns false, so failure paths can
+   * read `return $this->fail('...');`.
+   */
+  protected function fail($message)
+  {
+    $this->last_error = $message;
+    return false;
+  }
+
+  /**
+   * The reason for the last failure, then clears it - so a stale message from
+   * an earlier call in the same request can never be reported against a later
+   * one. Returns '' when the failure had no recorded reason.
+   */
+  public function last_error()
+  {
+    $msg = $this->last_error;
+    $this->last_error = '';
+    return $msg;
+  }
 
   /**
    * Helper: returns the current branch ID from session.
@@ -68,6 +103,21 @@ class Main_model extends CI_model
    * switched on. The lock used to be enforced only in the browser, so a crafted
    * POST could write straight into closed books (BUG-018).
    */
+  /**
+   * The message shown when a write is refused because its date is locked.
+   * Names the date and the cut-off, so the user knows why and what to do -
+   * "This date falls in a locked financial year" left them guessing which
+   * date was at fault on a multi-row form.
+   */
+  protected function locked_date_message($date)
+  {
+    $start = $this->financial_year_start();
+    return 'Entry dated ' . date('d-m-Y', strtotime($date))
+      . ' was refused: entries before ' . date('d-m-Y', strtotime($start))
+      . ' are locked for the closed financial year.'
+      . ' A super admin can unlock that period in Settings.';
+  }
+
   protected function date_is_locked($date)
   {
     if (empty($date)) {
@@ -199,6 +249,22 @@ class Main_model extends CI_model
 
     $branch = $this->branch_id($this->input->post('m_user_branch'));
 
+    // Login ids must be unique or the second account can never sign in:
+    // validate_user() resolves a login id with ->row() and takes the first
+    // match. Checked GLOBALLY (not per branch) because validate_user() does
+    // not filter by branch either. Blank ids are skipped - most accounts have
+    // none and they would all collide with each other.
+    $loginid = trim((string) $this->input->post('m_user_loginid'));
+    if ($loginid !== '') {
+      $this->db->where('m_user_loginid', $loginid);
+      if (!empty($userid)) {
+        $this->db->where('m_user_id !=', $userid);
+      }
+      if ($this->db->get('master_users_tbl')->num_rows() > 0) {
+        return 3;
+      }
+    }
+
     if (!empty($this->input->post('m_user_group'))) {
       $group = implode(',', $this->input->post('m_user_group'));
     } else {
@@ -265,7 +331,12 @@ class Main_model extends CI_model
       $this->db->update('master_users_tbl', $data);
       return 2;
     } else {
-      $data['m_user_branch']   = $this->is_superadmin() ? 0 : $branch;
+      // Honour the branch the form actually selected. branch_id() already
+      // resolves this per role (superadmin -> the posted override, everyone
+      // else -> their own branch), so forcing 0 for superadmin here made the
+      // Branch selector on add_user.php inert and orphaned every account it
+      // created onto branch 0. Matches insert_cust/insert_item/insert_group.
+      $data['m_user_branch']   = $branch ?? 0;
       $data['m_user_added_by'] = $this->session->userdata('user_id');
       $data['m_user_added_on'] = date('Y-m-d H:i:s');
       $this->db->insert('master_users_tbl', $data);
@@ -277,7 +348,14 @@ class Main_model extends CI_model
   {
     $this->db->where('m_user_id', $this->input->post('delete_id'));
     $this->where_branch('m_user_branch', $branch_id);
-    return $this->db->delete('master_users_tbl');
+    $this->db->delete('master_users_tbl');
+
+    // see delete_customer(): a delete that matched nothing is still a
+    // successful query, so it has to be checked explicitly
+    if ($this->db->affected_rows() < 1) {
+      return $this->fail('That account was not found. It may already have been deleted, or it belongs to a different branch.');
+    }
+    return true;
   }
 
   // ===================== customers =======================//
@@ -376,6 +454,13 @@ class Main_model extends CI_model
     $this->db->where('m_cust_id', $delete_id);
     $this->where_branch('m_cust_branch', $branch_id);
     $this->db->delete('master_customer_tbl');
+
+    // db->delete() reports success for a query that matched nothing, so a
+    // stale id or another branch's customer used to come back as "Deleted
+    // successfully" while the row was still there.
+    if ($this->db->affected_rows() < 1) {
+      return $this->fail('That customer was not found. They may already have been deleted, or they belong to a different branch.');
+    }
 
     $this->db->where('m_recvd_customer', $delete_id);
     $this->where_branch('m_recvd_branch', $branch_id);
@@ -525,6 +610,46 @@ class Main_model extends CI_model
     return $result;
   }
 
+  /**
+   * Every crate type's ledger for one customer in two queries instead of two
+   * per crate type. Same SQL as get_crate_ledger(), only grouped by crate
+   * rather than filtered to a single one, so the totals are identical.
+   *
+   * Returns array(crate_id => array('crate_given' => n, 'crate_rcvd' => n)).
+   */
+  public function get_crate_ledger_all($cust_id, $from_date = '', $today = '', $branch_id = null)
+  {
+    $out = array();
+
+    if ($today == 1) {
+      if (!empty($from_date)) $this->db->where('m_sale_date', $from_date);
+    } else {
+      if (!empty($from_date)) $this->db->where('m_sale_date <=', $from_date);
+    }
+    $this->db->select('sum(m_sale_crate) as tcrate, m_item_crate')
+      ->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
+      ->where('m_sale_customer', $cust_id);
+    $this->where_branch('master_sales_tbl.m_sale_branch', $branch_id);
+    foreach ($this->db->group_by('m_item_crate')->get('master_sales_tbl')->result() as $r) {
+      $out[$r->m_item_crate]['crate_given'] = $r->tcrate;
+    }
+
+    if ($today == 1) {
+      if (!empty($from_date)) $this->db->where('m_recvd_date', $from_date);
+    } else {
+      if (!empty($from_date)) $this->db->where('m_recvd_date <=', $from_date);
+    }
+    $this->db->select('sum(m_recvd_qty) as tcrateqty, m_recvd_crate')
+      ->where('m_recvd_customer', $cust_id)
+      ->where('m_recvd_type', 2);
+    $this->where_branch('master_recieved_tbl.m_recvd_branch', $branch_id);
+    foreach ($this->db->group_by('m_recvd_crate')->get('master_recieved_tbl')->result() as $r) {
+      $out[$r->m_recvd_crate]['crate_rcvd'] = $r->tcrateqty;
+    }
+
+    return $out;
+  }
+
   public function get_crate_ledger($crate_id, $cust_id, $from_date = '', $today = '', $branch_id = null)
   {
     // Crate given (via sales)
@@ -625,10 +750,19 @@ class Main_model extends CI_model
       "balance_amount" => $balance_amt,
     );
 
-    $all_crates       = $this->Master_model->all_itemgroup(3);
+    // The crate-type list is identical for every call; re-querying it per
+    // customer cost one query each on a report that loops all 534 of them.
+    if ($this->crate_types_cache === null) {
+      $this->crate_types_cache = $this->Master_model->all_itemgroup(3);
+    }
+    $all_crates       = $this->crate_types_cache;
     $openin_crate_bal = explode(',', $opening_bal->m_cust_crateOP);
+    $crate_ledgers    = $this->get_crate_ledger_all($cust_id, $from_date, '', $branch_id);
     foreach ($all_crates as $key) {
-      $crateledger = $this->get_crate_ledger($key->m_itgrp_id, $cust_id, $from_date, '', $branch_id);
+      $crateledger = array(
+        'crate_given' => $crate_ledgers[$key->m_itgrp_id]['crate_given'] ?? 0,
+        'crate_rcvd'  => $crate_ledgers[$key->m_itgrp_id]['crate_rcvd'] ?? 0,
+      );
       $crate_total    += ((int) $crateledger['crate_given'] - (int) $crateledger['crate_rcvd']);
       $total_given    += (int) $crateledger['crate_given'];
       $total_recieved += (int) $crateledger['crate_rcvd'];
@@ -663,11 +797,17 @@ class Main_model extends CI_model
     $custid = $this->input->post('m_cust_id');
     $branch = $this->branch_id($this->input->post('m_cust_branch'));
 
-    $this->db->where('m_cust_loginid', $this->input->post('m_cust_loginid'))
-      ->where('m_cust_id !=', $custid);
-    $this->where_branch('m_cust_branch', $branch);
-    $check = $this->db->get('master_customer_tbl')->num_rows();
-    if ($check > 0) return 3;
+    // Only a real login id can collide. Most customers have none, and the
+    // blank ones all share '' - running this check unconditionally matched
+    // those and refused every new customer that had no login id at all.
+    $loginid = trim((string) $this->input->post('m_cust_loginid'));
+    if ($loginid !== '') {
+      $this->db->where('m_cust_loginid', $loginid)
+        ->where('m_cust_id !=', $custid);
+      $this->where_branch('m_cust_branch', $branch);
+      $check = $this->db->get('master_customer_tbl')->num_rows();
+      if ($check > 0) return 3;
+    }
 
     if ($this->input->post('m_cust_typeopening') == 1) {
       $openingbal = $this->input->post('m_cust_opening') * -1;
@@ -811,6 +951,10 @@ class Main_model extends CI_model
     $this->db->where('m_custgrp_id', $this->input->post('delete_id'));
     $this->where_branch('m_custgrp_branch', $branch_id);
     $this->db->delete('master_custgroup_tbl');
+
+    if ($this->db->affected_rows() < 1) {
+      return $this->fail('That customer group was not found. It may already have been deleted, or it belongs to a different branch.');
+    }
     return true;
   }
 
@@ -1023,6 +1167,10 @@ class Main_model extends CI_model
     $this->where_branch('si_issue_branch', $branch_id);
     $issue_datil = $this->db->get('staff_itemissue_tbl')->result();
 
+    if (empty($issue_datil)) {
+      return $this->fail('Issue slip "' . $this->input->post('delete_id') . '" was not found. It may already have been cancelled, or it belongs to a different branch.');
+    }
+
     foreach ($issue_datil as $kry) {
       $this->update_cust_balance(null, null, ($kry->si_issue_qty * (-1)), $kry->si_issue_item, $kry->si_issue_lotno);
     }
@@ -1037,6 +1185,12 @@ class Main_model extends CI_model
     $this->db->where('si_issue_id', $this->input->post('delete_id'));
     $this->where_branch('si_issue_branch', $branch_id);
     $issue_datil = $this->db->get('staff_itemissue_tbl')->row();
+
+    // reading ->si_issue_qty off a missing row raised a PHP notice and then
+    // reported success without having reversed anything
+    if (empty($issue_datil)) {
+      return $this->fail('That issue line was not found. It may already have been cancelled, or it belongs to a different branch.');
+    }
 
     $this->update_cust_balance(null, null, ($issue_datil->si_issue_qty * (-1)), $issue_datil->si_issue_item, $issue_datil->si_issue_lotno);
     $this->db->set('si_issue_status', 0);
@@ -1381,7 +1535,7 @@ class Main_model extends CI_model
     // to raise a PHP error while the caller still reported success (BUG-008,
     // BUG-013).
     if (empty($sale_datil)) {
-      return false;
+      return $this->fail('Sale bill "' . $this->input->post('delete_id') . '" was not found. It may already have been deleted, or it belongs to a different branch.');
     }
 
     $pre_grandtotal = ($sale_datil[0]->m_sale_comm + $sale_datil[0]->m_sale_fright + $sale_datil[0]->m_sale_hamali + $sale_datil[0]->m_sale_others);
@@ -1403,6 +1557,10 @@ class Main_model extends CI_model
     $this->where_branch('m_sale_branch', $branch_id);
     $sale_datil = $this->db->select('m_sale_qty,m_sale_lot,m_sale_item,m_sale_customer,m_sale_total')
       ->get('master_sales_tbl')->row();
+
+    if (empty($sale_datil)) {
+      return $this->fail('That sale line was not found. It may already have been deleted, or it belongs to a different branch.');
+    }
 
     $this->update_cust_balance($sale_datil->m_sale_customer, ($sale_datil->m_sale_total * (-1)), ($sale_datil->m_sale_qty * (-1)), $sale_datil->m_sale_item, $sale_datil->m_sale_lot);
     $this->db->where('m_sale_id', $this->input->post('delete_id'));
@@ -1500,6 +1658,12 @@ class Main_model extends CI_model
 
     $supp_tm = $this->db->select('m_user_trademark')->where('m_user_type', 2)->where('m_user_id', $this->input->post('m_purcs_suplier'))->get('master_users_tbl')->row();
 
+    // the challan number is built from the supplier's trademark below; without
+    // this the whole save died on a null property read
+    if (empty($supp_tm)) {
+      return $this->fail('Please choose a supplier. The one selected is not on the supplier list for this branch.');
+    }
+
     $issue_id     = $this->input->post('m_purcs_id');
     $purchase     = $this->input->post('m_purcs_item');
     $issue_qty    = $this->input->post('m_purcs_qty');
@@ -1563,6 +1727,9 @@ class Main_model extends CI_model
         $this->db->where('m_purcs_id', $issue_id[$key]);
         $this->where_branch('m_purcs_branch', $branch);
         $purase_dtl = $this->db->select('m_purcs_spo')->get('master_purchase_tbl')->row();
+        if (empty($purase_dtl)) {
+          return $this->fail('One of the purchase lines being edited no longer exists, or belongs to a different branch. Reload the purchase and try again.');
+        }
         $purcs_spo  = $purase_dtl->m_purcs_spo;
         $this->db->where('m_purcs_id', $issue_id[$key]);
         $this->where_branch('m_purcs_branch', $branch);
@@ -1601,12 +1768,15 @@ class Main_model extends CI_model
     }
 
     // Expenses
-    $m_exp_id     = $this->input->post('m_exp_id');
-    $m_exp_name   = $this->input->post('m_exp_name');
-    $m_exp_amount = $this->input->post('m_exp_amount');
+    // A <select> with no <option>s posts nothing, so a branch with zero expense
+    // accounts makes these null and the loop below fatals mid-save - after the
+    // purchase rows and balance updates have already been written.
+    $m_exp_id     = $this->input->post('m_exp_id') ?: array();
+    $m_exp_name   = $this->input->post('m_exp_name') ?: array();
+    $m_exp_amount = $this->input->post('m_exp_amount') ?: array();
 
     foreach ($m_exp_name as $cou => $kky) {
-      if ($m_exp_amount[$cou] != null && $m_exp_amount[$cou] != '' && $m_exp_amount[$cou] != 0) {
+      if (isset($m_exp_amount[$cou]) && $m_exp_amount[$cou] != null && $m_exp_amount[$cou] != '' && $m_exp_amount[$cou] != 0) {
         $voucher_no   = $kky . '/' . $supp_tm->m_user_trademark . '/' . date('dms');
         $insertt_data = array(
           "m_exp_type"    => 1,
@@ -1643,7 +1813,7 @@ class Main_model extends CI_model
 
     // Same unchecked [0] as delete_sales() had (BUG-023).
     if (empty($pur_datil)) {
-      return false;
+      return $this->fail('Purchase "' . $this->input->post('delete_id') . '" was not found. It may already have been deleted, or it belongs to a different branch.');
     }
 
     $pre_grandtotal = ($pur_datil[0]->m_purcs_comm + $pur_datil[0]->m_purcs_fright + $pur_datil[0]->m_purcs_hamali + $pur_datil[0]->m_purcs_charity + $pur_datil[0]->m_purcs_packaging + $pur_datil[0]->m_purcs_loading + $pur_datil[0]->m_purcs_advance + $pur_datil[0]->m_purcs_others);
@@ -1669,6 +1839,11 @@ class Main_model extends CI_model
     $this->where_branch('m_purcs_branch', $branch_id);
     $pur_datil = $this->db->select('m_purcs_qty,m_purcs_lot')
       ->get('master_purchase_tbl')->row();
+
+    if (empty($pur_datil)) {
+      return $this->fail('That purchase line was not found. It may already have been deleted, or it belongs to a different branch.');
+    }
+
     $this->update_userbalance(null, null, ($pur_datil->m_purcs_qty * (-1)), null, $pur_datil->m_purcs_lot);
     $this->db->where('m_purcs_id', $this->input->post('delete_id'));
     $this->where_branch('m_purcs_branch', $branch_id);
@@ -1718,9 +1893,25 @@ class Main_model extends CI_model
 
       $src = $this->db->where('m_purcs_id', $lot_id)->get('master_purchase_tbl')->row();
 
-      if (!$src || $qty <= 0 || $rate <= 0 || $qty > $src->m_purcs_available) {
+      // These four refusals used to share one `return false`, so the screen
+      // said "check available stock and rate" even when the real problem was
+      // an unknown lot or a zero quantity.
+      if (!$src) {
         $this->db->trans_rollback();
-        return false;
+        return $this->fail('Lot "' . $lot_id . '" was not found, so nothing was transferred.');
+      }
+      if ($qty <= 0) {
+        $this->db->trans_rollback();
+        return $this->fail('Quantity for lot "' . $lot_id . '" must be more than 0. Nothing was transferred.');
+      }
+      if ($rate <= 0) {
+        $this->db->trans_rollback();
+        return $this->fail('Rate for lot "' . $lot_id . '" must be more than 0. Nothing was transferred.');
+      }
+      if ($qty > $src->m_purcs_available) {
+        $this->db->trans_rollback();
+        return $this->fail('Lot "' . $lot_id . '" has only ' . $src->m_purcs_available
+          . ' available but ' . $qty . ' was requested. Nothing was transferred.');
       }
 
       // reduce source (HO) availability
@@ -1855,7 +2046,7 @@ class Main_model extends CI_model
     $user_id         = $this->session->userdata('user_id');
 
     if ($this->date_is_locked($m_recvd_date)) {
-      return false;
+      return $this->fail($this->locked_date_message($m_recvd_date));
     }
 
     if ($m_recvd_type == 1) {
@@ -1950,7 +2141,10 @@ class Main_model extends CI_model
         }
       }
     }
-    return isset($res) ? $res : false;
+    if (!isset($res)) {
+      return $this->fail('Nothing was saved - every line had an amount of 0. Enter an amount against at least one line and save again.');
+    }
+    return $res;
   }
 
   public function update_recieved_data()
@@ -2025,6 +2219,10 @@ class Main_model extends CI_model
     $this->db->where('m_recvd_voucher', $delete_id);
     $this->where_branch('m_recvd_branch', $branch_id);
     $res_list  = $this->db->get('master_recieved_tbl')->result();
+
+    if (empty($res_list)) {
+      return $this->fail('Receipt "' . $delete_id . '" was not found. It may already have been deleted, or it belongs to a different branch.');
+    }
 
     if (!empty($res_list)) {
       $crate_mapping = [20 => 'm_cust_10bal', 13 => 'm_cust_20bal', 14 => 'm_cust_25bal'];
@@ -2110,7 +2308,7 @@ class Main_model extends CI_model
     $m_payment_account = $this->input->post('m_payment_account');
 
     if ($this->date_is_locked($m_payment_date)) {
-      return false;
+      return $this->fail($this->locked_date_message($m_payment_date));
     }
 
     if ($m_payment_type == 1) {
@@ -2188,7 +2386,10 @@ class Main_model extends CI_model
         }
       }
     }
-    return $res ?? false;
+    if (!isset($res)) {
+      return $this->fail('Nothing was saved - every line had an amount of 0. Enter an amount against at least one line and save again.');
+    }
+    return $res;
   }
 
   public function update_payment_data()
@@ -2252,6 +2453,10 @@ class Main_model extends CI_model
     $this->db->where('m_payment_voucher', $delete_id);
     $this->where_branch('m_payment_branch', $branch_id);
     $res_list  = $this->db->get('master_payment_tbl')->result();
+
+    if (empty($res_list)) {
+      return $this->fail('Payment "' . $delete_id . '" was not found. It may already have been deleted, or it belongs to a different branch.');
+    }
 
     if (!empty($res_list)) {
       $crate_mapping = [20 => 'm_user_10bal', 13 => 'm_user_20bal', 14 => 'm_user_25bal'];
@@ -2321,7 +2526,7 @@ class Main_model extends CI_model
     $insertBatch         = [];
 
     if ($this->date_is_locked($postData['m_voucher_date'] ?? null)) {
-      return false;
+      return $this->fail($this->locked_date_message($postData['m_voucher_date']));
     }
 
     foreach ($m_voucher_accountid as $index => $accountId) {
@@ -2362,7 +2567,7 @@ class Main_model extends CI_model
       $this->db->insert_batch('master_voucher_tbl', $insertBatch);
       return true;
     }
-    return false;
+    return $this->fail('Nothing was saved - every line had an amount of 0. Enter an amount against at least one line and save again.');
   }
 
   public function update_voucher_data()
@@ -2431,6 +2636,10 @@ class Main_model extends CI_model
     $this->db->where('m_voucher_id', $delete_id);
     $this->where_branch('m_voucher_branch', $branch_id);
     $res  = $this->db->get('master_voucher_tbl')->row();
+
+    if (empty($res)) {
+      return $this->fail('Voucher "' . $delete_id . '" was not found. It may already have been deleted, or it belongs to a different branch.');
+    }
 
     if ($res->m_voucher_type == 1 && $res->m_voucher_account != 1 && $res->m_voucher_account != 3) {
       $this->update_userbalance($res->m_voucher_accountid, ($res->m_voucher_amount * (-1)));
@@ -2833,6 +3042,12 @@ class Main_model extends CI_model
     $m_app_black_logo = $this->_upload_setting_image('m_app_black_logo', 'app_black_logo');
     $m_app_white_logo = $this->_upload_setting_image('m_app_white_logo', 'app_white_logo');
 
+    // Refuse the whole save rather than storing the other settings and quietly
+    // dropping the image the user picked.
+    if (!empty($this->upload_errors)) {
+      return $this->fail('Image upload failed - no settings were saved. ' . implode(' ', $this->upload_errors));
+    }
+
     $data = array(
       "m_app_name"          => $this->input->post('m_app_name'),
       "m_app_title"         => $this->input->post('m_app_title'),
@@ -2878,6 +3093,14 @@ class Main_model extends CI_model
     return true;
   }
 
+  /**
+   * Reasons any image upload in this request was rejected, so the caller can
+   * say which one and why. A failed upload used to fall through to the old
+   * filename silently, and the user was told the settings saved fine while
+   * their new logo had been discarded.
+   */
+  private $upload_errors = array();
+
   /** Helper to reduce upload repetition in update_application_settings */
   private function _upload_setting_image($field, $fallback_post)
   {
@@ -2893,6 +3116,7 @@ class Main_model extends CI_model
       if ($this->upload->do_upload($field)) {
         return $this->upload->data()['file_name'];
       }
+      $this->upload_errors[] = $field . ': ' . trim(strip_tags($this->upload->display_errors('', '')));
     }
     return $this->input->post($fallback_post);
   }

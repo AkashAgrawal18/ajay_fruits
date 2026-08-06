@@ -165,7 +165,7 @@ class Master extends CI_Controller
 			} else {
 				$info = array(
 					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
+					'message' => $this->Master_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
 				);
 			}
 			echo json_encode($info);
@@ -186,7 +186,7 @@ class Master extends CI_Controller
 			} else {
 				$info = array(
 					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
+					'message' => $this->Master_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
 				);
 			}
 			echo json_encode($info);
@@ -241,7 +241,7 @@ class Master extends CI_Controller
 			} else {
 				$info = array(
 					'status' => 'error',
-					'message' => 'Some item Occurred!! please try again'
+					'message' => $this->Master_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
 				);
 			}
 			echo json_encode($info);
@@ -262,7 +262,7 @@ class Master extends CI_Controller
 			} else {
 				$info = array(
 					'status' => 'error',
-					'message' => 'Some item Occurred!! please try again'
+					'message' => $this->Master_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
 				);
 			}
 			echo json_encode($info);
@@ -386,7 +386,7 @@ public function insert_group()
 		} else {
 			$info = array(
 				'status' => 'error',
-				'message' => 'Some problem Occurred!! please try again'
+				'message' => $this->Master_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
 			);
 		}
 		echo json_encode($info);
@@ -408,7 +408,7 @@ public function delete_group()
 		} else {
 			$info = array(
 				'status' => 'error',
-				'message' => 'Some problem Occurred!! please try again'
+				'message' => $this->Master_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
 			);
 		}
 		echo json_encode($info);
@@ -471,7 +471,7 @@ public function delete_group()
 			} else {
 				$info = array(
 					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
+					'message' => $this->Master_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
 				);
 			}
 			echo json_encode($info);
@@ -493,7 +493,7 @@ public function delete_group()
 			} else {
 				$info = array(
 					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
+					'message' => $this->Master_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
 				);
 			}
 			echo json_encode($info);
@@ -584,7 +584,7 @@ public function delete_group()
 			} else {
 				$info = array(
 					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
+					'message' => $this->Master_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
 				);
 			}
 			echo json_encode($info);
@@ -605,7 +605,7 @@ public function delete_group()
 			} else {
 				$info = array(
 					'status' => 'error',
-					'message' => 'Some problem Occurred!! please try again'
+					'message' => $this->Master_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
 				);
 			}
 			echo json_encode($info);

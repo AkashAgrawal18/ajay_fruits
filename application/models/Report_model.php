@@ -194,11 +194,203 @@ class Report_model extends CI_model
     return $data;
   }
 
-  public function get_item_stock_list($from = '', $to = '', $item = '')
+  /**
+   * Every figure the crate-balance report needs, for ALL customers, as of one
+   * cut-off date - in six grouped queries instead of ~12 per customer.
+   *
+   * Each query is the set-based form of the matching per-customer query in
+   * Main_model::get_opening_balance()/get_crate_ledger(), so the arithmetic
+   * that the caller then performs is unchanged.
+   *
+   * Returns array(cust_id => array(
+   *   'grand_total','sub_total','total_expense','amount_rcvd',
+   *   'vouch_cdt','vouch_dbt','crates' => array(crate_id => array('given','rcvd'))
+   * ))
+   */
+  public function balance_snapshot($upto_date, $branch_id = null)
   {
-    $branch    = $this->branch_id();   // resolved once
+    $branch = $this->branch_id($branch_id);
+    $bw = ($branch !== null);
+    $out = array();
+
+    $row = function ($cid) use (&$out) {
+      if (!isset($out[$cid])) {
+        $out[$cid] = array(
+          'sub_total' => 0, 'total_expense' => 0, 'grand_total' => 0,
+          'amount_rcvd' => 0, 'vouch_cdt' => 0, 'vouch_dbt' => 0,
+          'crates' => array(),
+        );
+      }
+      return $cid;
+    };
+
+    // --- sales: inner group by SPO (header expenses are per-SPO), then by customer.
+    // Grouped by (customer, SPO), not SPO alone: a handful of SPOs carry rows for
+    // more than one customer, and the per-customer query this replaces filtered
+    // by customer before grouping. Grouping by SPO alone would hand one such
+    // SPO's whole total to whichever customer MySQL happened to pick.
+    $sql = 'SELECT cid, SUM(sub_total) st, SUM(texpense) te FROM (
+              SELECT m_sale_customer cid, SUM(m_sale_total) sub_total,
+                     (m_sale_comm+m_sale_fright+m_sale_hamali+m_sale_others) texpense
+              FROM master_sales_tbl
+              WHERE 1=1' . (!empty($upto_date) ? ' AND m_sale_date <= ' . $this->db->escape($upto_date) : '')
+      . ($bw ? ' AND m_sale_branch = ' . (int) $branch : '') . '
+              GROUP BY m_sale_customer, m_sale_spo) t GROUP BY cid';
+    foreach ($this->db->query($sql)->result() as $r) {
+      $row($r->cid);
+      $out[$r->cid]['sub_total']     = (float) $r->st;
+      $out[$r->cid]['total_expense'] = (float) $r->te;
+      $out[$r->cid]['grand_total']   = (float) $r->st + (float) $r->te;
+    }
+
+    // --- receipts
+    $sql = 'SELECT m_recvd_customer cid, SUM(m_recvd_amount) amt
+            FROM master_recieved_tbl
+            WHERE m_recvd_account = 1 AND m_recvd_type = 1'
+      . (!empty($upto_date) ? ' AND m_recvd_date <= ' . $this->db->escape($upto_date) : '')
+      . ($bw ? ' AND m_recvd_branch = ' . (int) $branch : '') . ' GROUP BY cid';
+    foreach ($this->db->query($sql)->result() as $r) {
+      $row($r->cid);
+      $out[$r->cid]['amount_rcvd'] = (float) $r->amt;
+    }
+
+    // --- vouchers, credit (type 1) and debit (type 2) in one pass
+    $sql = 'SELECT m_voucher_accountid cid, m_voucher_type vt, SUM(m_voucher_amount) amt
+            FROM master_voucher_tbl
+            WHERE m_voucher_account = 1 AND m_voucher_status = 1
+              AND m_voucher_type IN (1,2)'
+      . (!empty($upto_date) ? ' AND m_voucher_date <= ' . $this->db->escape($upto_date) : '')
+      . ($bw ? ' AND m_voucher_branch = ' . (int) $branch : '') . ' GROUP BY cid, vt';
+    foreach ($this->db->query($sql)->result() as $r) {
+      $row($r->cid);
+      $out[$r->cid][$r->vt == 1 ? 'vouch_cdt' : 'vouch_dbt'] = (float) $r->amt;
+    }
+
+    // --- crates given (sales)
+    $sql = 'SELECT s.m_sale_customer cid, mit.m_item_crate crate, SUM(s.m_sale_crate) q
+            FROM master_sales_tbl s
+            LEFT JOIN master_item_tbl mit ON mit.m_item_id = s.m_sale_item
+            WHERE 1=1' . (!empty($upto_date) ? ' AND s.m_sale_date <= ' . $this->db->escape($upto_date) : '')
+      . ($bw ? ' AND s.m_sale_branch = ' . (int) $branch : '') . ' GROUP BY cid, crate';
+    foreach ($this->db->query($sql)->result() as $r) {
+      $row($r->cid);
+      $out[$r->cid]['crates'][$r->crate]['given'] = (int) $r->q;
+    }
+
+    // --- crates received
+    $sql = 'SELECT m_recvd_customer cid, m_recvd_crate crate, SUM(m_recvd_qty) q
+            FROM master_recieved_tbl
+            WHERE m_recvd_type = 2'
+      . (!empty($upto_date) ? ' AND m_recvd_date <= ' . $this->db->escape($upto_date) : '')
+      . ($bw ? ' AND m_recvd_branch = ' . (int) $branch : '') . ' GROUP BY cid, crate';
+    foreach ($this->db->query($sql)->result() as $r) {
+      $row($r->cid);
+      $out[$r->cid]['crates'][$r->crate]['rcvd'] = (int) $r->q;
+    }
+
+    return $out;
+  }
+
+  /**
+   * Shapes one balance_snapshot() entry into the same array get_opening_balance()
+   * returns, so callers keep doing the identical arithmetic on it.
+   *
+   * $cust must carry m_cust_opening and m_cust_crateOP (get_cust_list selects *).
+   * $all_crates is Master_model::all_itemgroup(3), fetched once by the caller.
+   */
+  public function snapshot_row($snapshot, $cust, $all_crates)
+  {
+    $s = $snapshot[$cust->m_cust_id] ?? array(
+      'sub_total' => 0, 'total_expense' => 0, 'grand_total' => 0,
+      'amount_rcvd' => 0, 'vouch_cdt' => 0, 'vouch_dbt' => 0, 'crates' => array(),
+    );
+
+    $result = array(
+      'cust_name'       => $cust->m_cust_name,
+      'm_cust_hndiname' => $cust->m_cust_hndiname ?? '',
+      'cust_mobile'     => $cust->m_cust_mobile,
+      'sub_total'       => $s['sub_total'],
+      'total_expense'   => $s['total_expense'],
+      'grand_total'     => $s['grand_total'],
+      'amount_rcvd'     => $s['amount_rcvd'] ?: 0,
+      'balance_amount'  => $cust->m_cust_opening
+        + (($s['grand_total'] + $s['vouch_dbt']) - ($s['amount_rcvd'] + $s['vouch_cdt'])),
+    );
+
+    $openin_crate_bal = explode(',', (string) $cust->m_cust_crateOP);
+    $crate_total = $total_given = $total_recieved = 0;
+    $result['crateitems'] = array();
+
+    foreach ($all_crates as $key) {
+      $given = (int) ($s['crates'][$key->m_itgrp_id]['given'] ?? 0);
+      $rcvd  = (int) ($s['crates'][$key->m_itgrp_id]['rcvd'] ?? 0);
+      $crate_total    += ($given - $rcvd);
+      $total_given    += $given;
+      $total_recieved += $rcvd;
+
+      if ($key->m_itgrp_title == '10 KG') {
+        $crattype_bal = $openin_crate_bal[0] ?? 0;
+      } else if ($key->m_itgrp_title == '20 KG') {
+        $crattype_bal = $openin_crate_bal[1] ?? 0;
+      } else if ($key->m_itgrp_title == '25 KG') {
+        $crattype_bal = $openin_crate_bal[2] ?? 0;
+      } else {
+        $crattype_bal = 0;
+      }
+
+      $result['crateitems'][] = array(
+        'name'    => $key->m_itgrp_title,
+        'recived' => $rcvd,
+        'given'   => $given,
+        'balance' => ((int) $crattype_bal + $given - $rcvd),
+      );
+    }
+
+    $result['crate_given']    = $total_given;
+    $result['crate_recieved'] = $total_recieved;
+    $result['balance_crate']  = array_sum(explode(',', (string) $cust->m_cust_crateOP)) + $crate_total;
+
+    return $result;
+  }
+
+  /**
+   * customer id => date of that customer's most recent sale.
+   * Matches the per-customer "order by m_sale_id desc, take first" rule the
+   * crate-balance report used to run once per customer.
+   */
+  public function last_sale_date_map()
+  {
+    $sql = 'SELECT s.m_sale_customer AS cid, s.m_sale_date AS d
+            FROM master_sales_tbl s
+            JOIN (SELECT MAX(m_sale_id) AS mid FROM master_sales_tbl
+                  GROUP BY m_sale_customer) t ON t.mid = s.m_sale_id';
+    $map = array();
+    foreach ($this->db->query($sql)->result() as $r) {
+      $map[$r->cid] = $r->d;
+    }
+    return $map;
+  }
+
+  /** customer id => date of that customer's most recent receipt (account 1). */
+  public function last_receipt_date_map()
+  {
+    $sql = 'SELECT r.m_recvd_customer AS cid, r.m_recvd_date AS d
+            FROM master_recieved_tbl r
+            JOIN (SELECT MAX(m_recvd_id) AS mid FROM master_recieved_tbl
+                  WHERE m_recvd_account = 1
+                  GROUP BY m_recvd_customer) t ON t.mid = r.m_recvd_id';
+    $map = array();
+    foreach ($this->db->query($sql)->result() as $r) {
+      $map[$r->cid] = $r->d;
+    }
+    return $map;
+  }
+
+  public function get_item_stock_list($from = '', $to = '', $item = '', $branch_id = null)
+  {
+    $branch    = $this->branch_id($branch_id);   // resolved once
     $result    = [];
-    $all_items = $this->Master_model->get_all_item($item);
+    $all_items = $this->Master_model->get_all_item($item, $branch);
     if (empty($all_items)) return [];
 
     $purchase_data = $this->get_purchase_aggregate($from, $to, $branch);
@@ -1153,6 +1345,29 @@ class Report_model extends CI_model
     return ($type == 1) ? $purdetail : $result;
   }
 
+  /**
+   * A pre-escaped "col IN (...)" fragment, to be passed with $escape = FALSE.
+   *
+   * where_in() with a few thousand values builds a condition string long enough
+   * that CI's identifier-protection regex in DB_query_builder::_compile_wh()
+   * exceeds PCRE's compiled-pattern limit and logs "regular expression is too
+   * large". Passing escape = FALSE short-circuits that path entirely, so the
+   * values are escaped here instead.
+   */
+  private function in_clause($column, array $values, $numeric = false)
+  {
+    $values = array_values(array_unique($values));
+    if (empty($values)) {
+      return '1=0';
+    }
+    if ($numeric) {
+      $vals = array_map('intval', $values);
+    } else {
+      $vals = array_map(array($this->db, 'escape'), $values);
+    }
+    return $column . ' IN (' . implode(',', $vals) . ')';
+  }
+
   public function get_truck_report($fromdate, $todate, $supplier = '')
   {
     $branch       = $this->branch_id();
@@ -1160,37 +1375,85 @@ class Report_model extends CI_model
     $all_purchase = $this->Main_model->purchase_group($fromdate, $todate, $supplier);
 
     if (!empty($all_purchase)) {
+      // Everything the loop needs, prefetched in four grouped queries. This
+      // used to run two queries per purchase plus one per purchase line and one
+      // per linked sale bill, which on the unbounded default range ran past
+      // max_execution_time and returned a 500.
+      $spos = array_values(array_unique(array_column((array) $all_purchase, 'm_purcs_spo')));
+
+      // purchase lines, keyed by SPO
+      $this->db->select('m_purcs_spo, m_purcs_id, m_purcs_item')->where($this->in_clause('m_purcs_spo', $spos), null, false);
+      if ($branch !== null) $this->db->where('m_purcs_branch', $branch);
+      $lines_by_spo = [];
+      $lot_ids = [];
+      foreach ($this->db->get('master_purchase_tbl')->result() as $r) {
+        $lines_by_spo[$r->m_purcs_spo][] = $r;
+        $lot_ids[] = $r->m_purcs_id;
+      }
+
+      // internal expenses, keyed by SPO
+      $this->db->select('master_expenses_tbl.*, expense.m_group_name as expense_name')
+        ->join('master_group_tbl as expense', 'expense.m_group_id = master_expenses_tbl.m_exp_name', 'left')
+        ->where($this->in_clause('m_exp_accno', $spos), null, false);
+      if ($branch !== null) $this->db->where('m_exp_branch', $branch);
+      $exp_by_spo = [];
+      foreach ($this->db->get('master_expenses_tbl')->result() as $r) {
+        $exp_by_spo[$r->m_exp_accno][] = $r;
+      }
+
+      // sale totals per (lot, item)
+      $sale_by_lot = [];
+      if (!empty($lot_ids)) {
+        $this->db->select('m_sale_lot, m_sale_item, sum(m_sale_qty) as saleqty, sum(m_sale_weight) as saleweight, sum(m_sale_total) as saletotal, Group_CONCAT(m_sale_spo) as m_sale_spo')
+          ->where($this->in_clause('m_sale_lot', $lot_ids, true), null, false);
+        if ($branch !== null) $this->db->where('m_sale_branch', $branch);
+        foreach ($this->db->group_by('m_sale_lot, m_sale_item')->get('master_sales_tbl')->result() as $r) {
+          $sale_by_lot[$r->m_sale_lot . '|' . $r->m_sale_item] = $r;
+        }
+      }
+
+      // per-bill sale expenses, for every sale bill those lots fed
+      $exp_by_sale_spo = [];
+      $sale_spos = [];
+      foreach ($sale_by_lot as $r) {
+        foreach (explode(',', (string) $r->m_sale_spo) as $s) {
+          if ($s !== '') $sale_spos[$s] = true;
+        }
+      }
+      if (!empty($sale_spos)) {
+        $this->db->select('m_sale_spo, m_sale_comm, m_sale_fright, m_sale_hamali, m_sale_others, (m_sale_comm+m_sale_fright+m_sale_hamali+m_sale_others) as saleexp')
+          ->where($this->in_clause('m_sale_spo', array_keys($sale_spos)), null, false);
+        if ($branch !== null) $this->db->where('m_sale_branch', $branch);
+        foreach ($this->db->group_by('m_sale_spo')->get('master_sales_tbl')->result() as $r) {
+          $exp_by_sale_spo[$r->m_sale_spo] = $r;
+        }
+      }
+
       foreach ($all_purchase as $cau) {
-        $purchase_detail = $this->Main_model->get_edit_purchase($cau->m_purcs_spo);
-        $internal_exp    = $this->Main_model->get_purchase_expense($cau->m_purcs_spo);
+        $purchase_detail = $lines_by_spo[$cau->m_purcs_spo] ?? [];
+        $internal_exp    = $exp_by_spo[$cau->m_purcs_spo] ?? [];
         $Tsaleqty = $Tsaleweight = $Tsaletotal = $sale_comm = $sale_fright = $sale_hamali = $sale_others = $saleexp = 0;
         $sal_spo  = [];
 
         foreach ($purchase_detail as $key) {
-          $this->db->select('sum(m_sale_qty) as saleqty,sum(m_sale_weight) as saleweight,sum(m_sale_total) as saletotal,Group_CONCAT(m_sale_spo) as m_sale_spo')
-            ->where('m_sale_lot', $key->m_purcs_id)->where('m_sale_item', $key->m_purcs_item);
-          if ($branch !== null) $this->db->where('m_sale_branch', $branch);
-          $sale_datail = $this->db->get('master_sales_tbl')->result();
-          if (!empty($sale_datail)) {
-            $sal_spo[]    = $sale_datail[0]->m_sale_spo;
-            $Tsaleqty    += $sale_datail[0]->saleqty;
-            $Tsaleweight += $sale_datail[0]->saleweight;
-            $Tsaletotal  += $sale_datail[0]->saletotal;
+          $sale_datail = $sale_by_lot[$key->m_purcs_id . '|' . $key->m_purcs_item] ?? null;
+          if ($sale_datail) {
+            $sal_spo[]    = $sale_datail->m_sale_spo;
+            $Tsaleqty    += $sale_datail->saleqty;
+            $Tsaleweight += $sale_datail->saleweight;
+            $Tsaletotal  += $sale_datail->saletotal;
           }
         }
 
         $sale_spo_uni = array_unique(explode(',', implode(',', $sal_spo)));
         foreach ($sale_spo_uni as $kry) {
-          $this->db->select('m_sale_comm,m_sale_fright,m_sale_hamali,m_sale_others,(m_sale_comm+m_sale_fright+m_sale_hamali+m_sale_others) as saleexp')
-            ->where('m_sale_spo', $kry);
-          if ($branch !== null) $this->db->where('m_sale_branch', $branch);
-          $sale_expense = $this->db->group_by('m_sale_spo')->get('master_sales_tbl')->result();
-          if (!empty($sale_expense)) {
-            $sale_comm   += $sale_expense[0]->m_sale_comm;
-            $sale_fright += $sale_expense[0]->m_sale_fright;
-            $sale_hamali += $sale_expense[0]->m_sale_hamali;
-            $sale_others += $sale_expense[0]->m_sale_others;
-            $saleexp     += $sale_expense[0]->saleexp;
+          $sale_expense = $exp_by_sale_spo[$kry] ?? null;
+          if ($sale_expense) {
+            $sale_comm   += $sale_expense->m_sale_comm;
+            $sale_fright += $sale_expense->m_sale_fright;
+            $sale_hamali += $sale_expense->m_sale_hamali;
+            $sale_others += $sale_expense->m_sale_others;
+            $saleexp     += $sale_expense->saleexp;
           }
         }
 

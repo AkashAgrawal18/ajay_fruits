@@ -2,6 +2,24 @@
 
 class Api_Model extends CI_model
 {
+	/** Why the last write failed - see Main_model for the rationale. */
+	protected $last_error = '';
+
+	/** Records why an operation failed and returns false. */
+	protected function fail($message)
+	{
+		$this->last_error = $message;
+		return false;
+	}
+
+	/** The reason for the last failure, then clears it. */
+	public function last_error()
+	{
+		$msg = $this->last_error;
+		$this->last_error = '';
+		return $msg;
+	}
+
 	// ===================== Branch scoping =======================//
 	//
 	// Mirrors the branch trio in Main_model / Master_model, but the API has no
@@ -426,6 +444,7 @@ class Api_Model extends CI_model
 		$sale_spo     = $next_counter . '/' . date('dm', strtotime($post['m_sale_date']));
 
 		$saleTotalAmt = 0;
+		$skipped_duplicates = 0;
 
 		foreach ($sales as $key => $item) {
 
@@ -460,6 +479,7 @@ class Api_Model extends CI_model
 			])->get('master_sales_tbl')->row();
 
 			if ($exists) {
+				$skipped_duplicates++;
 				continue; // skip duplicate
 			}
 
@@ -514,7 +534,16 @@ class Api_Model extends CI_model
 		}
 
 		$this->db->trans_complete();
-		return 0;
+
+		// Nothing was written. The two ways that happens need different answers:
+		// the app sent no lines at all, or every line already existed and was
+		// skipped by the duplicate check above. Both used to surface as
+		// "Something Went Worng Please Try again".
+		if (empty($sales)) {
+			return $this->fail('No sale items were received, so nothing was saved. Add at least one item and send again.');
+		}
+		return $this->fail($skipped_duplicates . ' of ' . count($sales)
+			. ' item(s) were already recorded against this customer, date and lot, so this sale was not saved again.');
 	}
 
 	public function insert_payment_recieved()

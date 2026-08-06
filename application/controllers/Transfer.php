@@ -83,7 +83,8 @@ class Transfer extends CI_Controller
 
     echo json_encode($result
       ? ['status' => 'success', 'message' => 'Stock transferred to branch successfully!']
-      : ['status' => 'error', 'message' => 'Transfer failed. Please check available stock and rate.']);
+      : ['status' => 'error', 'message' => $this->Main_model->last_error()
+        ?: 'Transfer failed. Please check available stock and rate.']);
   }
 
   public function delete_transfer()

@@ -312,9 +312,9 @@
                                                                                     <td>' . $key->m_purcs_qty . ' </td>
                                                                                     <td>' . $key->unitname . '</td>
                                                                                     <td>' . $key->m_purcs_weight . '</td>
-                                                                                    <td>' . $key->m_purcs_price . '</td>
+                                                                                    <td>' . money2($key->m_purcs_price) . '</td>
                                                                                     <td>' . $key->cratetype . '</td>
-                                                                                    <td>' . $key->m_purcs_total . '</td>
+                                                                                    <td>' . money2($key->m_purcs_total) . '</td>
                                                                                    
                                                                                 </tr>';
                                                                                         }
@@ -355,47 +355,47 @@
                                                                                 <tr>
                                                                                     <td>Commission</td>
                                                                                     <td>bill</td>
-                                                                                    <td><?= $value->m_purcs_comm ?></td>
-                                                                                    <td><?= $value->m_purcs_comm ?></td>
+                                                                                    <td><?= money2($value->m_purcs_comm) ?></td>
+                                                                                    <td><?= money2($value->m_purcs_comm) ?></td>
 
                                                                                     <td>Fright</td>
                                                                                     <td>Bill</td>
-                                                                                    <td><?= $value->m_purcs_fright ?></td>
-                                                                                    <td><?= $value->m_purcs_fright ?></td>
+                                                                                    <td><?= money2($value->m_purcs_fright) ?></td>
+                                                                                    <td><?= money2($value->m_purcs_fright) ?></td>
 
                                                                                 </tr>
                                                                                 <tr>
                                                                                     <td>Hamali</td>
                                                                                     <td>Bill</td>
-                                                                                    <td><?= $value->m_purcs_hamali ?></td>
-                                                                                    <td><?= $value->m_purcs_hamali ?></td>
+                                                                                    <td><?= money2($value->m_purcs_hamali) ?></td>
+                                                                                    <td><?= money2($value->m_purcs_hamali) ?></td>
 
                                                                                     <td>Charity</td>
                                                                                     <td>Bill</td>
-                                                                                    <td><?= $value->m_purcs_charity ?></td>
-                                                                                    <td><?= $value->m_purcs_charity ?></td>
+                                                                                    <td><?= money2($value->m_purcs_charity) ?></td>
+                                                                                    <td><?= money2($value->m_purcs_charity) ?></td>
                                                                                 </tr>
                                                                                 <tr>
                                                                                     <td>Packaging</td>
                                                                                     <td>Bill</td>
-                                                                                    <td><?= $value->m_purcs_packaging ?></td>
-                                                                                    <td><?= $value->m_purcs_packaging ?></td>
+                                                                                    <td><?= money2($value->m_purcs_packaging) ?></td>
+                                                                                    <td><?= money2($value->m_purcs_packaging) ?></td>
 
                                                                                     <td>Loading</td>
                                                                                     <td>Bill</td>
-                                                                                    <td><?= $value->m_purcs_loading ?></td>
-                                                                                    <td><?= $value->m_purcs_loading ?></td>
+                                                                                    <td><?= money2($value->m_purcs_loading) ?></td>
+                                                                                    <td><?= money2($value->m_purcs_loading) ?></td>
                                                                                 </tr>
                                                                                 <tr>
                                                                                     <td>Advance</td>
                                                                                     <td>Bill</td>
-                                                                                    <td><?= $value->m_purcs_advance ?></td>
-                                                                                    <td><?= $value->m_purcs_advance ?></td>
+                                                                                    <td><?= money2($value->m_purcs_advance) ?></td>
+                                                                                    <td><?= money2($value->m_purcs_advance) ?></td>
 
                                                                                     <td>Other</td>
                                                                                     <td>Bill</td>
-                                                                                    <td><?= $value->m_purcs_others ?></td>
-                                                                                    <td><?= $value->m_purcs_others ?></td>
+                                                                                    <td><?= money2($value->m_purcs_others) ?></td>
+                                                                                    <td><?= money2($value->m_purcs_others) ?></td>
                                                                                 </tr>
 
                                                                             </tbody>

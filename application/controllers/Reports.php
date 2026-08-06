@@ -114,26 +114,49 @@ class Reports extends CI_Controller
         $sum_tocr = 0;
         if (!empty($all_cust)) {
 
-            foreach ($all_cust as $key => $cust) {
-                $last_bill_date = $this->db->select('m_sale_date')->where('m_sale_customer', $cust->m_cust_id)->order_by('m_sale_id', 'desc')->get('master_sales_tbl')->row();
-                $last_recipt = $this->db->select('m_recvd_date')->where('m_recvd_account', 1)->where('m_recvd_customer', $cust->m_cust_id)->order_by('m_recvd_id', 'desc')->get('master_recieved_tbl')->row();
-                $lastbilldate =  !empty($last_bill_date) ? date('d-m-Y', strtotime($last_bill_date->m_sale_date)) : '';
-                $lastrecptdate =  !empty($last_recipt) ? date('d-m-Y', strtotime($last_recipt->m_recvd_date)) : '';
+            // Last bill / last receipt for every customer up front: two queries
+            // instead of two per customer. Same rule as before - the date of the
+            // highest id row, not MAX(date).
+            $last_bill_map = $this->Report_model->last_sale_date_map();
+            $last_rcpt_map = $this->Report_model->last_receipt_date_map();
+            $bal_updates = array();
 
-                $opening_balance = $this->Main_model->get_opening_balance($cust->m_cust_id, date('Y-m-d', strtotime($data['from_date'] . '-1day')), $branch_id);
-                $closing_balance = $this->Main_model->get_opening_balance($cust->m_cust_id, date('Y-m-d', strtotime($data['todate'])), $branch_id);
+            // Opening and closing figures for every customer in twelve grouped
+            // queries, replacing two get_opening_balance() calls per customer
+            // (~12 queries each). Same arithmetic, assembled by snapshot_row().
+            $open_snap  = $this->Report_model->balance_snapshot(date('Y-m-d', strtotime($data['from_date'] . '-1day')), $branch_id);
+            $close_snap = $this->Report_model->balance_snapshot(date('Y-m-d', strtotime($data['todate'])), $branch_id);
+            $crate_types = $this->Master_model->all_itemgroup(3);
+
+            foreach ($all_cust as $key => $cust) {
+                $last_bill_date = $last_bill_map[$cust->m_cust_id] ?? null;
+                $last_recipt = $last_rcpt_map[$cust->m_cust_id] ?? null;
+                $lastbilldate =  !empty($last_bill_date) ? date('d-m-Y', strtotime($last_bill_date)) : '';
+                $lastrecptdate =  !empty($last_recipt) ? date('d-m-Y', strtotime($last_recipt)) : '';
+
+                $opening_balance = $this->Report_model->snapshot_row($open_snap, $cust, $crate_types);
+                $closing_balance = $this->Report_model->snapshot_row($close_snap, $cust, $crate_types);
                 $cratedata = '';
+                // Cached balances are written back below in one batch rather
+                // than four UPDATEs per customer; seed from the current row so
+                // every batch entry carries the same columns.
+                $upd = array(
+                    'm_cust_id'    => $cust->m_cust_id,
+                    'm_cust_10bal' => $cust->m_cust_10bal,
+                    'm_cust_20bal' => $cust->m_cust_20bal,
+                    'm_cust_25bal' => $cust->m_cust_25bal,
+                );
                 foreach ($closing_balance['crateitems'] as $craty) {
 
                     if ($craty['name'] == '10 KG') {
                         $sum_10 += $craty['balance'];
-                        $this->db->set('m_cust_10bal', $craty['balance'])->where('m_cust_id', $cust->m_cust_id)->update('master_customer_tbl');
+                        $upd['m_cust_10bal'] = $craty['balance'];
                     } else if ($craty['name'] == '20 KG') {
                         $sum_20 += $craty['balance'];
-                        $this->db->set('m_cust_20bal', $craty['balance'])->where('m_cust_id', $cust->m_cust_id)->update('master_customer_tbl');
+                        $upd['m_cust_20bal'] = $craty['balance'];
                     } else if ($craty['name'] == '25 KG') {
                         $sum_25 += $craty['balance'];
-                        $this->db->set('m_cust_25bal', $craty['balance'])->where('m_cust_id', $cust->m_cust_id)->update('master_customer_tbl');
+                        $upd['m_cust_25bal'] = $craty['balance'];
                     }
 
                     $cratedata .= '<td>' . $craty['balance'] . '</td>';
@@ -146,30 +169,35 @@ class Reports extends CI_Controller
                 $sum_netamt += $closing_balance['balance_amount'];
                 $sum_tocr += $closing_balance['balance_crate'];
 
-                $this->db->set('m_cust_balance', $closing_balance['balance_amount'])->where('m_cust_id', $cust->m_cust_id)->update('master_customer_tbl');
+                $upd['m_cust_balance'] = $closing_balance['balance_amount'];
+                $bal_updates[] = $upd;
 
                 $tbody .= '<tr>
         <td>' . ($key + 1) . '</td>
         <td>' . $cust->m_cust_name . '-' . $cust->m_cust_mobile . '</td>
-        <td>' . $opening_balance['balance_amount'] . '</td>
-        <td>' . ($closing_balance['grand_total'] - $opening_balance['grand_total']) . '</td>
-        <td>' . ($closing_balance['amount_rcvd'] - $opening_balance['amount_rcvd']) . '</td>
-        <td>' . $closing_balance['balance_amount'] . '</td>
+        <td>' . money2($opening_balance['balance_amount']) . '</td>
+        <td>' . money2($closing_balance['grand_total'] - $opening_balance['grand_total']) . '</td>
+        <td>' . money2($closing_balance['amount_rcvd'] - $opening_balance['amount_rcvd']) . '</td>
+        <td>' . money2($closing_balance['balance_amount']) . '</td>
        ' . $cratedata . '
         <td>' . $closing_balance['balance_crate'] . '</td>
         <td>' . $lastbilldate  . '</td>
         <td>' . $lastrecptdate . '</td>
-        
+
         </tr>';
+            }
+
+            if (!empty($bal_updates)) {
+                $this->db->update_batch('master_customer_tbl', $bal_updates, 'm_cust_id', 100);
             }
         }
 
         $tfoot = '<tr>
         <th colspan="2">Total</th>
-        <th>' .  $sum_ope . '</th>
-        <th>' .  $sum_bill . '</th>
-        <th>' .  $sum_recipt . '</th>
-        <th>' .  $sum_netamt . '</th>
+        <th>' .  money2($sum_ope) . '</th>
+        <th>' .  money2($sum_bill) . '</th>
+        <th>' .  money2($sum_recipt) . '</th>
+        <th>' .  money2($sum_netamt) . '</th>
         <th>' .  $sum_10 . '</th>
         <th>' .  $sum_20 . '</th>
         <th>' .  $sum_25 . '</th>
@@ -249,10 +277,10 @@ class Reports extends CI_Controller
                 $tbody .= '<tr>
         <td>' . ($key + 1) . '</td>
         <td>' . $cust->m_user_name . '-' . $cust->m_user_mobile . '</td>
-        <td>' . $opening_balance['balance_amount'] . '</td>
-        <td>' . ($closing_balance['grand_total'] - $opening_balance['grand_total']) . '</td>
-        <td>' . ($closing_balance['amount_rcvd'] - $opening_balance['amount_rcvd']) . '</td>
-        <td>' . $closing_balance['balance_amount'] . '</td>
+        <td>' . money2($opening_balance['balance_amount']) . '</td>
+        <td>' . money2($closing_balance['grand_total'] - $opening_balance['grand_total']) . '</td>
+        <td>' . money2($closing_balance['amount_rcvd'] - $opening_balance['amount_rcvd']) . '</td>
+        <td>' . money2($closing_balance['balance_amount']) . '</td>
        ' . $cratedata . '
         <td>' . $closing_balance['balance_crate'] . '</td>
        
@@ -262,10 +290,10 @@ class Reports extends CI_Controller
 
         $tfoot = '<tr>
         <th colspan="2">Total</th>
-        <th>' .  $sum_ope . '</th>
-        <th>' .  $sum_bill . '</th>
-        <th>' .  $sum_recipt . '</th>
-        <th>' .  $sum_netamt . '</th>
+        <th>' .  money2($sum_ope) . '</th>
+        <th>' .  money2($sum_bill) . '</th>
+        <th>' .  money2($sum_recipt) . '</th>
+        <th>' .  money2($sum_netamt) . '</th>
         <th>' .  $sum_10 . '</th>
         <th>' .  $sum_20 . '</th>
         <th>' .  $sum_25 . '</th>
@@ -2617,9 +2645,11 @@ class Reports extends CI_Controller
         $data['item_id'] = $this->input->post('item_id');
         $data['from_date'] = $this->input->post('from_date');
         $data['to_date'] = $this->input->post('to_date') ?: date('Y-m-d');
+        $data['branch_id'] = $this->input->post('branch_id');
 
-        $data['all_items'] = $this->Master_model->get_all_item();
-        $data['all_value'] = $this->Report_model->get_item_stock_list($data['from_date'], $data['to_date'], $data['item_id']);
+        $data['branch_list'] = $this->Main_model->get_user_list(9);
+        $data['all_items'] = $this->Master_model->get_all_item('', $data['branch_id']);
+        $data['all_value'] = $this->Report_model->get_item_stock_list($data['from_date'], $data['to_date'], $data['item_id'], $data['branch_id']);
         $this->load->view('stock_list', $data);
     }
 

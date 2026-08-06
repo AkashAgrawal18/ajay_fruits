@@ -359,7 +359,7 @@ class Api_Controller extends CI_Controller
       } else {
         $info = array(
           'response' => 'error',
-          'message' => 'Something Went Worng Please Try again',
+          'message' => $this->Api_Model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening contact support.',
           'm_sale_spo' => '',
 
         );
@@ -382,7 +382,7 @@ class Api_Controller extends CI_Controller
       } else {
         $info = array(
           'response' => 'error',
-          'message' => 'Something Went Worng Please Try again',
+          'message' => $this->Api_Model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening contact support.',
 
 
         );
@@ -413,7 +413,7 @@ class Api_Controller extends CI_Controller
       } else {
         $info = array(
           'response' => 'error',
-          'message' => 'Something Went Worng Please Try again',
+          'message' => $this->Api_Model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening contact support.',
           'voucher_no' => '',
 
         );
@@ -436,7 +436,7 @@ class Api_Controller extends CI_Controller
       } else {
         $info = array(
           'response' => 'error',
-          'message' => 'Something Went Worng Please Try again',
+          'message' => $this->Api_Model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening contact support.',
           'voucher_no' => '',
         );
       }
@@ -718,7 +718,7 @@ class Api_Controller extends CI_Controller
       } else {
         $info = array(
           'response' => 'error',
-          'message' => 'Something Went Worng Please Try again',
+          'message' => $this->Api_Model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening contact support.',
         );
       }
       echo json_encode($info);
@@ -739,7 +739,7 @@ class Api_Controller extends CI_Controller
       } else {
         $info = array(
           'response' => 'error',
-          'message' => 'Something Went Worng Please Try again',
+          'message' => $this->Api_Model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening contact support.',
           'customer' => array(),
         );
       }
@@ -764,7 +764,7 @@ class Api_Controller extends CI_Controller
       } else {
         $info = array(
           'response' => 'error',
-          'message' => 'Something Went Worng Please Try again',
+          'message' => $this->Api_Model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening contact support.',
 
         );
       }
@@ -786,7 +786,7 @@ class Api_Controller extends CI_Controller
       } else {
         $info = array(
           'response' => 'error',
-          'message' => 'Something Went Worng Please Try again',
+          'message' => $this->Api_Model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening contact support.',
 
         );
       }

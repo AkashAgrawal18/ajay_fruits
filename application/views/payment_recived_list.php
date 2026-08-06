@@ -540,7 +540,7 @@
                                             foreach ($custo_list as $vat) {
 
                                         ?>
-                                                <option value="<?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile ?>" data-name="<?= $vat->m_cust_name ?>" data-balance="<?= $vat->m_cust_balance ?>" data-id="<?= $vat->m_cust_id ?>" data-mobile="<?= $vat->m_cust_mobile ?>"><?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile; ?>
+                                                <option value="<?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile ?>" data-name="<?= $vat->m_cust_name ?>" data-balance="<?= money2($vat->m_cust_balance) ?>" data-id="<?= $vat->m_cust_id ?>" data-mobile="<?= $vat->m_cust_mobile ?>"><?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile; ?>
                                             <?php
                                             }
                                         }
@@ -686,7 +686,9 @@
             let countke = $(this).data('count');
             let amutn = $(this).val();
             let oldbal = parseFloat($(`#balance_filed${countke}`).html());
-            $(`#newbalance_filed${countke}`).html((oldbal - amutn));
+            // balances are doubles, so plain subtraction leaves a long float
+            // tail on screen; show the money value at two decimals
+            $(`#newbalance_filed${countke}`).html((oldbal - amutn).toFixed(2));
             calculateTotalAmount();
         });
 

@@ -131,7 +131,7 @@ if ($pgtype == 1) {
                                         <td><?php echo $value->m_user_address; ?></td>
                                         <td><?php echo $value->m_user_trademark; ?></td>
                                         <td><?php echo $value->m_user_contractPerd; ?></td>
-                                        <td><?php echo $value->m_user_balance; ?></td>
+                                        <td><?php echo money2($value->m_user_balance); ?></td>
                                         <?php if ($pgtype == 1) { ?>
                                             <td><?php echo $query[0]->group_name; ?></td>
                                         <?php } ?>

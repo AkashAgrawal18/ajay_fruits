@@ -134,7 +134,7 @@
                                         <td><?php echo $value->m_city_name . '-' . $value->m_state_name; ?></td>
                                         <td><?php echo $value->m_cust_address; ?></td>
                                         <td><?php echo $value->m_group_name; ?></td>
-                                        <th>₹<?php echo $value->m_cust_balance; ?></th>
+                                        <th>₹<?php echo money2($value->m_cust_balance); ?></th>
                                         <th><?php echo $value->m_cust_10bal .' | '. $value->m_cust_20bal .' | '. $value->m_cust_25bal; ?></th>
                                        
 

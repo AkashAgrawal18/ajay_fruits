@@ -47,8 +47,8 @@
                                         <td><?= $value->m_sale_qty ?></td>
 
                                         <td><?= $value->m_sale_weight ?></td>
-                                        <td><?= $value->m_sale_price ?></td>
-                                        <td><?= $value->m_sale_total ?></td>
+                                        <td><?= money2($value->m_sale_price) ?></td>
+                                        <td><?= money2($value->m_sale_total) ?></td>
                                     </tr>
                             <?php
 

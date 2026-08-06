@@ -153,11 +153,16 @@ class Accounts extends CI_Controller
             'status' => 'success',
             'message' => 'Data Updated Successfully'
           );
+        } else if ($data == 3) {
+          $info = array(
+            'status' => 'error',
+            'message' => 'Login id Already taken by another account! Please try again'
+          );
         }
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
 
@@ -179,7 +184,7 @@ class Accounts extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -307,7 +312,7 @@ class Accounts extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
 
@@ -433,7 +438,7 @@ class Accounts extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -513,7 +518,7 @@ class Accounts extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -534,7 +539,7 @@ class Accounts extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);

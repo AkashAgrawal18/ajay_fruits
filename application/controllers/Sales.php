@@ -74,7 +74,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -97,7 +97,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -119,7 +119,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -128,6 +128,9 @@ class Sales extends CI_Controller
 
   public function delete_issue_item_id()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_issue_item_id()) {
@@ -138,7 +141,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -228,7 +231,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -250,7 +253,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -272,7 +275,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -294,7 +297,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -610,7 +613,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -632,7 +635,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -654,7 +657,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -702,13 +705,21 @@ class Sales extends CI_Controller
       return;
     }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
-      $data = $this->Main_model->insert_recieved_data();
+      if ($this->Main_model->insert_recieved_data()) {
+        $this->session->set_flashdata('form_success', 'Receipt saved successfully.');
+      } else {
+        $this->session->set_flashdata('form_error', $this->Main_model->last_error()
+          ?: 'The Receipt could not be saved. Please check the entry and try again.');
+      }
     }
     $this->_redirect_back();
   }
 
   public function update_recieved_data()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $data = $this->Main_model->update_recieved_data();
     }
@@ -730,7 +741,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -778,13 +789,21 @@ class Sales extends CI_Controller
       return;
     }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
-      $data = $this->Main_model->insert_payment_data();
+      if ($this->Main_model->insert_payment_data()) {
+        $this->session->set_flashdata('form_success', 'Payment saved successfully.');
+      } else {
+        $this->session->set_flashdata('form_error', $this->Main_model->last_error()
+          ?: 'The Payment could not be saved. Please check the entry and try again.');
+      }
     }
     $this->_redirect_back();
   }
 
   public function update_payment_data()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       $data = $this->Main_model->update_payment_data();
     }
@@ -793,6 +812,9 @@ class Sales extends CI_Controller
 
   public function delete_payment_data()
   {
+    if ($this->ajax_login() === false) {
+      return;
+    }
 
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
       if ($data = $this->Main_model->delete_payment_data()) {
@@ -803,7 +825,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);
@@ -836,7 +858,12 @@ class Sales extends CI_Controller
       return;
     }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
-      $data = $this->Main_model->insert_voucher_data();
+      if ($this->Main_model->insert_voucher_data()) {
+        $this->session->set_flashdata('form_success', 'Voucher saved successfully.');
+      } else {
+        $this->session->set_flashdata('form_error', $this->Main_model->last_error()
+          ?: 'The Voucher could not be saved. Please check the entry and try again.');
+      }
     }
     $this->_redirect_back();
   }
@@ -867,7 +894,7 @@ class Sales extends CI_Controller
       } else {
         $info = array(
           'status' => 'error',
-          'message' => 'Some problem Occurred!! please try again'
+          'message' => $this->Main_model->last_error() ?: 'Sorry, that did not go through. Please try again, and if it keeps happening send this screen to support.'
         );
       }
       echo json_encode($info);

@@ -687,7 +687,7 @@
                                       foreach ($supplier_list as $vat) {
 
                                     ?>
-                                            <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= $vat->m_user_balance ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>"><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
+                                            <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= money2($vat->m_user_balance) ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>"><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
                                     <?php
                                       }
                                     }
@@ -738,7 +738,7 @@
                                       foreach ($loader_list as $vat) {
 
                                     ?>
-                                              <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= $vat->m_user_balance ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>"><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
+                                              <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= money2($vat->m_user_balance) ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>"><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
                                       <?php
                                       }
                                     }
@@ -756,7 +756,7 @@
                                       foreach ($staff_list as $vat) {
 
                                     ?>
-                                            <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= $vat->m_user_balance ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>" ><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
+                                            <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= money2($vat->m_user_balance) ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>" ><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
                                         <?php
                                       }
                                     }
@@ -774,7 +774,7 @@
                                       foreach ($general_list as $vat) {
 
                                     ?>
-                                             <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= $vat->m_user_balance ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>" ><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
+                                             <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= money2($vat->m_user_balance) ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>" ><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
                                        <?php
                                       }
                                     }
@@ -793,7 +793,7 @@
                                       foreach ($investment_list as $vat) {
 
                                     ?>
-                                             <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= $vat->m_user_balance ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>" ><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
+                                             <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= money2($vat->m_user_balance) ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>" ><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
                                        <?php
                                       }
                                     }
@@ -816,7 +816,7 @@
                                       foreach ($custo_list as $vat) {
 
                                     ?> 
-                                               <option value="<?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile; ?>"  data-name="<?= $vat->m_cust_name ?>" data-balance="<?= $vat->m_cust_balance ?>" data-id="<?= $vat->m_cust_id ?>" data-mobile="<?= $vat->m_cust_mobile ?>"><?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile; ?></option>
+                                               <option value="<?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile; ?>"  data-name="<?= $vat->m_cust_name ?>" data-balance="<?= money2($vat->m_cust_balance) ?>" data-id="<?= $vat->m_cust_id ?>" data-mobile="<?= $vat->m_cust_mobile ?>"><?= $vat->m_cust_name . ' | ' . $vat->m_cust_mobile; ?></option>
                                      <?php
                                       }
                                     }
@@ -834,7 +834,7 @@
                                       foreach ($general_list as $vat) {
 
                                     ?>
-                                             <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= $vat->m_user_balance ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>"><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
+                                             <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= money2($vat->m_user_balance) ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>"><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
                                        <?php
                                       }
                                     }
@@ -852,7 +852,7 @@
                                       foreach ($investment_list as $vat) {
 
                                     ?>
-                                              <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= $vat->m_user_balance ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>" ><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
+                                              <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= money2($vat->m_user_balance) ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>" ><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
                                       <?php
                                       }
                                     }
