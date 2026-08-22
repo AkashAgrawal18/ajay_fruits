@@ -345,7 +345,7 @@ class Api_Model extends CI_model
 
 	public function get_all_items()
 	{
-		$this->where_branch('master_item_tbl.m_item_branch');
+		// Items are shared by every branch - see Master_model's item section.
 		$res = $this->db->select('master_item_tbl.*,(CASE WHEN group.m_itgrp_title IS NULL THEN "" ELSE group.m_itgrp_title END ) AS groupname,(CASE WHEN crate.m_itgrp_title IS NULL THEN "" ELSE crate.m_itgrp_title END ) AS cratetype,(CASE WHEN unit.m_itgrp_title IS NULL THEN "" ELSE unit.m_itgrp_title END ) AS unitname')
 			->join('master_itemgroup_tbl as group', 'group.m_itgrp_id = master_item_tbl.m_item_group', 'left')
 			->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_item_tbl.m_item_crate', 'left')

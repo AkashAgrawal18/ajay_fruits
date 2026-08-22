@@ -73,12 +73,13 @@ class Master_model extends CI_model
   }
 
   // ===================== itemgroup =======================//
-  // itemgroup, item, group are shared/config tables per-branch —
-  // branch column added per the ALTER statements.
+  // Item groups, units and crate sizes are shared by every branch - the
+  // same crate size means the same thing everywhere - so none of these
+  // lookups filter on m_itgrp_branch. Inserts still stamp it to record
+  // where the row was created; nothing reads it back as a filter.
 
   public function all_itemgroup($type, $branch_id = null)
   {
-    $this->where_branch('m_itgrp_branch', $branch_id);
     return $this->db->where('m_itgrp_type', $type)
       ->order_by('m_itgrp_title')
       ->get('master_itemgroup_tbl')->result();
@@ -86,7 +87,6 @@ class Master_model extends CI_model
 
   public function all_active_itemgroup($type, $branch_id = null)
   {
-    $this->where_branch('m_itgrp_branch', $branch_id);
     return $this->db->select('master_itemgroup_tbl.*')
       ->where('m_itgrp_type', $type)
       ->where('m_itgrp_status', 1)
@@ -108,13 +108,13 @@ class Master_model extends CI_model
     $labels = array(1 => 'An item group', 2 => 'A unit', 3 => 'A crate size');
     $label = isset($labels[$type]) ? $labels[$type] : 'A record';
 
-    $this->where_branch('m_itgrp_branch', $branch);
+    // Shared across branches, so the name has to be unique outright.
     $check = $this->db->where('m_itgrp_title', $machinename)
       ->where('m_itgrp_type', $type)
       ->get('master_itemgroup_tbl')->result();
 
     if (!empty($check) && empty($machineid)) {
-      return $label . ' named "' . $machinename . '" already exists in this branch. Use a different name, or edit the existing one.';
+      return $label . ' named "' . $machinename . '" already exists. Use a different name, or edit the existing one.';
     }
 
     $insert_data = array(
@@ -125,7 +125,6 @@ class Master_model extends CI_model
     );
 
     if (!empty($machineid)) {
-      $this->where_branch('m_itgrp_branch', $branch);
       $this->db->where('m_itgrp_id', $machineid)->update('master_itemgroup_tbl', $insert_data);
       return 2;
     } else {
@@ -137,7 +136,6 @@ class Master_model extends CI_model
 
   public function get_edit_itemgroup($id, $branch_id = null)
   {
-    $this->where_branch('m_itgrp_branch', $branch_id);
     return $this->db->select('master_itemgroup_tbl.*')
       ->where('m_itgrp_id', $id)
       ->get('master_itemgroup_tbl')->row();
@@ -145,28 +143,25 @@ class Master_model extends CI_model
 
   public function delete_itemgroup($branch_id = null)
   {
-    $this->where_branch('m_itgrp_branch', $branch_id);
     $this->db->where('m_itgrp_id', $this->input->post('delete_id'));
     $this->db->delete('master_itemgroup_tbl');
 
     // a delete that matched no rows is still a successful query
     if ($this->db->affected_rows() < 1) {
-      return $this->fail('That unit/crate/group was not found. It may already have been deleted, or it belongs to a different branch.');
+      return $this->fail('That unit/crate/group was not found. It may already have been deleted.');
     }
     return true;
   }
 
   // ===================== item =======================//
-  // master_item_tbl has m_item_branch — branch scoping applied on every
-  // select/insert/update/delete, with an optional override so a
-  // superadmin can target a specific branch.
+  // Items are shared by every branch, same as the item groups above.
+  // m_item_branch is still written on insert but is not used to filter.
 
   public function get_all_item($id = '', $branch_id = null)
   {
     if (!empty($id)) {
       $this->db->where('m_item_id', $id);
     }
-    $this->where_branch('master_item_tbl.m_item_branch', $branch_id);
     return $this->db->select('master_item_tbl.*,group.m_itgrp_title as groupname,crate.m_itgrp_title as cratetype,unit.m_itgrp_title as unitname')
       ->join('master_itemgroup_tbl as group', 'group.m_itgrp_id = master_item_tbl.m_item_group', 'left')
       ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_item_tbl.m_item_crate', 'left')
@@ -193,7 +188,6 @@ class Master_model extends CI_model
     );
 
     if (!empty($itemid)) {
-      $this->where_branch('m_item_branch', $branch);
       $this->db->where('m_item_id', $itemid)->update('master_item_tbl', $insert_data);
       return 2;
     } else {
@@ -205,7 +199,6 @@ class Master_model extends CI_model
 
   public function get_edit_item($id, $branch_id = null)
   {
-    $this->where_branch('master_item_tbl.m_item_branch', $branch_id);
     return $this->db->select('master_item_tbl.*,group.m_itgrp_title as groupname,crate.m_itgrp_title as cratetype,unit.m_itgrp_title as unitname')
       ->where('m_item_id', $id)
       ->join('master_itemgroup_tbl as group', 'group.m_itgrp_id = master_item_tbl.m_item_group', 'left')
@@ -216,12 +209,11 @@ class Master_model extends CI_model
 
   public function delete_item($branch_id = null)
   {
-    $this->where_branch('m_item_branch', $branch_id);
     $this->db->where('m_item_id', $this->input->post('delete_id'));
     $this->db->delete('master_item_tbl');
 
     if ($this->db->affected_rows() < 1) {
-      return $this->fail('That item was not found. It may already have been deleted, or it belongs to a different branch.');
+      return $this->fail('That item was not found. It may already have been deleted.');
     }
     return true;
   }
