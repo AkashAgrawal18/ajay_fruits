@@ -721,7 +721,12 @@ class Sales extends CI_Controller
       return;
     }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
-      $data = $this->Main_model->update_recieved_data();
+      if ($this->Main_model->update_recieved_data()) {
+        $this->session->set_flashdata('form_success', 'Receipt updated successfully.');
+      } else {
+        $this->session->set_flashdata('form_error', $this->Main_model->last_error()
+          ?: 'The Receipt could not be updated. Please check the entry and try again.');
+      }
     }
     $this->_redirect_back();
   }
@@ -805,7 +810,12 @@ class Sales extends CI_Controller
       return;
     }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
-      $data = $this->Main_model->update_payment_data();
+      if ($this->Main_model->update_payment_data()) {
+        $this->session->set_flashdata('form_success', 'Payment updated successfully.');
+      } else {
+        $this->session->set_flashdata('form_error', $this->Main_model->last_error()
+          ?: 'The Payment could not be updated. Please check the entry and try again.');
+      }
     }
     $this->_redirect_back();
   }
@@ -874,7 +884,12 @@ class Sales extends CI_Controller
       return;
     }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
-      $data = $this->Main_model->update_voucher_data();
+      if ($this->Main_model->update_voucher_data()) {
+        $this->session->set_flashdata('form_success', 'Voucher updated successfully.');
+      } else {
+        $this->session->set_flashdata('form_error', $this->Main_model->last_error()
+          ?: 'The Voucher could not be updated. Please check the entry and try again.');
+      }
     }
     $this->_redirect_back();
   }

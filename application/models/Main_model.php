@@ -2049,6 +2049,12 @@ class Main_model extends CI_model
       return $this->fail($this->locked_date_message($m_recvd_date));
     }
 
+    // What actually reached the table. The old code tested `isset($res)`
+    // against a variable nothing ever assigned, so every save - including
+    // the ones that wrote rows - came back as a failure.
+    $inserted   = 0;
+    $duplicates = 0;
+
     if ($m_recvd_type == 1) {
       $m_recvd_customer = $this->input->post('m_recvd_customer');
       $m_recvd_amount   = $this->input->post('m_recvd_amount');
@@ -2085,6 +2091,7 @@ class Main_model extends CI_model
             "m_recvd_added_on" => date('Y-m-d H:i'),
           ];
           $this->db->insert('master_recieved_tbl', $data);
+          $inserted++;
 
           if ($m_recvd_account == 1) {
             $this->update_cust_balance($customer, -$m_recvd_amount[$index]);
@@ -2094,6 +2101,8 @@ class Main_model extends CI_model
           } elseif (in_array($m_recvd_account, [2, 3, 4, 6])) {
             $this->update_userbalance($customer, $m_recvd_amount[$index]);
           }
+        } else {
+          $duplicates++;
         }
       }
     } else {
@@ -2132,6 +2141,7 @@ class Main_model extends CI_model
             "m_recvd_added_on" => date('Y-m-d H:i'),
           ];
           $this->db->insert('master_recieved_tbl', $data);
+          $inserted++;
 
           if (isset($crate_mapping[$crate_type])) {
             $this->db->set($crate_mapping[$crate_type], "$crate_mapping[$crate_type] - $qty", FALSE)
@@ -2141,10 +2151,14 @@ class Main_model extends CI_model
         }
       }
     }
-    if (!isset($res)) {
+    if ($inserted === 0) {
+      if ($duplicates > 0) {
+        return $this->fail('Nothing was saved - an identical receipt is already recorded for that customer, amount and date. Change something on the line, or delete the existing entry first.');
+      }
       return $this->fail('Nothing was saved - every line had an amount of 0. Enter an amount against at least one line and save again.');
     }
-    return $res;
+
+    return true;
   }
 
   public function update_recieved_data()
@@ -2169,9 +2183,27 @@ class Main_model extends CI_model
       $insert_data['m_recvd_crate'] = $postData['m_recvd_crate'];
     }
 
+    // The insert path refuses a locked-period date; this one used to let
+    // an existing entry be dated back into one.
+    if ($this->date_is_locked($postData['m_recvd_date'] ?? null)) {
+      return $this->fail($this->locked_date_message($postData['m_recvd_date']));
+    }
+
+    // Confirm the row is really there, and in this branch, BEFORE anything
+    // else. db->update() reports success even when its WHERE matched no
+    // rows, and the balance adjustments further down used to run
+    // regardless - so a stale id, or a branch override that doesn't match
+    // the row's own branch, moved a balance without changing the receipt
+    // it was supposed to be correcting.
     $this->db->where('m_recvd_id', $postData['m_recvd_id']);
     $this->where_branch('m_recvd_branch', $branch);
-    $res = $this->db->update('master_recieved_tbl', $insert_data);
+    if (empty($this->db->get('master_recieved_tbl')->row())) {
+      return $this->fail('That receipt could not be found, so nothing was changed. It may have been deleted, or it belongs to a different branch - reload the list and try again.');
+    }
+
+    $this->db->where('m_recvd_id', $postData['m_recvd_id']);
+    $this->where_branch('m_recvd_branch', $branch);
+    $this->db->update('master_recieved_tbl', $insert_data);
 
     $isSameCustomer = ($postData['m_recvd_customer'] == $postData['precust']);
 
@@ -2210,7 +2242,7 @@ class Main_model extends CI_model
         }
       }
     }
-    return $res;
+    return true;
   }
 
   public function delete_recieved_data($branch_id = null)
@@ -2414,9 +2446,27 @@ class Main_model extends CI_model
       $insert_data['m_payment_crate'] = $postData['m_payment_crate'];
     }
 
+    // The insert path refuses a locked-period date; this one used to let
+    // an existing entry be dated back into one.
+    if ($this->date_is_locked($postData['m_payment_date'] ?? null)) {
+      return $this->fail($this->locked_date_message($postData['m_payment_date']));
+    }
+
+    // Confirm the row is really there, and in this branch, BEFORE anything
+    // else. db->update() reports success even when its WHERE matched no
+    // rows, and the balance adjustments further down used to run
+    // regardless - so a stale id, or a branch override that doesn't match
+    // the row's own branch, moved a balance without changing the payment
+    // it was supposed to be correcting.
     $this->db->where('m_payment_id', $postData['m_payment_id']);
     $this->where_branch('m_payment_branch', $branch);
-    $res = $this->db->update('master_payment_tbl', $insert_data);
+    if (empty($this->db->get('master_payment_tbl')->row())) {
+      return $this->fail('That payment could not be found, so nothing was changed. It may have been deleted, or it belongs to a different branch - reload the list and try again.');
+    }
+
+    $this->db->where('m_payment_id', $postData['m_payment_id']);
+    $this->where_branch('m_payment_branch', $branch);
+    $this->db->update('master_payment_tbl', $insert_data);
 
     $isBalanceUpdateRequired = !in_array($postData['m_payment_account'], [2, 7]);
     $isSameCustomer          = ($postData['m_payment_supplier'] == $postData['precust']);
@@ -2444,7 +2494,7 @@ class Main_model extends CI_model
         }
       }
     }
-    return $res;
+    return true;
   }
 
   public function delete_payment_data($branch_id = null)
@@ -2587,9 +2637,27 @@ class Main_model extends CI_model
       'm_voucher_updated_on' => $currentDate,
     ];
 
+    // The insert path refuses a locked-period date; this one used to let
+    // an existing entry be dated back into one.
+    if ($this->date_is_locked($postData['m_voucher_date'] ?? null)) {
+      return $this->fail($this->locked_date_message($postData['m_voucher_date']));
+    }
+
+    // Confirm the row is really there, and in this branch, BEFORE anything
+    // else. db->update() reports success even when its WHERE matched no
+    // rows, and the balance adjustments further down used to run
+    // regardless - so a stale id, or a branch override that doesn't match
+    // the row's own branch, moved a balance without changing the voucher
+    // it was supposed to be correcting.
     $this->db->where('m_voucher_id', $postData['m_voucher_id']);
     $this->where_branch('m_voucher_branch', $branch);
-    $res = $this->db->update('master_voucher_tbl', $updateData);
+    if (empty($this->db->get('master_voucher_tbl')->row())) {
+      return $this->fail('That voucher could not be found, so nothing was changed. It may have been deleted, or it belongs to a different branch - reload the list and try again.');
+    }
+
+    $this->db->where('m_voucher_id', $postData['m_voucher_id']);
+    $this->where_branch('m_voucher_branch', $branch);
+    $this->db->update('master_voucher_tbl', $updateData);
 
     $isSameCustomer = ($postData['m_voucher_accountid'] == $postData['precust']);
     $balanceChange  = $postData['m_voucher_amount'] - $postData['preamount'];
@@ -2627,7 +2695,7 @@ class Main_model extends CI_model
         }
       }
     }
-    return $res;
+    return true;
   }
 
   public function delete_voucher_data($branch_id = null)
