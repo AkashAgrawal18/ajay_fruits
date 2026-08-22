@@ -63,6 +63,22 @@
 
 
             <div class="row mb-1 g-3">
+                <?php if ($this->session->userdata('user_type') == 8) { ?>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Branch</label>
+                        <select name="m_sale_branch" id="m_sale_branch" class="form-select select2">
+                            <option value="0">Head Office</option>
+                            <?php if (!empty($branch_list)) {
+                                foreach ($branch_list as $branch) {
+                            ?>
+                                <option value="<?= $branch->m_user_id ?>" <?= $sale_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                            <?php }
+                            } ?>
+                        </select>
+                    </div>
+                </div>
+                <?php } ?>
                 <div class="col-md-2">
                     <div class="form-group">
                         <label>Date<span class="text-danger">*</span></label>
@@ -85,23 +101,7 @@
                         <input type="text" name="m_sale_voucher" id="m_sale_voucher" class="form-control" placeholder="Enter Voucher No" value="<?= $sale_voucher ?>">
                     </div>
                 </div>
-                <?php if ($this->session->userdata('user_type') == 8) { ?>
                 <div class="col-md-2">
-                    <div class="form-group">
-                        <label>Branch</label>
-                        <select name="m_sale_branch" id="m_sale_branch" class="form-select select2">
-                            <option value="0">Head Office</option>
-                            <?php if (!empty($branch_list)) {
-                                foreach ($branch_list as $branch) {
-                            ?>
-                                <option value="<?= $branch->m_user_id ?>" <?= $sale_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
-                            <?php }
-                            } ?>
-                        </select>
-                    </div>
-                </div>
-                <?php } ?>
-                <div class="col-md-3">
                     <div class="form-group">
                         <label>Customer Name <span class="text-danger">*</span></label>
                         <select name="m_sale_customer" id="m_sale_customer" class="form-select select2" required autofocus>

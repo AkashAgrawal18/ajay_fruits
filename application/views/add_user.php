@@ -82,7 +82,7 @@ if ($pgtype == 1) {
             $city = '';
             $address = '';
             $trademark = '';
-            $group = '';
+            $group = array();
             $password = '';
             $loginid = '';
             $login_allow = 1;
@@ -99,6 +99,7 @@ if ($pgtype == 1) {
         <form class="row justify-content-evenly g-4" id="frm-add-user" action="#" method="POST">
             <div class="col-4">
                 <div class="row g-4">
+
                     <div class="col-12">
                         <label for="" class="mb-0 form-label small">Account Name <span class="text-danger">*</span></label>
                         <input type="hidden" name="m_user_id" id="m_user_id" value="<?= $id ?>">
@@ -123,7 +124,7 @@ if ($pgtype == 1) {
                                 foreach ($group_dtl as $Svalue) {
                                     $option1 = "";
 
-                                    if ($group[$j] == $Svalue->m_group_id) {
+                                    if (isset($group[$j]) && $group[$j] == $Svalue->m_group_id) {
                                         $option1 = "selected";
                                         $j++;
                                     }
@@ -234,17 +235,6 @@ if ($pgtype == 1) {
 
                         </select>
                     </div>
-                    <?php if ($this->session->userdata('user_type') == 8) { ?>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Branch</label>
-                        <select name="m_user_branch" id="m_user_branch" class="form-control select2">
-                            <option value="0">Head Office</option>
-                            <?php foreach ($branch_list as $branch) { ?>
-                                <option value="<?= $branch->m_user_id ?>" <?= $user_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
-                            <?php } ?>
-                        </select>
-                    </div>
-                    <?php } ?>
                     <div class="col-12">
                         <label for="" class="mb-0 form-label small">Address</label>
                         <textarea rows="3" class="form-control" name="m_user_address" id="m_user_address" value="<?= $address ?>" placeholder="enter full address"><?= $address ?></textarea>
@@ -255,6 +245,17 @@ if ($pgtype == 1) {
             </div>
             <div class="col-4">
                 <div class="row g-4">
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                        <div class="col-6">
+                            <label for="" class="mb-0 form-label small">Branch</label>
+                            <select name="m_user_branch" id="m_user_branch" class="form-control select2">
+                                <option value="0">Head Office</option>
+                                <?php foreach ($branch_list as $branch) { ?>
+                                    <option value="<?= $branch->m_user_id ?>" <?= $user_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                                <?php } ?>
+                            </select>
+                        </div>
+                    <?php } ?>
                     <?php if ($pgtype == 1 || $pgtype == 9) { ?>
                         <div class="col-6">
                             <label for="" class="mb-0 form-label small">Login Allow</label>

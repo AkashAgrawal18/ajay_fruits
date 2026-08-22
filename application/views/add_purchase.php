@@ -70,107 +70,70 @@
 
 
             <div class="row mb-1 g-3">
+                <?php if ($this->session->userdata('user_type') == 8) { ?>
                 <div class="col-md-2">
-                    <div class="row">
-                        <div class="col-3">
-                            <label>Date<span class="text-danger">*</span></label>
-                        </div>
-                        <div class="col-9">
-                            <div class="form-group">
-                                <input type="hidden" name="m_purcs_spo" id="m_purcs_spo" value="<?= $purcs_spo ?>">
-                                <input type="hidden" name="m_purcs_suplier" id="m_purcs_suplier" value="<?= $purcs_suplier ?>">
-                                <input type="hidden" name="precust" id="precust" value="<?= $purcs_suplier ?>">
-                                <input type="date" name="m_purcs_date" id="m_purcs_date" class="form-control" required="" value="<?= $purcs_date ?>" max="<?= date('Y-m-d')?>">
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label>Branch</label>
+                        <select name="m_purcs_branch" id="m_purcs_branch" class="form-select select2">
+                            <option value="0">Head Office</option>
+                            <?php if (!empty($branch_list)) {
+                                foreach ($branch_list as $branch) {
+                            ?>
+                                    <option value="<?= $branch->m_user_id ?>" <?= $purcs_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                            <?php }
+                            } ?>
+                        </select>
                     </div>
-
                 </div>
-
-                <div class="col-md-3">
-
-                    <div class="row">
-                        <div class="col-3">
-                            <label>Truck No<span class="text-danger">*</span></label>
-                        </div>
-                        <div class="col-9">
-                            <div class="form-group">
-                                <input type="text" name="m_purcs_truckno" id="m_purcs_truckno" class="form-control" placeholder="Enter Truck No" value="<?= $purcs_truckno ?>">
-                            </div>
-                        </div>
+                <?php } ?>
+                <div class="col-md-2">
+                    <label>Date<span class="text-danger">*</span></label>
+                    <div class="form-group">
+                        <input type="hidden" name="m_purcs_spo" id="m_purcs_spo" value="<?= $purcs_spo ?>">
+                        <input type="hidden" name="m_purcs_suplier" id="m_purcs_suplier" value="<?= $purcs_suplier ?>">
+                        <input type="hidden" name="precust" id="precust" value="<?= $purcs_suplier ?>">
+                        <input type="date" name="m_purcs_date" id="m_purcs_date" class="form-control" required="" value="<?= $purcs_date ?>" max="<?= date('Y-m-d') ?>">
                     </div>
-
-                </div>
-                <div class="col-md-3">
-
-                    <div class="row">
-                        <div class="col-3">
-                            <label>Bill No<span class="text-danger">*</span></label>
-                        </div>
-                        <div class="col-9">
-                            <div class="form-group">
-                                <input type="text" name="m_purcs_billno" id="m_purcs_billno" class="form-control" placeholder="Enter Bill No" value="<?= $purcs_billno ?>">
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
 
                 <div class="col-md-2">
-                    <div class="row">
-                        <div class="col-4">
-                            <label>Branch</label>
-                        </div>
-                        <div class="col-8">
-                            <div class="form-group">
-                                <select name="m_purcs_branch" id="m_purcs_branch" class="form-select select2">
-                                    <option value="0">Head Office</option>
-                                    <?php if (!empty($branch_list)) {
-                                        foreach ($branch_list as $branch) {
-                                    ?>
-                                        <option value="<?= $branch->m_user_id ?>" <?= $purcs_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
-                                    <?php }
-                                    } ?>
-                                </select>
-                            </div>
-                        </div>
+                    <div class="form-group">
+                        <label>Truck No<span class="text-danger">*</span></label>
+                        <input type="text" name="m_purcs_truckno" id="m_purcs_truckno" class="form-control" placeholder="Enter Truck No" value="<?= $purcs_truckno ?>">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Bill No<span class="text-danger">*</span></label>
+                        <input type="text" name="m_purcs_billno" id="m_purcs_billno" class="form-control" placeholder="Enter Bill No" value="<?= $purcs_billno ?>">
                     </div>
                 </div>
 
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Supplier Name <span class="text-danger">*</span></label>
+                        <select name="m_purcs_suplier" id="m_purcs_suplier" class="form-select select2" required autofocus>
+                            <option value="">--Select--</option>
+                            <?php
+                            if (!empty($suplier_list)) {
+                                foreach ($suplier_list as $vat) {
 
-                    <div class="row">
-                        <div class="col-4">
-                            <label>Supplier Name <span class="text-danger">*</span></label>
-                        </div>
-                        <div class="col-8">
-                            <div class="form-group">
-                                <select name="m_purcs_suplier" id="m_purcs_suplier" class="form-select select2" required autofocus>
-                                    <option value="">--Select--</option>
-                                    <?php
-                                    if (!empty($suplier_list)) {
-                                        foreach ($suplier_list as $vat) {
-
-                                            if ($purcs_suplier == $vat->m_user_id) {
-                                                $option1 = "selected";
-                                            } else {
-                                                $option1 = "";
-                                            }
-
-                                    ?>
-                                            <option value="<?php echo $vat->m_user_id; ?>" <?= $option1 ?>><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>
-                                        <?php
-                                        }
+                                    if ($purcs_suplier == $vat->m_user_id) {
+                                        $option1 = "selected";
+                                    } else {
+                                        $option1 = "";
                                     }
 
-                                        ?>
+                            ?>
+                                    <option value="<?php echo $vat->m_user_id; ?>" <?= $option1 ?>><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>
+                                <?php
+                                }
+                            }
 
-                                </select>
-                            </div>
-                        </div>
+                                ?>
+
+                        </select>
                     </div>
-
-
                 </div>
 
 
@@ -194,11 +157,11 @@
                             </thead>
                             <tbody id="tableblock">
                                 <?php if (!empty($id)) {
-                                        $cou = 0;
-                                        $purTotalAmt = ($edit_value[0]->m_purcs_comm + $edit_value[0]->m_purcs_fright + $edit_value[0]->m_purcs_hamali + $edit_value[0]->m_purcs_charity + $edit_value[0]->m_purcs_packaging + $edit_value[0]->m_purcs_loading + $edit_value[0]->m_purcs_advance + $edit_value[0]->m_purcs_others);
-                                        foreach ($edit_value as $kry) {
-                                            $purTotalAmt += $kry->m_purcs_total;
-                                            $cou++;
+                                    $cou = 0;
+                                    $purTotalAmt = ($edit_value[0]->m_purcs_comm + $edit_value[0]->m_purcs_fright + $edit_value[0]->m_purcs_hamali + $edit_value[0]->m_purcs_charity + $edit_value[0]->m_purcs_packaging + $edit_value[0]->m_purcs_loading + $edit_value[0]->m_purcs_advance + $edit_value[0]->m_purcs_others);
+                                    foreach ($edit_value as $kry) {
+                                        $purTotalAmt += $kry->m_purcs_total;
+                                        $cou++;
                                 ?>
                                         <tr>
                                             <td id="rowcount<?= $cou ?>"><?= $cou ?></td>
@@ -464,14 +427,18 @@
                 target: 'select#m_purcs_suplier',
                 mode: 'select',
                 idField: 'm_user_id',
-                labelFn: function(s) { return s.m_user_name + ' | ' + s.m_user_mobile; },
+                labelFn: function(s) {
+                    return s.m_user_name + ' | ' + s.m_user_mobile;
+                },
                 placeholder: '--Select--'
             },
             {
                 listType: 'item',
                 target: '#items_datalist',
                 mode: 'datalist',
-                valueFn: function(it) { return it.m_item_name; },
+                valueFn: function(it) {
+                    return it.m_item_name;
+                },
                 attrsFn: function(it) {
                     return {
                         itemid: it.m_item_id,

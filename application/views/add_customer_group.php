@@ -41,12 +41,6 @@
             <div class="row mb-1 g-3">
                 <div class="col-9">
                     <div class="row mb-1 g-3">
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <label>Group Name<span class="text-danger">*</span></label>
-                                <input type="text" name="m_custgrp_name" id="m_custgrp_name" class="form-control" placeholder="Enter Group Name" value="<?= $custgrp_name ?>">
-                            </div>
-                        </div>
                         <?php if ($this->session->userdata('user_type') == 8) { ?>
                         <div class="col-md-3">
                             <div class="form-group">
@@ -63,6 +57,12 @@
                             </div>
                         </div>
                         <?php } ?>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>Group Name<span class="text-danger">*</span></label>
+                                <input type="text" name="m_custgrp_name" id="m_custgrp_name" class="form-control" placeholder="Enter Group Name" value="<?= $custgrp_name ?>">
+                            </div>
+                        </div>
 
                         <div class="col-md-3">
                             <div class="form-group">

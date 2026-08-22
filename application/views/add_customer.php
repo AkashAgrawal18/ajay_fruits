@@ -126,6 +126,17 @@
                             <input type="tel" onkeypress="return (event.charCode >= 48 && event.charCode <= 57 || event.charCode == 46)" name="cbv25" id="cbv25" value="<?= abs($cv25) ?>" placeholder="25kg Balance" class="form-control" aria-label="Text input with segmented dropdown button">
                         </div>
                     </div>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                        <div class="col-6">
+                            <label for="" class="mb-0 form-label small">Branch</label>
+                            <select name="m_cust_branch" id="m_cust_branch" class="form-control select2">
+                                <option value="0">Head Office</option>
+                                <?php foreach ($branch_list as $branch) { ?>
+                                    <option value="<?= $branch->m_user_id ?>" <?= $cust_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                                <?php } ?>
+                            </select>
+                        </div>
+                    <?php } ?>
                     <div class="col-6">
                         <label for="" class="mb-0 form-label small">Area/City</label>
                         <select name="m_cust_city" id="city" class="form-control select2">
@@ -172,17 +183,7 @@
 
                         </select>
                     </div>
-                    <?php if ($this->session->userdata('user_type') == 8) { ?>
-                    <div class="col-6">
-                        <label for="" class="mb-0 form-label small">Branch</label>
-                        <select name="m_cust_branch" id="m_cust_branch" class="form-control select2">
-                            <option value="0">Head Office</option>
-                            <?php foreach ($branch_list as $branch) { ?>
-                                <option value="<?= $branch->m_user_id ?>" <?= $cust_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
-                            <?php } ?>
-                        </select>
-                    </div>
-                    <?php } ?>
+
                     <div class="col-12">
                         <label for="" class="mb-0 form-label small">Address</label>
                         <textarea rows="3" class="form-control" name="m_cust_address" id="m_cust_address" value="<?= $address ?>" placeholder="enter full address"><?= $address ?></textarea>

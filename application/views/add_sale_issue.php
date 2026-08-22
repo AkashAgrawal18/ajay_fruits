@@ -58,6 +58,28 @@
 
             <div class="row mb-1 g-3">
 
+                <?php if ($this->session->userdata('user_type') == 8) { ?>
+                <div class="col-md-3">
+                    <div class="row">
+                        <div class="col-3">
+                            <label>Branch</label>
+                        </div>
+                        <div class="col-9">
+                            <div class="form-group">
+                                <select name="si_issue_branch" id="si_issue_branch" class="form-select select2">
+                                    <option value="0">Head Office</option>
+                                    <?php if (!empty($branch_list)) {
+                                        foreach ($branch_list as $branch) {
+                                    ?>
+                                        <option value="<?= $branch->m_user_id ?>" <?= $issue_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
+                                    <?php }
+                                    } ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php } ?>
                 <div class="col-md-3">
                     <div class="row">
                         <div class="col-3">
@@ -125,28 +147,6 @@
 
                 </div>
 
-                <?php if ($this->session->userdata('user_type') == 8) { ?>
-                <div class="col-md-3">
-                    <div class="row">
-                        <div class="col-4">
-                            <label>Branch</label>
-                        </div>
-                        <div class="col-8">
-                            <div class="form-group">
-                                <select name="si_issue_branch" id="si_issue_branch" class="form-select select2">
-                                    <option value="0">Head Office</option>
-                                    <?php if (!empty($branch_list)) {
-                                        foreach ($branch_list as $branch) {
-                                    ?>
-                                        <option value="<?= $branch->m_user_id ?>" <?= $issue_branch == $branch->m_user_id ? 'selected' : '' ?>><?= $branch->m_user_name ?></option>
-                                    <?php }
-                                    } ?>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <?php } ?>
 
                 <div class="col-md-12 mb-2">
 
