@@ -714,7 +714,11 @@ class Report_model extends CI_model
     $this->db->select('sum(m_purcs_crate) as tcrate,m_itgrp_title')
       ->join('master_item_tbl mit', 'mit.m_item_id = master_purchase_tbl.m_purcs_item', 'left')
       ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')
-      ->where('m_purcs_suplier', $sup_id)->where('m_item_crate', $crate_id);
+      ->where('m_purcs_suplier', $sup_id)->where('m_item_crate', $crate_id)
+      // Purchases only - see supplier_detailed_leger. Transfer rows carry no
+      // crates today, so this changes no current figure, but it keeps the
+      // crate ledger built from the same rows as the cash one.
+      ->where('master_purchase_tbl.m_purcs_type', 1);
     if ($branch !== null) $this->db->where('master_purchase_tbl.m_purcs_branch', $branch);
     $crategiven = $this->db->group_by('m_item_crate')->get('master_purchase_tbl')->result();
 
@@ -746,7 +750,11 @@ class Report_model extends CI_model
 
     if (!empty($from_date)) $this->db->where('m_purcs_date <=', $from_date);
     $this->db->select('sum(m_purcs_qty) as tqty,sum(m_purcs_total) as sub_total,sum(m_purcs_crate) as tcrate,(m_purcs_comm + m_purcs_fright + m_purcs_hamali + m_purcs_charity + m_purcs_packaging + m_purcs_loading + m_purcs_advance + m_purcs_others) as texpense')
-      ->where('m_purcs_suplier', $sup_id);
+      ->where('m_purcs_suplier', $sup_id)
+      // Same as supplier_detailed_leger: purchases only, never transfers.
+      // This figure is the ledger's opening AND closing balance, so it has
+      // to be built from exactly the same rows the ledger body lists.
+      ->where('m_purcs_type', 1);
     if ($branch !== null) $this->db->where('m_purcs_branch', $branch);
     $salequery = $this->db->group_by('m_purcs_spo')->get('master_purchase_tbl')->result();
     foreach ($salequery as $key) {
@@ -832,7 +840,11 @@ class Report_model extends CI_model
     // Purchases
     $this->db->where('m_purcs_date >=', $from_date)->where('m_purcs_date <=', $todate)
       ->select('m_purcs_spo,m_purcs_date,sum(m_purcs_qty) as tqty,sum(m_purcs_crate) as tcrate,sum(m_purcs_total) as sub_total,(m_purcs_comm + m_purcs_fright + m_purcs_hamali + m_purcs_charity + m_purcs_packaging + m_purcs_loading + m_purcs_advance + m_purcs_others) as texpense,m_purcs_note')
-      ->where('m_purcs_suplier', $supplier);
+      ->where('m_purcs_suplier', $supplier)
+      // m_purcs_type 1 only: type 2 rows are Head Office -> branch stock
+      // transfers, which carry the source lot's supplier but are not a
+      // purchase from them.
+      ->where('m_purcs_type', 1);
     if ($branch !== null) $this->db->where('m_purcs_branch', $branch);
     $salequery = $this->db->group_by('m_purcs_spo')->get('master_purchase_tbl')->result();
     foreach ($salequery as $key) {
@@ -841,7 +853,8 @@ class Report_model extends CI_model
         ->join('master_itemgroup_tbl as group', 'group.m_itgrp_id = mit.m_item_group', 'left')
         ->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')
         ->join('master_itemgroup_tbl as unit', 'unit.m_itgrp_id = mit.m_item_unit', 'left')
-        ->where('m_purcs_spo', $key->m_purcs_spo);
+        ->where('m_purcs_spo', $key->m_purcs_spo)
+        ->where('m_purcs_type', 1);
       if ($branch !== null) $this->db->where('m_purcs_branch', $branch);
       $sale_items = $this->db->get('master_purchase_tbl')->result();
       $sql1[] = [
