@@ -314,9 +314,16 @@ class Master_model extends CI_model
     return true;
   }
 
+  /**
+   * Cash and bank accounts offered as a payment/receipt Method.
+   *
+   * Not branch-scoped: m_payment_method / m_recvd_method are NOT NULL, and a
+   * branch with no cash or bank account of its own would get an empty
+   * dropdown and be unable to record any payment or receipt. Same reasoning
+   * as items and crate sizes above.
+   */
   public function get_payment_methods($branch_id = null)
   {
-    $this->where_branch('m_group_branch', $branch_id);
     $this->db->select('m_group_id,m_group_name,m_group_type,m_group_status,m_group_remark');
     $this->db->where('(m_group_type = 3 OR m_group_type = 4)');
     $this->db->where('m_group_status', 1);

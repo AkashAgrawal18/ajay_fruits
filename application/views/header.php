@@ -34,6 +34,9 @@
                             <li><a class="dropdown-item" href="<?= base_url('Master/bank_account_list') ?>">Bank Account</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Master/cash_account_list') ?>">Cash Account</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Master/group_list') ?>">Groups</a></li>
+                            <?php if ($this->session->userdata('user_type') == 8) : ?>
+                                <li><a class="dropdown-item" href="<?= base_url('Accounts/branch_list') ?>">Branch List</a></li>
+                            <?php endif; ?>
 
                         </ul>
                     </div>
@@ -58,14 +61,9 @@
                             <li><a class="dropdown-item" href="<?= base_url('Sales/send_bill_indiviouly') ?>">Send Summary</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Sales/Reminder_list') ?>">Reminder List</a></li>
                             <li><a class="dropdown-item" href="<?= base_url('Sales/purchase_item_list') ?>">Stock in & out Report</a></li>
-                            <?php if ($this->session->userdata('user_type') == 8) : ?>
-                                <li><a class="dropdown-item" href="<?= base_url('Accounts/branch_list') ?>">Branch List</a></li>
-                                <li><a class="dropdown-item" href="<?= base_url('Transfer/add_transfer') ?>">Create Transfer</a></li>
-                            <?php endif; ?>
-                            <li><a class="dropdown-item" href="<?= base_url('Reports/transfer_ledger') ?>">Transfer Ledger</a></li>
-                            <?php if ($this->session->userdata('user_type') == 8) : ?>
-                                <li><a class="dropdown-item" href="<?= base_url('Reports/branch_outstanding') ?>">Branch Outstanding</a></li>
-                            <?php else : ?>
+                            <?php if ($this->session->userdata('user_type') != 8) : ?>
+                                <?php // Superadmin reaches this through Ledger > Account Type > Branch;
+                                      // Create Transfer has its own tile in the icon row below. ?>
                                 <li><a class="dropdown-item" href="<?= base_url('Reports/branch_ledger') ?>">Branch Ledger</a></li>
                             <?php endif; ?>
                         </ul>

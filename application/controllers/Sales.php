@@ -308,6 +308,8 @@ class Sales extends CI_Controller
   {
     // Was reachable anonymously and rendered sales data straight out (BUG-030).
     $this->require_login();
+    // The view titles the document with this.
+    $data['pagename'] = "Lotwise Sale Print";
     $data['all_value'] = $this->Report_model->lotwise_sales_list($this->input->get('purid'), $this->input->get('item_id'));
     $this->load->view('lotwise_sale_print', $data);
   }
@@ -420,11 +422,21 @@ class Sales extends CI_Controller
       // user_type 9 -> apni hi branch ka data, dropdown se koi override nahi
       $data['branch_id'] = $this->session->userdata('user_id');
       $data['branch_locked'] = true; // view me dropdown disable karne ke liye
+      // The Type dropdown is superadmin-only, so a branch user has no way to
+      // switch it - leave it unfiltered rather than undefined. A branch needs
+      // to see transfers received as well as its own purchases, and reading
+      // the unset key below warned on every load of this page.
+      $data['type_pur'] = null;
     } else {
       // user_type 8 -> sab branch dekh sakta hai, dropdown se filter
       $data['branch_id'] = $this->input->post('branch_id');
       $data['branch_locked'] = false;
-      $data['type_pur'] = $this->input->post('type_pur') ?: 1;
+      // '' is the Type dropdown's "All" option and a real choice, so test for a
+      // posted value rather than using ?: - which turned All back into Purchase
+      // and left the option impossible to select. A first load posts nothing at
+      // all, and still defaults to Purchase.
+      $posted_type = $this->input->post('type_pur');
+      $data['type_pur'] = ($posted_type === null) ? 1 : $posted_type;
     }
     $data['from_date'] = $this->input->post('from_date') ?: date('Y-m-d');
     $data['to_date'] = $this->input->post('to_date') ?: $curdate;
@@ -962,6 +974,21 @@ class Sales extends CI_Controller
           $data['listtype'] = 2;
           $data['listname'] = "Investment";
           break;
+        case 8:
+          // Head Office raising a voucher against a branch. Not branch-scoped:
+          // branch accounts all live at Head Office (m_user_branch = 0) - which
+          // is also why this needs its own check, or any logged-in branch could
+          // ask for the full branch list.
+          if ($this->session->userdata('user_type') != 8) {
+            $data['list'] = array();
+            $data['listtype'] = 2;
+            $data['listname'] = "Branch";
+            break;
+          }
+          $data['list'] = $this->Main_model->get_user_list(9);
+          $data['listtype'] = 2;
+          $data['listname'] = "Branch";
+          break;
       }
 
       // CSRF regenerates its token on every accepted POST (see
@@ -1056,6 +1083,8 @@ class Sales extends CI_Controller
     $data = $this->login_details();
     $data['pagename'] = "Send Customer Summary";
     $data['pgtype'] = 2;
+    // The pgtype 2 branch of the view has its own Group filter, same as pgtype 1.
+    $data['group_id'] = $this->input->post('group_id') ?: 'o';
     $data['group_dtl'] = $this->Master_model->get_all_group(1);
     $data['cust_list'] = $this->Main_model->get_cust_active_list();
     $this->load->view('reminder_list', $data);
@@ -1065,6 +1094,8 @@ class Sales extends CI_Controller
     $data = $this->login_details();
     $data['pagename'] = "Send Customer Statement";
     $data['pgtype'] = 3;
+    // The pgtype 3 branch of the view has its own Group filter, same as pgtype 1.
+    $data['group_id'] = $this->input->post('group_id') ?: 'o';
     $data['group_dtl'] = $this->Master_model->get_all_group(1);
     $data['cust_list'] = $this->Main_model->get_cust_active_list();
     $this->load->view('reminder_list', $data);
@@ -1102,11 +1133,11 @@ class Sales extends CI_Controller
     $data['account_name'] = $this->input->get('account_name');
     $cust_dtl = $this->Main_model->get_cust_dtl($data['account_name']);
 
-    $data['from_date'] = $this->input->get('from_date') ?: $cust_dtl->m_cust_added_on;
+    $data['from_date'] = $this->input->get('from_date') ?: row_val($cust_dtl, 'm_cust_added_on', date('Y-m-d'));
     $data['todate'] = $this->input->get('to_date') ?: date('Y-m-d');
     $data['subhead'] = '<div class="col-6">
-                                <h4 class="m-0"><strong>' . $cust_dtl->m_cust_name . '</strong></h4>
-                                <h4>' . $cust_dtl->m_city_name . '</h4>
+                                <h4 class="m-0"><strong>' . row_val($cust_dtl, 'm_cust_name') . '</strong></h4>
+                                <h4>' . row_val($cust_dtl, 'm_city_name') . '</h4>
                             </div>
                             <div class="col-6 text-end">
                                 <h4 class="m-0"></h4>

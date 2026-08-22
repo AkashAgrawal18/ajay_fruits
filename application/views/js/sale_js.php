@@ -784,6 +784,22 @@
         `);
 
 
+    } else if (acct_type == 8) {
+      // Head Office paying a branch. Branches are ordinary master_users_tbl
+      // rows (type 9), so this is the same datalist shape as any other party.
+      $('#selet_label').html('Branch <span class="text-danger">*</span>');
+      $('#m_supplier_list' + filed_id).empty().html(`
+        <option value="">--Select--</option>
+                                    <?php
+                                    if (!empty($branch_list)) {
+                                      foreach ($branch_list as $vat) {
+                                    ?>
+                                             <option value="<?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?>" data-name="<?= $vat->m_user_name ?>" data-balance="<?= money2($vat->m_user_balance) ?>" data-id="<?= $vat->m_user_id ?>" data-mobile="<?= $vat->m_user_mobile ?>" ><?= $vat->m_user_name . ' | ' . $vat->m_user_mobile; ?></option>
+                                       <?php
+                                      }
+                                    }
+                                        ?>
+        `);
     } else if (acct_type == 6) {
       $('#selet_label').html('Investment Name <span class="text-danger">*</span>');
       $('#m_supplier_list' + filed_id).empty().html(`

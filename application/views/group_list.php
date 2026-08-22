@@ -217,17 +217,6 @@
 
 
 
-                        <div class="row mb-2">
-                           <div class="col-md-12">
-                              <div class="form-group">
-                                 <label><?= $pgtitle ?> Title<span class="text-danger">*</span></label>
-                                 <input type="hidden" name="m_group_type" id="m_group_type" value="<?= $grp_type ?>">
-                                 <input type="hidden" name="m_group_id" id="m_group_id" value="<?= $id ?>">
-                                 <input type="text" name="m_group_name" id="m_group_name" class="form-control" placeholder="Enter <?= $pgtitle ?> Title" required="" value="<?= $title ?>">
-                              </div>
-                           </div>
-                        </div>
-
                         <?php if ($this->session->userdata('user_type') == 8) { ?>
                         <div class="row mb-2">
                            <div class="col-md-12">
@@ -247,6 +236,17 @@
                            </div>
                         </div>
                         <?php } ?>
+                        <div class="row mb-2">
+                           <div class="col-md-12">
+                              <div class="form-group">
+                                 <label><?= $pgtitle ?> Title<span class="text-danger">*</span></label>
+                                 <input type="hidden" name="m_group_type" id="m_group_type" value="<?= $grp_type ?>">
+                                 <input type="hidden" name="m_group_id" id="m_group_id" value="<?= $id ?>">
+                                 <input type="text" name="m_group_name" id="m_group_name" class="form-control" placeholder="Enter <?= $pgtitle ?> Title" required="" value="<?= $title ?>">
+                              </div>
+                           </div>
+                        </div>
+
                         <?php if ($type == 2) { ?>
                            <div class="row mb-2">
                               <div class="col-md-12">

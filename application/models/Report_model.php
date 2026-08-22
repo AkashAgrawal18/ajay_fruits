@@ -789,7 +789,7 @@ class Report_model extends CI_model
     if ($branch !== null) $this->db->where('m_voucher_branch', $branch);
     $vouch_amtdbt = $this->db->get('master_voucher_tbl')->result();
 
-    $balance_amt = ($opening_bal->m_user_opening * (-1))
+    $balance_amt = (row_val($opening_bal, 'm_user_opening', 0) * (-1))
       + (($grand_total + $vouch_amtcdrt[0]->tamountcdt)
         - ($amountrcvdquery[0]->tamountrcvd + $vouch_amtdbt[0]->tamountdbt)
         + $amountpaidquery[0]->tamountrcvd);
@@ -804,7 +804,7 @@ class Report_model extends CI_model
     ];
 
     $all_crates       = $this->Master_model->all_itemgroup(3);
-    $openin_crate_bal = explode(',', $opening_bal->m_user_crateOP);
+    $openin_crate_bal = explode(',', row_val($opening_bal, 'm_user_crateOP', ''));
     foreach ($all_crates as $key) {
       $crateledger    = $this->get_sup_crate_ledger($key->m_itgrp_id, $sup_id, $from_date);
       $crate_total   += ((int)$crateledger['crate_given'] - (int)$crateledger['crate_rcvd']);
@@ -828,7 +828,7 @@ class Report_model extends CI_model
     }
     $result['crate_given']    = $total_given;
     $result['crate_recieved'] = $total_recieved;
-    $result['balance_crate']  = array_sum(explode(',', $opening_bal->m_user_crateOP)) + $crate_total;
+    $result['balance_crate']  = array_sum(explode(',', row_val($opening_bal, 'm_user_crateOP', ''))) + $crate_total;
     return $result;
   }
 
@@ -1013,7 +1013,7 @@ class Report_model extends CI_model
   {
     $branch      = $this->branch_id($branch_id);
     $opening_bal = $this->Master_model->get_edit_group($method);
-    $total_balance = $opening_bal->m_group_opening;
+    $total_balance = row_val($opening_bal, 'm_group_opening', 0);
     $sql1 = [];
 
     // Expenses
@@ -1068,7 +1068,7 @@ class Report_model extends CI_model
     $this->db->join('master_users_tbl mut', 'mut.m_user_id = master_payment_tbl.m_payment_user', 'left');
     $this->db->join('master_city_tbl', 'master_city_tbl.m_city_id = mct.m_user_city', 'left');
     $this->db->join('master_group_tbl method', 'method.m_group_id = master_payment_tbl.m_payment_method', 'left');
-    $this->db->select("m_payment_id as id,m_payment_amount as tamont,m_payment_method as method_id,method.m_group_name as method_name,m_payment_voucher as recipt_no,m_payment_date as date,m_payment_remark as note,(CASE WHEN m_payment_account = 2 THEN mgt.m_group_name WHEN m_payment_account = 7 && m_payment_method = $method THEN mgt.m_group_name WHEN m_payment_account = 7 THEN method.m_group_name ELSE mct.m_user_name END) as csname,mut.m_user_name as user,m_city_name as city");
+    $this->db->select("m_payment_id as id,m_payment_amount as tamont,m_payment_method as method_id,method.m_group_name as method_name,m_payment_voucher as recipt_no,m_payment_date as date,m_payment_remark as note,(CASE WHEN m_payment_account = 2 THEN mgt.m_group_name WHEN m_payment_account = 1 && m_payment_supplier = 0 THEN 'Head Office' WHEN m_payment_account = 7 && m_payment_method = $method THEN mgt.m_group_name WHEN m_payment_account = 7 THEN method.m_group_name ELSE mct.m_user_name END) as csname,mut.m_user_name as user,m_city_name as city");
     if ($branch !== null) $this->db->where('master_payment_tbl.m_payment_branch', $branch);
     $payquery = $this->db->get('master_payment_tbl')->result();
     foreach ($payquery as $krrey) {
@@ -1089,7 +1089,7 @@ class Report_model extends CI_model
   {
     $branch        = $this->branch_id($branch_id);
     $opening_bal   = $this->Main_model->get_user_dtl($account_name);
-    $total_balance = $opening_bal->m_user_opening;
+    $total_balance = row_val($opening_bal, 'm_user_opening', 0);
     $sql1 = [];
 
     if (!empty($from_date)) $this->db->where('m_recvd_date >=', $from_date);
@@ -1114,7 +1114,7 @@ class Report_model extends CI_model
     $this->db->join('master_users_tbl mut', 'mut.m_user_id = master_payment_tbl.m_payment_user', 'left');
     $this->db->join('master_city_tbl', 'master_city_tbl.m_city_id = mct.m_user_city', 'left');
     $this->db->join('master_group_tbl method', 'method.m_group_id = master_payment_tbl.m_payment_method', 'left');
-    $this->db->select('m_payment_id as id,m_payment_amount as tamont,m_payment_method as method_id,method.m_group_name as method_name,m_payment_voucher as recipt_no,m_payment_date as date,m_payment_remark as note,(CASE WHEN m_payment_account = 2 THEN mgt.m_group_name ELSE mct.m_user_name END) as csname,mut.m_user_name as user,"2" as type,m_city_name as city')
+    $this->db->select('m_payment_id as id,m_payment_amount as tamont,m_payment_method as method_id,method.m_group_name as method_name,m_payment_voucher as recipt_no,m_payment_date as date,m_payment_remark as note,(CASE WHEN m_payment_account = 2 THEN mgt.m_group_name WHEN m_payment_account = 1 && m_payment_supplier = 0 THEN \'Head Office\' ELSE mct.m_user_name END) as csname,mut.m_user_name as user,"2" as type,m_city_name as city')
       ->where('(m_payment_account = 5 OR m_payment_account = 6)')->where('m_payment_supplier', $account_name);
     if ($branch !== null) $this->db->where('master_payment_tbl.m_payment_branch', $branch);
     $payquery = $this->db->get('master_payment_tbl')->result();
@@ -1146,7 +1146,7 @@ class Report_model extends CI_model
   {
     $branch        = $this->branch_id($branch_id);
     $opening_bal   = $this->Master_model->get_edit_group($account_name);
-    $total_balance = $opening_bal->m_group_opening;
+    $total_balance = row_val($opening_bal, 'm_group_opening', 0);
     $sql1 = [];
 
     if (!empty($from_date)) $this->db->where('m_sale_date >=', $from_date);
@@ -1186,7 +1186,7 @@ class Report_model extends CI_model
   {
     $branch        = $this->branch_id($branch_id);
     $opening_bal   = $this->Main_model->get_user_dtl($account_name);
-    $total_balance = $opening_bal->m_user_opening;
+    $total_balance = row_val($opening_bal, 'm_user_opening', 0);
     $sql1 = [];
 
     if (!empty($from_date)) $this->db->where('m_sale_date >=', $from_date);
@@ -1225,7 +1225,7 @@ class Report_model extends CI_model
   {
     $branch        = $this->branch_id($branch_id);
     $opening_bal   = $this->Master_model->get_edit_group($account_name);
-    $total_balance = $opening_bal->m_group_opening;
+    $total_balance = row_val($opening_bal, 'm_group_opening', 0);
     $sql1 = [];
 
     if (!empty($from_date)) $this->db->where('m_exp_date >=', $from_date);
@@ -1379,6 +1379,53 @@ class Report_model extends CI_model
       $vals = array_map(array($this->db, 'escape'), $values);
     }
     return $column . ' IN (' . implode(',', $vals) . ')';
+  }
+
+  /**
+   * The lines behind one challan on the truck report.
+   *
+   * $funtype 1 = what was purchased on that challan, 2 = what has since been
+   * sold out of its lots. Two shapes because the modal renders two different
+   * tables from the same call.
+   */
+  public function truck_challan_lines($spo, $funtype = 1, $branch_id = null)
+  {
+    if ($spo === null || $spo === '') {
+      return array();
+    }
+
+    $branch = $this->branch_id($branch_id);
+
+    if ($funtype == 1) {
+      $this->db->select('master_purchase_tbl.*, mit.m_item_name')
+        ->join('master_item_tbl mit', 'mit.m_item_id = master_purchase_tbl.m_purcs_item', 'left')
+        ->where('m_purcs_spo', $spo)
+        ->where('m_purcs_type', 1);
+      if ($branch !== null) $this->db->where('master_purchase_tbl.m_purcs_branch', $branch);
+      return $this->db->order_by('mit.m_item_name')->get('master_purchase_tbl')->result();
+    }
+
+    // Which purchase rows make up this challan - a sale points at one of
+    // these ids through m_sale_lot.
+    $this->db->select('m_purcs_id')->where('m_purcs_spo', $spo)->where('m_purcs_type', 1);
+    if ($branch !== null) $this->db->where('m_purcs_branch', $branch);
+    $lot_ids = array();
+    foreach ($this->db->get('master_purchase_tbl')->result() as $row) {
+      $lot_ids[] = (int) $row->m_purcs_id;
+    }
+    if (empty($lot_ids)) {
+      return array();
+    }
+
+    // m_sale_lot is the purchase row id, so surface the readable lot number
+    // under the same name the modal already prints.
+    $this->db->select('master_sales_tbl.*, mp.m_purcs_lot as m_sale_lot, mit.m_item_name, mct.m_cust_name')
+      ->join('master_purchase_tbl mp', 'mp.m_purcs_id = master_sales_tbl.m_sale_lot', 'left')
+      ->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')
+      ->join('master_customer_tbl mct', 'mct.m_cust_id = master_sales_tbl.m_sale_customer', 'left')
+      ->where_in('master_sales_tbl.m_sale_lot', $lot_ids);
+    if ($branch !== null) $this->db->where('master_sales_tbl.m_sale_branch', $branch);
+    return $this->db->order_by('master_sales_tbl.m_sale_date')->get('master_sales_tbl')->result();
   }
 
   public function get_truck_report($fromdate, $todate, $supplier = '')
@@ -1934,10 +1981,69 @@ class Report_model extends CI_model
       ->where('m_recvd_date <', $before_date)
       ->get('master_recieved_tbl')->row();
 
-    $bills = !empty($bill_total->m_purcs_total) ? (float) $bill_total->m_purcs_total : 0;
-    $paid  = !empty($paid_total->m_recvd_amount) ? (float) $paid_total->m_recvd_amount : 0;
+    // The branch's own side of the same account: what it entered against Head
+    // Office, which is the ordinary Supplier account type with party id 0
+    // (see Main_model::head_office_party). Built from exactly the sources
+    // branch_ledger_payments() lists, so the opening balance and the running
+    // balance below it cannot drift apart.
+    $ho_paid_total = $this->db->select_sum('m_payment_amount')
+      ->where('m_payment_branch', $branch_id)
+      ->where('m_payment_account', 1)
+      ->where('m_payment_supplier', 0)
+      ->where('m_payment_type', 1)
+      ->where('m_payment_date <', $before_date)
+      ->get('master_payment_tbl')->row();
 
-    return $bills - $paid;
+    // Money the branch received FROM Head Office raises what it owes.
+    $ho_rcvd_total = $this->db->select_sum('m_recvd_amount')
+      ->where('m_recvd_branch', $branch_id)
+      ->where('m_recvd_account', 4)
+      ->where('m_recvd_customer', 0)
+      ->where('m_recvd_type', 1)
+      ->where('m_recvd_date <', $before_date)
+      ->get('master_recieved_tbl')->row();
+
+    $vouchers = $this->db->select('m_voucher_type, SUM(m_voucher_amount) as tamount')
+      ->where('m_voucher_branch', $branch_id)
+      ->where('m_voucher_account', 2)
+      ->where('m_voucher_accountid', 0)
+      ->where('m_voucher_status', 1)
+      ->where('m_voucher_date <', $before_date)
+      ->group_by('m_voucher_type')
+      ->get('master_voucher_tbl')->result();
+
+    // What Head Office recorded against this branch. Keyed on the party
+    // column, not m_*_branch: Head Office enters these from its own side, so
+    // the row's branch column is 0.
+    $ho_gave_total = $this->db->select_sum('m_payment_amount')
+      ->where('m_payment_supplier', $branch_id)
+      ->where('m_payment_account', 8)
+      ->where('m_payment_type', 1)
+      ->where('m_payment_date <', $before_date)
+      ->get('master_payment_tbl')->row();
+
+    $ho_vouchers = $this->db->select('m_voucher_type, SUM(m_voucher_amount) as tamount')
+      ->where('m_voucher_accountid', $branch_id)
+      ->where('m_voucher_account', 8)
+      ->where('m_voucher_status', 1)
+      ->where('m_voucher_date <', $before_date)
+      ->group_by('m_voucher_type')
+      ->get('master_voucher_tbl')->result();
+
+    $bills   = !empty($bill_total->m_purcs_total) ? (float) $bill_total->m_purcs_total : 0;
+    $paid    = !empty($paid_total->m_recvd_amount) ? (float) $paid_total->m_recvd_amount : 0;
+    $ho_paid = !empty($ho_paid_total->m_payment_amount) ? (float) $ho_paid_total->m_payment_amount : 0;
+    $ho_rcvd = !empty($ho_rcvd_total->m_recvd_amount) ? (float) $ho_rcvd_total->m_recvd_amount : 0;
+
+    $ho_gave = !empty($ho_gave_total->m_payment_amount) ? (float) $ho_gave_total->m_payment_amount : 0;
+
+    $voucher_net = 0;
+    foreach (array_merge($vouchers, $ho_vouchers) as $v) {
+      // credit raises what the branch owes, debit settles it
+      $voucher_net += ($v->m_voucher_type == 1) ? (float) $v->tamount : -(float) $v->tamount;
+    }
+
+    return $bills - $paid - $ho_paid + $ho_rcvd + $ho_gave + $voucher_net;
   }
 
   public function branch_ledger_bills($branch_id, $from_date = '', $todate = '')
@@ -1952,16 +2058,128 @@ class Report_model extends CI_model
     return $this->db->get('master_purchase_tbl')->result();
   }
 
+  /**
+   * Everything that moves the branch's Head Office account other than the issue
+   * bills, normalised to {date, particular, debit, credit}.
+   *
+   * Three sources, because the same settlement can be entered from either end:
+   * Head Office recording a receipt from the branch, or the branch recording a
+   * payment to Head Office. Both are kept, and each row says which one it came
+   * from, so a duplicate shows up on the ledger instead of quietly taking the
+   * balance down twice.
+   */
   public function branch_ledger_payments($branch_id, $from_date = '', $todate = '')
   {
+    $rows = [];
+
+    // 1. Head Office recorded a receipt from this branch
     $this->db->select('m_recvd_voucher, m_recvd_date, m_recvd_amount, m_recvd_remark')
       ->where('m_recvd_customer', $branch_id)
       ->where('m_recvd_account', 8)
       ->where('m_recvd_type', 1);
     if (!empty($from_date)) $this->db->where('m_recvd_date >=', $from_date);
     if (!empty($todate))    $this->db->where('m_recvd_date <=', $todate);
-    $this->db->order_by('m_recvd_date');
-    return $this->db->get('master_recieved_tbl')->result();
+    foreach ($this->db->order_by('m_recvd_date')->get('master_recieved_tbl')->result() as $r) {
+      $rows[] = [
+        'date'       => $r->m_recvd_date,
+        'particular' => 'Receipt from Branch (HO) No. ' . $r->m_recvd_voucher
+          . (!empty($r->m_recvd_remark) ? ' (' . $r->m_recvd_remark . ')' : ''),
+        'debit'      => 0,
+        'credit'     => (float) $r->m_recvd_amount,
+      ];
+    }
+
+    // 2. The branch recorded a payment to Head Office
+    $this->db->select('m_payment_voucher, m_payment_date, m_payment_amount, m_payment_remark')
+      ->where('m_payment_branch', $branch_id)
+      ->where('m_payment_account', 1)
+      ->where('m_payment_supplier', 0)
+      ->where('m_payment_type', 1);
+    if (!empty($from_date)) $this->db->where('m_payment_date >=', $from_date);
+    if (!empty($todate))    $this->db->where('m_payment_date <=', $todate);
+    foreach ($this->db->order_by('m_payment_date')->get('master_payment_tbl')->result() as $r) {
+      $rows[] = [
+        'date'       => $r->m_payment_date,
+        'particular' => 'Payment to Head Office (branch) No. ' . $r->m_payment_voucher
+          . (!empty($r->m_payment_remark) ? ' (' . $r->m_payment_remark . ')' : ''),
+        'debit'      => 0,
+        'credit'     => (float) $r->m_payment_amount,
+      ];
+    }
+
+    // 3. The branch recorded money received FROM Head Office - raises the debt
+    $this->db->select('m_recvd_voucher, m_recvd_date, m_recvd_amount, m_recvd_remark')
+      ->where('m_recvd_branch', $branch_id)
+      ->where('m_recvd_account', 4)
+      ->where('m_recvd_customer', 0)
+      ->where('m_recvd_type', 1);
+    if (!empty($from_date)) $this->db->where('m_recvd_date >=', $from_date);
+    if (!empty($todate))    $this->db->where('m_recvd_date <=', $todate);
+    foreach ($this->db->order_by('m_recvd_date')->get('master_recieved_tbl')->result() as $r) {
+      $rows[] = [
+        'date'       => $r->m_recvd_date,
+        'particular' => 'Receipt from Head Office No. ' . $r->m_recvd_voucher
+          . (!empty($r->m_recvd_remark) ? ' (' . $r->m_recvd_remark . ')' : ''),
+        'debit'      => (float) $r->m_recvd_amount,
+        'credit'     => 0,
+      ];
+    }
+
+    // 4. Head Office vouchers - credit raises the debt, debit settles it
+    $this->db->select('m_voucher_id, m_voucher_date, m_voucher_amount, m_voucher_type, m_voucher_remark')
+      ->where('m_voucher_branch', $branch_id)
+      ->where('m_voucher_account', 2)
+      ->where('m_voucher_accountid', 0)
+      ->where('m_voucher_status', 1);
+    if (!empty($from_date)) $this->db->where('m_voucher_date >=', $from_date);
+    if (!empty($todate))    $this->db->where('m_voucher_date <=', $todate);
+    foreach ($this->db->order_by('m_voucher_date')->get('master_voucher_tbl')->result() as $r) {
+      $is_credit_voucher = ($r->m_voucher_type == 1);
+      $rows[] = [
+        'date'       => $r->m_voucher_date,
+        'particular' => ($is_credit_voucher ? 'Credit' : 'Debit') . ' Voucher (HO) No. ' . $r->m_voucher_id
+          . (!empty($r->m_voucher_remark) ? ' (' . $r->m_voucher_remark . ')' : ''),
+        'debit'      => $is_credit_voucher ? (float) $r->m_voucher_amount : 0,
+        'credit'     => $is_credit_voucher ? 0 : (float) $r->m_voucher_amount,
+      ];
+    }
+
+    // 5. Head Office paid this branch - the branch received money, so debit
+    $this->db->select('m_payment_voucher, m_payment_date, m_payment_amount, m_payment_remark')
+      ->where('m_payment_supplier', $branch_id)
+      ->where('m_payment_account', 8)
+      ->where('m_payment_type', 1);
+    if (!empty($from_date)) $this->db->where('m_payment_date >=', $from_date);
+    if (!empty($todate))    $this->db->where('m_payment_date <=', $todate);
+    foreach ($this->db->order_by('m_payment_date')->get('master_payment_tbl')->result() as $r) {
+      $rows[] = [
+        'date'       => $r->m_payment_date,
+        'particular' => 'Payment from Head Office No. ' . $r->m_payment_voucher
+          . (!empty($r->m_payment_remark) ? ' (' . $r->m_payment_remark . ')' : ''),
+        'debit'      => (float) $r->m_payment_amount,
+        'credit'     => 0,
+      ];
+    }
+
+    // 6. Vouchers Head Office raised against this branch
+    $this->db->select('m_voucher_id, m_voucher_date, m_voucher_amount, m_voucher_type, m_voucher_remark')
+      ->where('m_voucher_accountid', $branch_id)
+      ->where('m_voucher_account', 8)
+      ->where('m_voucher_status', 1);
+    if (!empty($from_date)) $this->db->where('m_voucher_date >=', $from_date);
+    if (!empty($todate))    $this->db->where('m_voucher_date <=', $todate);
+    foreach ($this->db->order_by('m_voucher_date')->get('master_voucher_tbl')->result() as $r) {
+      $is_credit_voucher = ($r->m_voucher_type == 1);
+      $rows[] = [
+        'date'       => $r->m_voucher_date,
+        'particular' => ($is_credit_voucher ? 'Credit' : 'Debit') . ' Voucher from Head Office No. ' . $r->m_voucher_id
+          . (!empty($r->m_voucher_remark) ? ' (' . $r->m_voucher_remark . ')' : ''),
+        'debit'      => $is_credit_voucher ? (float) $r->m_voucher_amount : 0,
+        'credit'     => $is_credit_voucher ? 0 : (float) $r->m_voucher_amount,
+      ];
+    }
+
+    return $rows;
   }
 
   public function branch_outstanding_list()

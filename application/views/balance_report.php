@@ -476,6 +476,9 @@ if ($is_cust_in == false) {
                                             <option value="5">Bank</option>
                                             <option value="10">Discount Ledger</option>
                                             <option value="11">Transfer</option>
+                                            <?php if ($this->session->userdata('user_type') == 8) { ?>
+                                                <option value="12">Branch</option>
+                                            <?php } ?>
                                         <?php } ?>
                                     </select>
                                 </div>
@@ -580,6 +583,10 @@ if ($is_cust_in == false) {
                                     <button class="btn btn-primary rounded-pill px-5 ledger_btn_submit d-none" id="voucherdebitbtn" data-link="<?= base_url('Reports/voucher_ledger/2') ?>" type="submit">Debit Voucher</button>
                                     <button class="btn btn-primary rounded-pill px-5 ledger_btn_submit d-none" id="vouchercreditbtn" data-link="<?= base_url('Reports/voucher_ledger/1') ?>" type="submit">Credit Voucher</button>
                                     <button class="btn btn-primary rounded-pill px-5 ledger_btn_submit d-none" id="transferledgerbtn" data-link="<?= base_url('Reports/transfer_ledger') ?>" data-noaccount="1" type="submit">Transfer Ledger</button>
+                                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                                        <button class="btn btn-primary rounded-pill px-5 ledger_btn_submit d-none" id="branchledgerbtn" data-link="<?= base_url('Reports/branch_ledger') ?>" type="submit">Branch Ledger</button>
+                                        <button class="btn btn-success rounded-pill px-5 ledger_btn_submit d-none" id="branchoutstandingbtn" data-link="<?= base_url('Reports/branch_outstanding') ?>" data-noaccount="1" type="submit">Branch Outstanding</button>
+                                    <?php } ?>
                                 <?php } ?>
                             </div>
                         </div>

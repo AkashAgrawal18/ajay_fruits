@@ -303,3 +303,38 @@ ALTER TABLE `master_voucher_tbl`
 -- APPLIED to the local dev DB (ajayfruits_db) on 2026-08-22.
 -- ---------------------------------------------------------------------------
 ALTER TABLE `application_settings` ADD COLUMN `date_lock_password_enc` VARCHAR(255) NULL AFTER `date_lock_password`;
+
+-- ---------------------------------------------------------------------------
+-- Balance correction for the two legacy transfer rows (m_purcs_id 2946, 2947,
+-- 116,340.00 total, dated 2026-07-16).
+--
+-- They were written by an earlier version of the transfer feature, which copied
+-- the source lot's supplier onto the transfer row AND skipped the credit to the
+-- receiving branch. Today's Main_model::insert_transfer() credits only the
+-- branch and never touches the supplier, so this cannot recur.
+--
+-- The effect is one amount wrong in two places:
+--
+--   master_users_tbl 140 (AJAY SONKAR -LALI FRUIS, supplier)
+--       stored 418,980.00, should be 302,640.00
+--       = 292,810.00 purchases + 9,830.00 bill expenses; the remaining
+--         116,340.00 was never a purchase from them
+--
+--   master_users_tbl 141 (Branch 1)
+--       stored 2,189.99, should be 118,529.99
+--       = the branch received that stock and was never charged for it
+--
+-- Both figures then agree with what the ledgers already report:
+-- Reports::supplier_cash_ledger for 140 closes at 302,640.00, and
+-- Reports::branch_ledger for 141 closes at 118,529.99, because
+-- Report_model reads the transfer rows themselves rather than these caches.
+--
+-- The transfer rows are NOT deleted - the stock movement they record really
+-- happened. Only the two cached balances are corrected.
+--
+-- NOT APPLIED - review before running. Verify afterwards by opening the
+-- supplier ledger for 140 and the branch ledger for 141 and checking each
+-- closing balance matches the stored one.
+-- ---------------------------------------------------------------------------
+-- UPDATE `master_users_tbl` SET `m_user_balance` = `m_user_balance` - 116340 WHERE `m_user_id` = 140 AND `m_user_type` = 2;
+-- UPDATE `master_users_tbl` SET `m_user_balance` = `m_user_balance` + 116340 WHERE `m_user_id` = 141 AND `m_user_type` = 9;

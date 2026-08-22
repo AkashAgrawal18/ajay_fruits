@@ -82,7 +82,7 @@ class Reports extends CI_Controller
             $agent_name = 'Admin';
         } else {
             $agent_dtl = $this->Main_model->get_user_group_dtl($data['agent'], $branch_id);
-            $agent_name = empty($data['agent']) ? 'All/Admin' : $agent_dtl->m_user_name;
+            $agent_name = row_val($agent_dtl, 'm_user_name', 'All/Admin');
         }
 
         $data['subhead'] = '<div class="col-4">
@@ -404,7 +404,7 @@ class Reports extends CI_Controller
         $agent_dtl = $this->Main_model->get_user_dtl($data['agent']);
         $all_value = $this->Report_model->sales_item_group($data['from_date'], $data['todate'], $data['agent']);
         $data['subhead'] = '<div class="col-12">
-        <h4 class="text-center"> ' . $agent_dtl->m_user_name . ' Sale Report From ' . date('d-m-Y', strtotime($data['from_date'])) . ' To ' . date('d-m-Y', strtotime($data['todate'])) . '</h4>
+        <h4 class="text-center"> ' . row_val($agent_dtl, 'm_user_name', 'All/Admin') . ' Sale Report From ' . date('d-m-Y', strtotime($data['from_date'])) . ' To ' . date('d-m-Y', strtotime($data['todate'])) . '</h4>
          </div>';
 
         if ($summary == 1) {
@@ -471,7 +471,7 @@ class Reports extends CI_Controller
         $data['orderby'] = $this->input->post('orderby');
 
         $agent_dtl = $this->Main_model->get_user_dtl($data['agent']);
-        $agent_name = empty($data['agent']) ? 'All/Admin' : $agent_dtl->m_user_name;
+        $agent_name = row_val($agent_dtl, 'm_user_name', 'All/Admin');
         $data['subhead'] = '<div class="col-8">
         <h4 class="m-0">Agent- ' . $agent_name . '</h4>
        
@@ -755,13 +755,13 @@ class Reports extends CI_Controller
         $branch_id = $this->session->userdata('is_cust_in') == true ? null : $this->input->post('branch_id');
         $cust_dtl = $this->Main_model->get_cust_dtl($data['account_name']);
 
-        $data['from_date'] = $this->input->post('from_date') ?: $cust_dtl->m_cust_added_on;
+        $data['from_date'] = $this->input->post('from_date') ?: row_val($cust_dtl, 'm_cust_added_on', date('Y-m-d'));
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
         // $summary = $this->input->post('summary');
         $data['orderby'] = $this->input->post('orderby');
         $data['subhead'] = '<div class="col-6">
-                                <h4 class="m-0"><strong>' . $cust_dtl->m_cust_name . '</strong></h4>
-                                <h4>' . $cust_dtl->m_city_name . '</h4>
+                                <h4 class="m-0"><strong>' . row_val($cust_dtl, 'm_cust_name') . '</strong></h4>
+                                <h4>' . row_val($cust_dtl, 'm_city_name') . '</h4>
                             </div>
                             <div class="col-6 text-end">
                                 <h4 class="m-0"></h4>
@@ -943,7 +943,7 @@ class Reports extends CI_Controller
         $branch_id = $this->input->post('branch_id');
         $cust_dtl = $this->Main_model->get_cust_dtl($account_name);
 
-        $from_date = $this->input->post('from_date') ?: $cust_dtl->m_cust_added_on;
+        $from_date = $this->input->post('from_date') ?: row_val($cust_dtl, 'm_cust_added_on', date('Y-m-d'));
         $todate = $this->input->post('to_date') ?: date('Y-m-d');
 
 
@@ -1071,7 +1071,7 @@ class Reports extends CI_Controller
         }
 
         //  echo "<pre>" ;   print_r($data) ; die ;
-        $fileName = $cust_dtl->m_cust_name . '_ledger_' . date('ymds') . '.csv';
+        $fileName = row_val($cust_dtl, 'm_cust_name', 'customer') . '_ledger_' . date('ymds') . '.csv';
         header("Content-Description: File Transfer");
         header("Content-Disposition: attachment; filename=$fileName");
         header("Content-Type: application/csv; ");
@@ -1118,7 +1118,7 @@ class Reports extends CI_Controller
         $data['account_name'] = $this->input->post('account_name');
         $branch_id = $this->session->userdata('is_cust_in') == true ? null : $this->input->post('branch_id');
         $cust_dtl = $this->Main_model->get_cust_dtl($data['account_name']);
-        $data['from_date'] = $this->input->post('from_date') ?: $cust_dtl->m_cust_added_on;
+        $data['from_date'] = $this->input->post('from_date') ?: row_val($cust_dtl, 'm_cust_added_on', date('Y-m-d'));
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
 
         // $summary = $this->input->post('summary');
@@ -1126,8 +1126,8 @@ class Reports extends CI_Controller
         $data['orderby'] = $this->input->post('orderby');
 
         $data['subhead'] = '<div class="col-6">
-                                <h4 class="m-0"><strong>' . $cust_dtl->m_cust_name . '</strong></h4>
-                                <h4>' . $cust_dtl->m_city_name . '</h4>
+                                <h4 class="m-0"><strong>' . row_val($cust_dtl, 'm_cust_name') . '</strong></h4>
+                                <h4>' . row_val($cust_dtl, 'm_city_name') . '</h4>
                             </div>
                             <div class="col-6 text-end">
                                 <h4 class="m-0"><strong>Crate Statement</strong></h4>
@@ -1269,9 +1269,22 @@ class Reports extends CI_Controller
 
         $data['suppiler'] = $this->input->post('account_name');
         $branch_id = $this->input->post('branch_id');
+
+        // Head Office is a supplier a branch trades with, but it has no
+        // master_users_tbl row - its account is the branch's own balance, and
+        // its debits are stock transfers, which carry the ORIGINAL supplier's
+        // id rather than 0. The branch ledger already assembles exactly that:
+        // transfers, then receipt / payment / voucher history. Send it there
+        // rather than computing the same figures a second way and risking the
+        // two disagreeing.
+        if ($this->session->userdata('user_type') == 9 && (string) $data['suppiler'] === '0') {
+            $this->branch_ledger($this->session->userdata('user_id'));
+            return;
+        }
+
         $supplier_dtl = $this->Main_model->get_user_dtl($data['suppiler']);
 
-        $data['from_date'] = $this->input->post('from_date') ?: $supplier_dtl->m_user_added_on;
+        $data['from_date'] = $this->input->post('from_date') ?: row_val($supplier_dtl, 'm_user_added_on', date('Y-m-d'));
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
 
         // $summary = $this->input->post('summary');
@@ -1279,8 +1292,8 @@ class Reports extends CI_Controller
         $data['orderby'] = $this->input->post('orderby');
 
         $data['subhead'] = '<div class="col-6">
-                                <h4 class="m-0"><strong>' . $supplier_dtl->m_user_name . '</strong></h4>
-                                <h4>' . $supplier_dtl->m_city_name . '</h4>
+                                <h4 class="m-0"><strong>' . row_val($supplier_dtl, 'm_user_name') . '</strong></h4>
+                                <h4>' . row_val($supplier_dtl, 'm_city_name') . '</h4>
                             </div>
                             <div class="col-6 text-end">
                                 <h4 class="m-0"><strong>Account Datail</strong></h4>
@@ -1505,14 +1518,23 @@ class Reports extends CI_Controller
         $data['pagename'] = "Supplier Crate Statement";
         $data['suppiler'] = $this->input->post('account_name');
         $branch_id = $this->input->post('branch_id');
+
+        // Head Office has no master_users_tbl row, so get_user_dtl() returns
+        // null and the subhead below would fatal on it. Stock transfers carry
+        // no crates either, so there is nothing this statement could show.
+        if ((string) $data['suppiler'] === '0') {
+            show_error('Head Office stock transfers do not carry crates, so there is no crate statement for Head Office. Use the Supplier Ledger for the Head Office account instead.', 404);
+            return;
+        }
+
         $supplier_dtl = $this->Main_model->get_user_dtl($data['suppiler']);
-        $data['from_date'] = $this->input->post('from_date') ?: $supplier_dtl->m_user_added_on;
+        $data['from_date'] = $this->input->post('from_date') ?: row_val($supplier_dtl, 'm_user_added_on', date('Y-m-d'));
         $data['todate'] = $this->input->post('to_date') ?: date('Y-m-d');
         // $summary = $this->input->post('summary');
         $data['orderby'] = $this->input->post('orderby');
         $data['subhead'] = '<div class="col-6">
-                <h4 class="m-0"><strong>' . $supplier_dtl->m_user_name . '</strong></h4>
-                <h4>' . $supplier_dtl->m_city_name . '</h4>
+                <h4 class="m-0"><strong>' . row_val($supplier_dtl, 'm_user_name') . '</strong></h4>
+                <h4>' . row_val($supplier_dtl, 'm_city_name') . '</h4>
             </div>
             <div class="col-6 text-end">
                 <h4 class="m-0"><strong>Crate Statement</strong></h4>
@@ -1654,7 +1676,7 @@ class Reports extends CI_Controller
         $data['orderby'] = $this->input->post('orderby');
         $exp_dtl = $this->Master_model->get_edit_group($data['account_name']);
         $data['pagename'] = $pagetype == 1 ? "Cash Ledger" : "Bank Ledger";
-        $headname = $exp_dtl->m_group_name;
+        $headname = row_val($exp_dtl, 'm_group_name', 'All');
         $opening =  $this->Report_model->cash_bank_leger($pagetype, null, date('Y-m-d', strtotime($data['from_date'] . '-1day')), $data['account_name'], 1, $branch_id);
         $all_value =  $this->Report_model->cash_bank_leger($pagetype, $data['from_date'], $data['todate'], $data['account_name'], '', $branch_id);
 
@@ -1793,7 +1815,7 @@ class Reports extends CI_Controller
         $exp_dtl = $this->Main_model->get_user_dtl($data['account_name']);
         $data['pagename'] = $pagetype == 1 ? "General Ledger" : "Investment Ledger";
         $data['pagename'] = "";
-        $headname = $exp_dtl->m_user_name;
+        $headname = row_val($exp_dtl, 'm_user_name', 'All');
         $opening =  $this->Report_model->general_invest_leger(null, date('Y-m-d', strtotime($data['from_date'] . '-1day')), $data['account_name'], 1, $branch_id);
         $all_value =  $this->Report_model->general_invest_leger($data['from_date'], $data['todate'], $data['account_name'], '', $branch_id);
         $data['subhead'] = '<div class="col-6">
@@ -1939,7 +1961,7 @@ class Reports extends CI_Controller
         // $summary = $this->input->post('summary');
         $data['orderby'] = $this->input->post('orderby');
         $data['subhead'] = '<div class="col-6">
-                    <h4 class="m-0"><strong>' . $exp_dtl->m_group_name . '</strong></h4>
+                    <h4 class="m-0"><strong>' . row_val($exp_dtl, 'm_group_name', 'All') . '</strong></h4>
                     <h4>Bhilai</h4>
                 </div>
                 <div class="col-6 text-end">
@@ -1986,7 +2008,7 @@ class Reports extends CI_Controller
                     $total_in += $key->tamont;
                     $balance += $key->tamont;
 
-                    if ($exp_dtl->m_group_id == 83) {
+                    if (row_val($exp_dtl, 'm_group_id') == 83) {
                         $name = '<p class="m-0">Line: ' . $key->user . '</p>';
                     } else {
                         $name = '<p class="m-0">Ref Bill: ' . $key->method_name . '</p>';
@@ -2218,7 +2240,7 @@ class Reports extends CI_Controller
         // $summary = $this->input->post('summary');
         $data['orderby'] = $this->input->post('orderby');
         $data['subhead'] = '<div class="col-6">
-                    <h4 class="m-0"><strong>' . $exp_dtl->m_group_name . '</strong></h4>
+                    <h4 class="m-0"><strong>' . row_val($exp_dtl, 'm_group_name', 'All') . '</strong></h4>
                     <h4>Bhilai</h4>
                 </div>
                 <div class="col-6 text-end">
@@ -2331,8 +2353,8 @@ class Reports extends CI_Controller
         // $summary = $this->input->post('summary');
         $data['orderby'] = $this->input->post('orderby');
         $data['subhead'] = '<div class="col-6">
-                        <h4 class="m-0"><strong>' . $exp_dtl->m_user_name . '</strong></h4>
-                        <h4>' . $exp_dtl->m_city_name . '</h4>
+                        <h4 class="m-0"><strong>' . row_val($exp_dtl, 'm_user_name', 'All') . '</strong></h4>
+                        <h4>' . row_val($exp_dtl, 'm_city_name') . '</h4>
                     </div>
                     <div class="col-6 text-end">
                         <h4 class="m-0"><strong>' . $data['pagename'] . '</strong></h4>
@@ -2456,7 +2478,7 @@ class Reports extends CI_Controller
         $data['orderby'] = $this->input->post('orderby');
         $data['report_type'] = $this->input->post('report_type');
         $agent_dtl = $this->Main_model->get_user_dtl($data['agent']);
-        $agent_name = empty($data['agent']) ? 'All/Admin' : $agent_dtl->m_user_name;
+        $agent_name = row_val($agent_dtl, 'm_user_name', 'All/Admin');
         $data['subhead'] = '<div class="col-12 mt-2">
                                 <h3 class="text-center"> ' . $agent_name . ' Performance Report From ' . date('d-m-Y', strtotime($data['from_date'])) . ' To ' . date('d-m-Y', strtotime($data['todate'])) . '</h3>
                             </div>';
@@ -2699,6 +2721,26 @@ class Reports extends CI_Controller
         echo json_encode($all_value);
     }
 
+    /**
+     * Backs the lot-wise modal on the truck report (see truck_report.php).
+     * Named for the URL that view has always posted to.
+     */
+    public function purchase_sales_list()
+    {
+        if ($this->ajax_login() === false) {
+            return;
+        }
+        if ($_SERVER['REQUEST_METHOD'] != 'POST') {
+            show_404();
+            return;
+        }
+
+        echo json_encode($this->Report_model->truck_challan_lines(
+            $this->input->post('purspo'),
+            $this->input->post('funtype')
+        ));
+    }
+
     public function get_agent_balance_stock()
     {
         $all_value = $this->Api_Model->get_user_balance_stock($this->input->post('user_id'), $this->input->post('datein'));
@@ -2737,7 +2779,7 @@ class Reports extends CI_Controller
             $posted_branch = $this->input->post('branch_id');
             if ($posted_branch !== null && $posted_branch !== '') {
                 $branch_id   = (int) $posted_branch;
-                $branch_row  = $branch_id === 0 ? null : $this->Main_model->get_user_dtl($branch_id);
+                $branch_row  = $branch_id === 0 ? null : $this->Main_model->get_branch_dtl($branch_id);
                 $branch_name = $branch_id === 0
                     ? 'Head Office'
                     : (!empty($branch_row) ? $branch_row->m_user_name : 'Branch ' . $branch_id);
@@ -2881,7 +2923,14 @@ class Reports extends CI_Controller
             return;
         }
 
-        $branch_dtl = $this->Main_model->get_user_dtl($branch_id);
+        // Unscoped on purpose - a branch account is not filed under itself,
+        // so the scoped lookup found nothing when a branch user opened their
+        // own ledger and every read off $branch_dtl warned on null.
+        $branch_dtl = $this->Main_model->get_branch_dtl($branch_id);
+        if (empty($branch_dtl)) {
+            show_error('No branch account found for this selection, so there is no branch ledger to show.', 404);
+            return;
+        }
 
         $data['pagename']   = "Branch Ledger";
         $data['exporttype'] = 1;
@@ -2914,8 +2963,11 @@ class Reports extends CI_Controller
         foreach ($this->Report_model->branch_ledger_bills($branch_id, $data['from_date'], $data['todate']) as $b) {
             $rows[] = ['date' => $b->m_purcs_date, 'particular' => 'Issue Bill No. ' . $b->m_purcs_spo . ' (Qty: ' . $b->tqty . ')', 'debit' => (float) $b->tamount, 'credit' => 0];
         }
+        // Already normalised to {date, particular, debit, credit} - it merges
+        // three sources (Head Office receipts, branch payments to Head Office,
+        // and Head Office vouchers) and labels each with where it came from.
         foreach ($this->Report_model->branch_ledger_payments($branch_id, $data['from_date'], $data['todate']) as $p) {
-            $rows[] = ['date' => $p->m_recvd_date, 'particular' => 'Payment Received No. ' . $p->m_recvd_voucher . (!empty($p->m_recvd_remark) ? ' (' . $p->m_recvd_remark . ')' : ''), 'debit' => 0, 'credit' => (float) $p->m_recvd_amount];
+            $rows[] = $p;
         }
 
         usort($rows, function ($a, $b) {

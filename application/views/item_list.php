@@ -32,30 +32,6 @@
     <div class="container-fluid">
         <div class="row justify-content-evenly g-0">
             <div class="col-7">
-                <?php if ($this->session->userdata('user_type') == 8) { ?>
-                <form action="<?= site_url('Master/item_list') ?>" method="POST" class="row align-items-center mb-2">
-                    <div class="col-3">
-                        <div class="form-group">
-                            <label for="">Branch</label>
-                            <select name="branch_id" id="branch_id" class="form-select select2">
-                                <option value="">All Branches</option>
-                                <option value="0" <?= (isset($branch_id) && (string) $branch_id === '0') ? 'selected' : '' ?>>Head Office</option>
-                                <?php if (!empty($branch_list)) {
-                                    foreach ($branch_list as $branch) {
-                                        $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
-                                ?>
-                                        <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
-                                <?php }
-                                } ?>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-3 mt-4">
-                        <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i> Filter</button>
-                        <a class="btn btn-danger btn-sm" href="<?= site_url('Master/item_list') ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
-                    </div>
-                </form>
-                <?php } ?>
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <div class="input-group input-group-sm" style="max-width:320px;">
                         <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
@@ -146,16 +122,6 @@
                                 } ?>
 
 
-                                <div class="row mb-1">
-                                    <div class="col-md-12">
-                                        <div class="form-group">
-                                            <label> Item Name<span class="text-danger">*</span></label>
-                                            <input type="hidden" name="m_item_id" id="m_item_id" value="<?= $id ?>">
-                                            <input type="text" name="m_item_name" id="m_item_name" class="form-control" placeholder="Enter Item Title" required="" value="<?= $title ?>">
-                                        </div>
-                                    </div>
-                                </div>
-
                                 <?php if ($this->session->userdata('user_type') == 8) { ?>
                                 <div class="row mb-1">
                                     <div class="col-md-12">
@@ -175,6 +141,16 @@
                                     </div>
                                 </div>
                                 <?php } ?>
+                                <div class="row mb-1">
+                                    <div class="col-md-12">
+                                        <div class="form-group">
+                                            <label> Item Name<span class="text-danger">*</span></label>
+                                            <input type="hidden" name="m_item_id" id="m_item_id" value="<?= $id ?>">
+                                            <input type="text" name="m_item_name" id="m_item_name" class="form-control" placeholder="Enter Item Title" required="" value="<?= $title ?>">
+                                        </div>
+                                    </div>
+                                </div>
+
 
 
                                 <div class="row mb-1">

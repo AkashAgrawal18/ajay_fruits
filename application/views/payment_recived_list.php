@@ -255,7 +255,7 @@
                                         ?>
 
                                             <td><?php echo $account_type; ?></td>
-                                            <td><?php echo $value->m_cust_name; ?></td>
+                                            <td><?php echo ($value->m_recvd_account == 4 && (int) $value->m_recvd_customer === 0) ? 'Head Office' : $value->m_cust_name; ?></td>
                                             <td><?php echo $value->m_cust_mobile; ?></td>
                                             <td><?php echo $value->m_recvd_voucher; ?></td>
                                             <td><?php echo $cashamt ?: ''; ?></td>
@@ -451,6 +451,22 @@
                         <?php if ($type == 1) { ?>
                             <div class="col-md-12">
                                 <div class="row">
+                                    <?php if ($this->session->userdata('user_type') == 8) { ?>
+                                    <div class="col-4">
+                                        <div class="form-group">
+                                            <label>Branch</label>
+                                            <select name="m_recvd_branch" id="m_recvd_branch" class="form-control">
+                                                <option value="0" <?= empty($branch_id) ? 'selected' : '' ?>>Head Office</option>
+                                                <?php if (!empty($branch_list)) {
+                                                    foreach ($branch_list as $branch) {
+                                                        $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
+                                                        echo '<option value="' . $branch->m_user_id . '" ' . $selected . '>' . $branch->m_user_name . '</option>';
+                                                    }
+                                                } ?>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <?php } ?>
                                     <div class="col-4">
                                         <div class="form-group">
                                             <label>Accounts</label>
@@ -486,22 +502,6 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <?php if ($this->session->userdata('user_type') == 8) { ?>
-                                    <div class="col-4">
-                                        <div class="form-group">
-                                            <label>Branch</label>
-                                            <select name="m_recvd_branch" id="m_recvd_branch" class="form-control">
-                                                <option value="0" <?= empty($branch_id) ? 'selected' : '' ?>>Head Office</option>
-                                                <?php if (!empty($branch_list)) {
-                                                    foreach ($branch_list as $branch) {
-                                                        $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
-                                                        echo '<option value="' . $branch->m_user_id . '" ' . $selected . '>' . $branch->m_user_name . '</option>';
-                                                    }
-                                                } ?>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <?php } ?>
 
                                 </div>
                             </div>
@@ -560,21 +560,6 @@
 
                                 <div class="row justify-content-between mb-2 g-3">
 
-                                    <div class="col-3">
-                                        <div class="row">
-                                            <div class="col-3">
-                                                <label>Date<span class="text-danger">*</span></label>
-                                            </div>
-                                            <div class="col-9">
-                                                <div class="form-group">
-                                                    <input type="hidden" name="m_recvd_type" id="m_recvd_type" value="<?= $type ?>">
-                                                    <input type="date" max="<?= date('Y-m-d') ?>" name="m_recvd_date" id="m_recvd_date" class="form-control" required="" value="<?= date('Y-m-d') ?>">
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                    </div>
-
                                     <?php if ($this->session->userdata('user_type') == 8) { ?>
                                     <div class="col-3">
                                         <div class="row">
@@ -597,6 +582,21 @@
                                         </div>
                                     </div>
                                     <?php } ?>
+                                    <div class="col-3">
+                                        <div class="row">
+                                            <div class="col-3">
+                                                <label>Date<span class="text-danger">*</span></label>
+                                            </div>
+                                            <div class="col-9">
+                                                <div class="form-group">
+                                                    <input type="hidden" name="m_recvd_type" id="m_recvd_type" value="<?= $type ?>">
+                                                    <input type="date" max="<?= date('Y-m-d') ?>" name="m_recvd_date" id="m_recvd_date" class="form-control" required="" value="<?= date('Y-m-d') ?>">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+
 
                                     <div class="col-12">
 

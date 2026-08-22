@@ -33,30 +33,6 @@
    <div class="container-fluid">
       <div class="row justify-content-evenly g-0">
          <div class="col-7">
-            <?php if ($this->session->userdata('user_type') == 8) { ?>
-            <form action="<?= site_url('Master/') . $paglink ?>" method="POST" class="row align-items-center mb-2">
-               <div class="col-3">
-                  <div class="form-group">
-                     <label for="">Branch</label>
-                     <select name="branch_id" id="branch_id" class="form-select select2">
-                        <option value="">All Branches</option>
-                        <option value="0" <?= (isset($branch_id) && (string) $branch_id === '0') ? 'selected' : '' ?>>Head Office</option>
-                        <?php if (!empty($branch_list)) {
-                           foreach ($branch_list as $branch) {
-                              $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
-                        ?>
-                              <option value="<?= $branch->m_user_id ?>" <?= $selected ?>><?= $branch->m_user_name ?></option>
-                        <?php }
-                        } ?>
-                     </select>
-                  </div>
-               </div>
-               <div class="col-3 mt-4">
-                  <button class="btn btn-info btn-sm" type="submit"><i class="bi bi-search mx-1"></i> Filter</button>
-                  <a class="btn btn-danger btn-sm" href="<?= site_url('Master/') . $paglink ?>"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
-               </div>
-            </form>
-            <?php } ?>
             <div class="table-responsive bg-light" style="height: 64vh;">
                <table id="itemgroup_tbl" class="my_custom_datatable table table-light table-bordered table-hover">
                   <thead>
@@ -146,17 +122,6 @@
                         } ?>
 
 
-                        <div class="row mb-1">
-                           <div class="col-md-12">
-                              <div class="form-group">
-                                 <label><?= $pgname ?> Name <span class="text-danger">*</span></label>
-                                 <input type="hidden" name="m_itgrp_id" id="m_itgrp_id" value="<?= $id ?>">
-                                 <input type="hidden" name="m_itgrp_type" id="m_itgrp_type" value="<?= $type ?>">
-                                 <input type="text" name="m_itgrp_title" id="m_itgrp_title" class="form-control" placeholder="Enter <?= $pgname ?> Title" required="" value="<?= $title ?>">
-                              </div>
-                           </div>
-                        </div>
-
                         <?php if ($this->session->userdata('user_type') == 8) { ?>
                         <div class="row mb-1">
                            <div class="col-md-12">
@@ -176,18 +141,18 @@
                            </div>
                         </div>
                         <?php } ?>
-
-                        <!-- <div class="row mb-1">
+                        <div class="row mb-1">
                            <div class="col-md-12">
                               <div class="form-group">
-                                 <label>Status</label>
-                                 <select name="m_itgrp_status" id="m_itgrp_status" class="form-control" title="Select Status">
-                                    <option value="1" <?php if ($status == 1) echo 'selected' ?>>Active</option>
-                                    <option value="0" <?php if ($status == 0) echo 'selected' ?>>In-Active</option>
-                                 </select>
+                                 <label><?= $pgname ?> Name <span class="text-danger">*</span></label>
+                                 <input type="hidden" name="m_itgrp_id" id="m_itgrp_id" value="<?= $id ?>">
+                                 <input type="hidden" name="m_itgrp_type" id="m_itgrp_type" value="<?= $type ?>">
+                                 <input type="text" name="m_itgrp_title" id="m_itgrp_title" class="form-control" placeholder="Enter <?= $pgname ?> Title" required="" value="<?= $title ?>">
                               </div>
                            </div>
-                        </div> -->
+                        </div>
+
+
                         <div class="row mb-1 mt-3">
                            <div class="col-3 me-3">
                               <div class="form-layout-submit">

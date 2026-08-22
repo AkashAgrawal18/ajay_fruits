@@ -89,6 +89,32 @@ class Main_model extends CI_model
   }
 
   /**
+   * Moves what a branch owes Head Office, held on the branch account's own
+   * m_user_balance.
+   *
+   * Deliberately not update_userbalance(): that scopes its UPDATE by
+   * m_user_branch, and a branch account's row lives AT Head Office
+   * (m_user_branch = 0, see master_users_tbl). So when a branch user records
+   * their own payment to Head Office, the session scope resolves to their id
+   * and the WHERE matches nothing - the row saves and the balance silently
+   * does not move. Head Office's own receipt path never hit this because
+   * superadmin resolves to no branch filter at all.
+   *
+   * The m_user_type check keeps this from ever moving a non-branch account.
+   */
+  private function update_branch_ho_balance($branch_id, $amt)
+  {
+    if (empty($branch_id) || empty($amt)) {
+      return;
+    }
+
+    $this->db->set('m_user_balance', 'm_user_balance + ' . (float) $amt, FALSE)
+      ->where('m_user_id', (int) $branch_id)
+      ->where('m_user_type', 9)
+      ->update('master_users_tbl');
+  }
+
+  /**
    * Start of the current financial year (1 April), mirroring
    * Login::_get_financial_year_start().
    */
@@ -199,7 +225,55 @@ class Main_model extends CI_model
     }
     $this->db->join('master_city_tbl', 'master_city_tbl.m_city_id = master_users_tbl.m_user_city', 'left');
     $this->db->join('master_state_tbl', 'master_state_tbl.m_state_id = master_users_tbl.m_user_state', 'left');
-    return $this->db->order_by('m_user_name')->get('master_users_tbl')->result();
+    $list = $this->db->order_by('m_user_name')->get('master_users_tbl')->result();
+
+    // A branch buys from Head Office and settles with it, so Head Office belongs
+    // in the branch's supplier picker. Prepended rather than stored, because
+    // there is no Head Office row to store - see head_office_party().
+    if ($type == 2 && $this->is_branch_user()) {
+      array_unshift($list, $this->head_office_party());
+    }
+
+    return $list;
+  }
+
+  /** True when the logged-in account is a branch (master_users_tbl type 9). */
+  private function is_branch_user()
+  {
+    return $this->session->userdata('user_type') == 9;
+  }
+
+  /**
+   * The "Head Office" entry a branch sees in its supplier picker.
+   *
+   * Shaped like a master_users_tbl row so every existing supplier dropdown,
+   * datalist and JSON list renders it without a special case. Its id is 0 - the
+   * same branch = 0 sentinel used throughout - and the balance shown is what
+   * this branch currently owes Head Office, which is the figure a user picking
+   * it wants to see.
+   */
+  private function head_office_party()
+  {
+    $balance = 0;
+    $branch  = (int) $this->session->userdata('user_id');
+    if ($branch > 0) {
+      $row = $this->db->select('m_user_balance')
+        ->where('m_user_id', $branch)
+        ->where('m_user_type', 9)
+        ->get('master_users_tbl')->row();
+      $balance = !empty($row) ? (float) $row->m_user_balance : 0;
+    }
+
+    return (object) array(
+      'm_user_id'      => 0,
+      'm_user_name'    => 'Head Office',
+      'm_user_mobile'  => '',
+      'm_user_balance' => $balance,
+      'm_user_group'   => '',
+      'm_user_type'    => 2,
+      'm_city_name'    => '',
+      'm_state_name'   => '',
+    );
   }
 
   public function get_active_users($type, $branch_id = null)
@@ -213,6 +287,23 @@ class Main_model extends CI_model
       ->get('master_users_tbl')->result();
   }
 
+  /**
+   * A branch account's own row, looked up WITHOUT branch scoping.
+   *
+   * Branch accounts define the branches themselves, so they all sit on
+   * m_user_branch = 0 (Head Office) rather than on their own id - the same
+   * reason items and item groups are treated as shared. Fetching one through
+   * the scoped get_user_dtl() therefore finds nothing whenever the caller IS
+   * that branch: branch_id() filters on m_user_branch = <the branch's own
+   * id>, which no row carries.
+   */
+  public function get_branch_dtl($id)
+  {
+    return $this->db->where('m_user_id', $id)
+      ->where('m_user_type', 9)
+      ->get('master_users_tbl')->row();
+  }
+
   public function get_user_dtl($id, $branch_id = null)
   {
     $this->db->select('*');
@@ -223,12 +314,12 @@ class Main_model extends CI_model
     return $this->db->get('master_users_tbl')->row();
   }
 
-  // Superadmin-only "view password" feature - caller must already have
+  // Superadmin-only "view login details" feature - caller must already have
   // checked user_type == 8 before calling this.
-  public function get_user_password_enc($id, $branch_id = null)
+  public function get_user_login_credentials($id, $branch_id = null)
   {
     $this->where_branch('m_user_branch', $branch_id);
-    return $this->db->select('m_user_password_enc')
+    return $this->db->select('m_user_loginid,m_user_password_enc')
       ->where('m_user_id', $id)
       ->get('master_users_tbl')->row();
   }
@@ -2049,6 +2140,19 @@ class Main_model extends CI_model
       return $this->fail($this->locked_date_message($m_recvd_date));
     }
 
+    // Head Office receipts move the branch's own balance, so they need a
+    // branch - see insert_payment_data.
+    if ($m_recvd_account == 4 && $m_recvd_type == 1 && empty($branch)
+      && in_array('0', array_map('strval', (array) $this->input->post('m_recvd_customer')), true)) {
+      return $this->fail('Only a branch can record a receipt from Head Office.');
+    }
+
+    // Same NOT NULL trap as insert_payment_data - see the note there.
+    $m_recvd_method_posted = $this->input->post('m_recvd_method');
+    if ($m_recvd_type == 1 && ($m_recvd_method_posted === null || $m_recvd_method_posted === '')) {
+      return $this->fail('Choose a receipt method. If the Method list is empty, this branch has no cash or bank account set up yet - add one under Master before recording receipts.');
+    }
+
     // What actually reached the table. The old code tested `isset($res)`
     // against a variable nothing ever assigned, so every save - including
     // the ones that wrote rows - came back as a failure.
@@ -2093,7 +2197,11 @@ class Main_model extends CI_model
           $this->db->insert('master_recieved_tbl', $data);
           $inserted++;
 
-          if ($m_recvd_account == 1) {
+          if ($m_recvd_account == 4 && (int) $customer === 0) {
+            // Head Office as a supplier: money received from it raises what
+            // this branch owes Head Office, carried on the branch's own row.
+            $this->update_branch_ho_balance($branch, $m_recvd_amount[$index]);
+          } elseif ($m_recvd_account == 1) {
             $this->update_cust_balance($customer, -$m_recvd_amount[$index]);
           } elseif ($m_recvd_account == 8) {
             // Branch paying HO reduces what the branch owes (mirrors supplier payment)
@@ -2197,7 +2305,8 @@ class Main_model extends CI_model
     // it was supposed to be correcting.
     $this->db->where('m_recvd_id', $postData['m_recvd_id']);
     $this->where_branch('m_recvd_branch', $branch);
-    if (empty($this->db->get('master_recieved_tbl')->row())) {
+    $existing = $this->db->get('master_recieved_tbl')->row();
+    if (empty($existing)) {
       return $this->fail('That receipt could not be found, so nothing was changed. It may have been deleted, or it belongs to a different branch - reload the list and try again.');
     }
 
@@ -2206,6 +2315,34 @@ class Main_model extends CI_model
     $this->db->update('master_recieved_tbl', $insert_data);
 
     $isSameCustomer = ($postData['m_recvd_customer'] == $postData['precust']);
+
+    $rcvd_was_ho = ((int) $postData['precust'] === 0);
+    $rcvd_now_ho = ((int) $postData['m_recvd_customer'] === 0);
+    if ($postData['m_recvd_type'] == 1 && $postData['m_recvd_account'] == 4
+      && ($rcvd_was_ho || $rcvd_now_ho)) {
+      // See update_payment_data: Head Office has no counterparty row, so both
+      // ends of a swap have to be moved by hand.
+      $ho_branch = $branch ?: ($existing->m_recvd_branch ?? null);
+      if (empty($ho_branch)) {
+        return $this->fail('That Head Office receipt is not attached to a branch, so its balance cannot be adjusted. Delete it and enter it again against the branch it belongs to.');
+      }
+
+      if ($rcvd_was_ho && $rcvd_now_ho) {
+        $this->update_branch_ho_balance($ho_branch, $postData['m_recvd_amount'] - $postData['preamount']);
+      } else {
+        if ($rcvd_was_ho) {
+          $this->update_branch_ho_balance($ho_branch, -$postData['preamount']);
+        } else {
+          $this->update_userbalance($postData['precust'], -$postData['preamount']);
+        }
+        if ($rcvd_now_ho) {
+          $this->update_branch_ho_balance($ho_branch, +$postData['m_recvd_amount']);
+        } else {
+          $this->update_userbalance($postData['m_recvd_customer'], +$postData['m_recvd_amount']);
+        }
+      }
+      return true;
+    }
 
     if ($postData['m_recvd_type'] == 1) {
       if ($postData['m_recvd_account'] == 1) {
@@ -2260,7 +2397,11 @@ class Main_model extends CI_model
       $crate_mapping = [20 => 'm_cust_10bal', 13 => 'm_cust_20bal', 14 => 'm_cust_25bal'];
       foreach ($res_list as $value) {
         if ($value->m_recvd_type == 1) {
-          if ($value->m_recvd_account == 1) {
+          if ($value->m_recvd_account == 4 && (int) $value->m_recvd_customer === 0) {
+            // Head Office: undo the raise the insert made to the branch's own
+            // balance. Customer 0 would no-op through update_userbalance().
+            $this->update_branch_ho_balance($value->m_recvd_branch, -$value->m_recvd_amount);
+          } elseif ($value->m_recvd_account == 1) {
             $this->update_cust_balance($value->m_recvd_customer, $value->m_recvd_amount);
           } elseif ($value->m_recvd_account == 8) {
             $this->update_userbalance($value->m_recvd_customer, $value->m_recvd_amount);
@@ -2343,6 +2484,31 @@ class Main_model extends CI_model
       return $this->fail($this->locked_date_message($m_payment_date));
     }
 
+    // Account 8 (Branch) is Head Office paying one of its branches. The view
+    // only hides the option; this is what actually stops a branch user from
+    // posting it against another branch.
+    if ($m_payment_account == 8 && $this->session->userdata('user_type') != 8) {
+      return $this->fail('Only Head Office can record a payment to a branch.');
+    }
+
+    // A payment to Head Office is an ordinary Supplier payment whose party is
+    // the Head Office pseudo-row (id 0). It has no balance of its own, so the
+    // amount comes off the paying BRANCH's m_user_balance - which means we
+    // have to know which branch. A branch user supplies that implicitly
+    // through branch_id(); Head Office itself (0) is not a payer.
+    if ($m_payment_account == 1 && $m_payment_type == 1 && empty($branch)
+      && in_array('0', array_map('strval', (array) $this->input->post('m_payment_supplier')), true)) {
+      return $this->fail('Only a branch can record a payment to Head Office. Head Office cannot pay itself.');
+    }
+
+    // m_payment_method is NOT NULL. The Method dropdown is branch-scoped, so a
+    // branch with no cash/bank account of its own renders it empty and posts
+    // nothing - which used to surface as a raw database error page with the
+    // INSERT statement printed on it.
+    if ($m_payment_type == 1 && ($m_payment_method === null || $m_payment_method === '')) {
+      return $this->fail('Choose a payment method. If the Method list is empty, this branch has no cash or bank account set up yet - add one under Master before recording payments.');
+    }
+
     if ($m_payment_type == 1) {
       $m_payment_supplier = $this->input->post('m_payment_supplier');
       $m_payment_amount   = $this->input->post('m_payment_amount');
@@ -2353,6 +2519,7 @@ class Main_model extends CI_model
       $last_id = $this->db->order_by('m_payment_id', 'desc')->get('master_payment_tbl')->row();
       $vlastid = empty($last_id) ? 0 : $last_id->m_payment_id;
 
+      $duplicates = 0;
       foreach ($m_payment_supplier as $cou => $supplier) {
         if ($m_payment_amount[$cou] == 0) continue;
 
@@ -2376,9 +2543,20 @@ class Main_model extends CI_model
             "m_payment_added_on" => date('Y-m-d H:i'),
           ];
           $res = $this->db->insert('master_payment_tbl', $insert_data);
-          if (!in_array($m_payment_account, [2, 7])) {
+          if ($m_payment_account == 8) {
+            // Head Office paying a branch: the branch received money, so it
+            // owes Head Office MORE. Reverse of a supplier payment, because a
+            // branch is a debtor rather than a creditor.
+            $this->update_branch_ho_balance($supplier, +$m_payment_amount[$cou]);
+          } elseif ($m_payment_account == 1 && (int) $supplier === 0) {
+            // Head Office: settles part of what this branch owes it. Same sign
+            // as the supplier arm below, just carried on the branch's row.
+            $this->update_branch_ho_balance($branch, -$m_payment_amount[$cou]);
+          } elseif (!in_array($m_payment_account, [2, 7])) {
             $this->update_userbalance($supplier, -$m_payment_amount[$cou]);
           }
+        } else {
+          $duplicates++;
         }
       }
     } else {
@@ -2419,6 +2597,9 @@ class Main_model extends CI_model
       }
     }
     if (!isset($res)) {
+      if (!empty($duplicates)) {
+        return $this->fail('Nothing was saved - an identical payment is already recorded for that account, amount and date. Change something on the line, or delete the existing entry first.');
+      }
       return $this->fail('Nothing was saved - every line had an amount of 0. Enter an amount against at least one line and save again.');
     }
     return $res;
@@ -2460,7 +2641,8 @@ class Main_model extends CI_model
     // it was supposed to be correcting.
     $this->db->where('m_payment_id', $postData['m_payment_id']);
     $this->where_branch('m_payment_branch', $branch);
-    if (empty($this->db->get('master_payment_tbl')->row())) {
+    $existing = $this->db->get('master_payment_tbl')->row();
+    if (empty($existing)) {
       return $this->fail('That payment could not be found, so nothing was changed. It may have been deleted, or it belongs to a different branch - reload the list and try again.');
     }
 
@@ -2470,6 +2652,51 @@ class Main_model extends CI_model
 
     $isBalanceUpdateRequired = !in_array($postData['m_payment_account'], [2, 7]);
     $isSameCustomer          = ($postData['m_payment_supplier'] == $postData['precust']);
+
+    // Account 8 is Head Office paying one of its branches. The party is a real
+    // branch row, so an edit can swap which branch was paid - move the old
+    // amount off the previous one before charging the new one.
+    if ($postData['m_payment_account'] == 8 && $postData['m_payment_type'] == 1) {
+      // Same sign as the insert. A branch swap moves the old amount off the
+      // previous branch and the new amount onto the new one.
+      if ($postData['m_payment_supplier'] != $postData['precust']) {
+        $this->update_branch_ho_balance($postData['precust'], -$postData['preamount']);
+        $this->update_branch_ho_balance($postData['m_payment_supplier'], +$postData['m_payment_amount']);
+      } else {
+        $this->update_branch_ho_balance($postData['m_payment_supplier'], $postData['m_payment_amount'] - $postData['preamount']);
+      }
+      $isBalanceUpdateRequired = false;
+    }
+
+    $was_ho = ((int) $postData['precust'] === 0);
+    $now_ho = ((int) $postData['m_payment_supplier'] === 0);
+    if ($postData['m_payment_account'] == 1 && $postData['m_payment_type'] == 1 && ($was_ho || $now_ho)) {
+      // The edit modal posts no m_payment_branch, so $branch is null for a
+      // superadmin. Take it off the row being edited instead - that is the
+      // branch whose balance the original insert moved.
+      $ho_branch = $branch ?: ($existing->m_payment_branch ?? null);
+      if (empty($ho_branch)) {
+        return $this->fail('That Head Office payment is not attached to a branch, so its balance cannot be adjusted. Delete it and enter it again against the paying branch.');
+      }
+
+      if ($was_ho && $now_ho) {
+        $this->update_branch_ho_balance($ho_branch, ($postData['m_payment_amount'] - $postData['preamount']) * (-1));
+      } else {
+        // Swapped across the Head Office boundary: give the old party back
+        // what it was charged, then charge the new one.
+        if ($was_ho) {
+          $this->update_branch_ho_balance($ho_branch, +$postData['preamount']);
+        } else {
+          $this->update_userbalance($postData['precust'], +$postData['preamount']);
+        }
+        if ($now_ho) {
+          $this->update_branch_ho_balance($ho_branch, -$postData['m_payment_amount']);
+        } else {
+          $this->update_userbalance($postData['m_payment_supplier'], -$postData['m_payment_amount']);
+        }
+      }
+      $isBalanceUpdateRequired = false;
+    }
 
     if ($isBalanceUpdateRequired && $postData['m_payment_type'] == 1) {
       $balanceChange = ($postData['m_payment_amount'] - $postData['preamount']) * (-1);
@@ -2511,7 +2738,14 @@ class Main_model extends CI_model
     if (!empty($res_list)) {
       $crate_mapping = [20 => 'm_user_10bal', 13 => 'm_user_20bal', 14 => 'm_user_25bal'];
       foreach ($res_list as $value) {
-        if ($value->m_payment_type == 1 && !in_array($value->m_payment_account, [2, 7])) {
+        if ($value->m_payment_type == 1 && $value->m_payment_account == 8) {
+          // Undo the raise: the branch no longer received that money.
+          $this->update_branch_ho_balance($value->m_payment_supplier, -$value->m_payment_amount);
+        } elseif ($value->m_payment_type == 1 && $value->m_payment_account == 1 && (int) $value->m_payment_supplier === 0) {
+          // Head Office: the amount came off the branch, so it goes back on the
+          // branch. Passing supplier 0 to update_userbalance() no-ops silently.
+          $this->update_branch_ho_balance($value->m_payment_branch, $value->m_payment_amount);
+        } elseif ($value->m_payment_type == 1 && !in_array($value->m_payment_account, [2, 7])) {
           $this->update_userbalance($value->m_payment_supplier, $value->m_payment_amount);
         } elseif ($value->m_payment_type == 2) {
           if (isset($crate_mapping[$value->m_payment_crate])) {
@@ -2579,6 +2813,18 @@ class Main_model extends CI_model
       return $this->fail($this->locked_date_message($postData['m_voucher_date']));
     }
 
+    // See insert_payment_data - the view-level gate is not a security control.
+    if ($m_voucher_account == 8 && $this->session->userdata('user_type') != 8) {
+      return $this->fail('Only Head Office can raise a voucher against a branch.');
+    }
+
+    // See insert_payment_data: a voucher against Head Office moves the branch's
+    // own balance, so it has to know which branch.
+    if ($m_voucher_account == 2 && empty($branch)
+      && in_array('0', array_map('strval', (array) $m_voucher_accountid), true)) {
+      return $this->fail('Only a branch can raise a voucher against Head Office. Head Office cannot raise one against itself.');
+    }
+
     foreach ($m_voucher_accountid as $index => $accountId) {
       if ($postData['m_voucher_amount'][$index] == 0) continue;
 
@@ -2599,7 +2845,18 @@ class Main_model extends CI_model
         "m_voucher_added_on"  => $currentDate,
       ];
 
-      if ($voucherType == 1) {
+      if ($m_voucher_account == 8) {
+        // Head Office raising a voucher against a branch. Same signs as the
+        // branch's own Head Office vouchers: credit raises the debt, debit
+        // settles it.
+        $this->update_branch_ho_balance($accountId, $voucherType == 1 ? +$voucherAmount : -$voucherAmount);
+      } elseif ($m_voucher_account == 2 && (int) $accountId === 0) {
+        // Head Office has no account row of its own - what a voucher against
+        // it changes is how much the branch owes Head Office, carried on the
+        // branch's m_user_balance. Signs follow the supplier case: credit
+        // raises the debt, debit settles it.
+        $this->update_branch_ho_balance($branch, $voucherType == 1 ? +$voucherAmount : -$voucherAmount);
+      } elseif ($voucherType == 1) {
         if ($m_voucher_account != 1 && $m_voucher_account != 3) {
           $this->update_userbalance($accountId, +$voucherAmount);
         } elseif ($m_voucher_account == 1) {
@@ -2651,7 +2908,8 @@ class Main_model extends CI_model
     // it was supposed to be correcting.
     $this->db->where('m_voucher_id', $postData['m_voucher_id']);
     $this->where_branch('m_voucher_branch', $branch);
-    if (empty($this->db->get('master_voucher_tbl')->row())) {
+    $existing = $this->db->get('master_voucher_tbl')->row();
+    if (empty($existing)) {
       return $this->fail('That voucher could not be found, so nothing was changed. It may have been deleted, or it belongs to a different branch - reload the list and try again.');
     }
 
@@ -2661,6 +2919,47 @@ class Main_model extends CI_model
 
     $isSameCustomer = ($postData['m_voucher_accountid'] == $postData['precust']);
     $balanceChange  = $postData['m_voucher_amount'] - $postData['preamount'];
+
+    // Account 8 is a voucher Head Office raised against a branch. Signed the
+    // way the insert signed it, and able to swap which branch it applies to.
+    if ($postData['m_voucher_account'] == 8) {
+      $sign = ($postData['m_voucher_type'] == 1) ? 1 : -1;
+      if (!$isSameCustomer) {
+        $this->update_branch_ho_balance($postData['precust'], -$sign * $postData['preamount']);
+        $this->update_branch_ho_balance($postData['m_voucher_accountid'], $sign * $postData['m_voucher_amount']);
+      } else {
+        $this->update_branch_ho_balance($postData['m_voucher_accountid'], $sign * $balanceChange);
+      }
+      return true;
+    }
+
+    $vch_was_ho = ((int) $postData['precust'] === 0);
+    $vch_now_ho = ((int) $postData['m_voucher_accountid'] === 0);
+    if ($postData['m_voucher_account'] == 2 && ($vch_was_ho || $vch_now_ho)) {
+      // See update_payment_data: the edit form posts no m_voucher_branch, so
+      // fall back to the branch recorded on the row itself.
+      $ho_branch = $branch ?: ($existing->m_voucher_branch ?? null);
+      if (empty($ho_branch)) {
+        return $this->fail('That Head Office voucher is not attached to a branch, so its balance cannot be adjusted. Delete it and enter it again against the branch it belongs to.');
+      }
+
+      $vch_sign = ($postData['m_voucher_type'] == 1) ? 1 : -1;
+      if ($vch_was_ho && $vch_now_ho) {
+        $this->update_branch_ho_balance($ho_branch, $vch_sign * $balanceChange);
+      } else {
+        if ($vch_was_ho) {
+          $this->update_branch_ho_balance($ho_branch, -$vch_sign * $postData['preamount']);
+        } else {
+          $this->update_userbalance($postData['precust'], -$vch_sign * $postData['preamount']);
+        }
+        if ($vch_now_ho) {
+          $this->update_branch_ho_balance($ho_branch, $vch_sign * $postData['m_voucher_amount']);
+        } else {
+          $this->update_userbalance($postData['m_voucher_accountid'], $vch_sign * $postData['m_voucher_amount']);
+        }
+      }
+      return true;
+    }
 
     if (!$isSameCustomer) {
       if ($postData['m_voucher_type'] == 1) {
@@ -2709,7 +3008,13 @@ class Main_model extends CI_model
       return $this->fail('Voucher "' . $delete_id . '" was not found. It may already have been deleted, or it belongs to a different branch.');
     }
 
-    if ($res->m_voucher_type == 1 && $res->m_voucher_account != 1 && $res->m_voucher_account != 3) {
+    if ($res->m_voucher_account == 8) {
+      $this->update_branch_ho_balance($res->m_voucher_accountid, $res->m_voucher_type == 1 ? -$res->m_voucher_amount : +$res->m_voucher_amount);
+    } else if ($res->m_voucher_account == 2 && (int) $res->m_voucher_accountid === 0) {
+      // Head Office: undo whatever the insert did to the branch's balance -
+      // credit raised it, debit lowered it, so reverse the sign.
+      $this->update_branch_ho_balance($res->m_voucher_branch, $res->m_voucher_type == 1 ? -$res->m_voucher_amount : +$res->m_voucher_amount);
+    } else if ($res->m_voucher_type == 1 && $res->m_voucher_account != 1 && $res->m_voucher_account != 3) {
       $this->update_userbalance($res->m_voucher_accountid, ($res->m_voucher_amount * (-1)));
     } else if ($res->m_voucher_type == 1 && $res->m_voucher_account == 1) {
       $this->update_cust_balance($res->m_voucher_accountid, $res->m_voucher_amount);
@@ -3102,6 +3407,14 @@ class Main_model extends CI_model
     return $this->db->get('application_settings')->result();
   }
 
+  // Superadmin-only "view password" feature - caller must already have
+  // checked user_type == 8 before calling this.
+  public function get_date_lock_password_enc()
+  {
+    return $this->db->select('date_lock_password_enc')
+      ->get('application_settings')->row();
+  }
+
   public function update_application_settings()
   {
     // Logo/icon upload handling (unchanged from original)
@@ -3140,7 +3453,8 @@ class Main_model extends CI_model
     // otherwise saving settings would blank out the existing one.
     $newLockPassword = $this->input->post('date_lock_password');
     if (!empty($newLockPassword)) {
-      $data['date_lock_password'] = password_hash($newLockPassword, PASSWORD_DEFAULT);
+      $data['date_lock_password']     = password_hash($newLockPassword, PASSWORD_DEFAULT);
+      $data['date_lock_password_enc'] = encrypt_password_for_admin($newLockPassword);
     }
 
     $this->db->update('application_settings', $data);

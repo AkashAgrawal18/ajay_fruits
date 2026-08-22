@@ -152,11 +152,18 @@
                                             case 7:
                                                 $account_type = 'Investment';
                                                 break;
+                                            case 8:
+                                                $account_type = 'Branch';
+                                                break;
+                                            default:
+                                                // Without this the variable keeps whatever the previous
+                                                // row set, so an unrecognised type borrowed its label.
+                                                $account_type = '';
                                         }
 
                                         ?>
                                         <td><?php echo $account_type; ?></td>
-                                        <td><?php echo $value->m_user_name; ?></td>
+                                        <td><?php echo ($value->account_type == 2 && (int) $value->m_voucher_accountid === 0) ? 'Head Office' : $value->m_user_name; ?></td>
                                         <td><?= $value->m_voucher_type == 1 ? "Credit" : "Debit"; ?></td>
                                         <td><?php echo money2($value->m_voucher_amount); ?></td>
                                         <td><?php echo $value->m_voucher_remark  ?></td>
@@ -279,29 +286,6 @@
 
                         <div class="col-md-12">
                             <div class="row">
-                                <div class="col-4">
-                                    <div class="form-group">
-                                        <label>Accounts</label>
-                                        <select name="m_voucher_account" id="m_voucher_account" class="form-control" required>
-                                            <option value="">Select Account Type</option>
-                                            <option value="1">Customer</option>
-                                            <option value="2">Supplier</option>
-                                            <option value="3">Expense</option>
-                                            <option value="4">Loader</option>
-                                            <option value="5">Staff</option>
-                                            <option value="6">General</option>
-                                            <option value="7">Investment</option>
-
-                                        </select>
-                                    </div>
-
-                                </div>
-                                <div class="col-4">
-                                    <div class="form-group">
-                                        <label>Date<span class="text-danger">*</span></label>
-                                        <input type="date" name="m_voucher_date" id="m_voucher_date" class="form-control" required="" value="<?= date('Y-m-d') ?>">
-                                    </div>
-                                </div>
                                 <?php if ($this->session->userdata('user_type') == 8) { ?>
                                 <div class="col-4">
                                     <div class="form-group">
@@ -318,6 +302,32 @@
                                     </div>
                                 </div>
                                 <?php } ?>
+                                <div class="col-4">
+                                    <div class="form-group">
+                                        <label>Accounts</label>
+                                        <select name="m_voucher_account" id="m_voucher_account" class="form-control" required>
+                                            <option value="">Select Account Type</option>
+                                            <option value="1">Customer</option>
+                                            <option value="2">Supplier</option>
+                                            <option value="3">Expense</option>
+                                            <option value="4">Loader</option>
+                                            <option value="5">Staff</option>
+                                            <option value="6">General</option>
+                                            <option value="7">Investment</option>
+                                            <?php if ($this->session->userdata('user_type') == 8) { ?>
+                                                <option value="8">Branch</option>
+                                            <?php } ?>
+
+                                        </select>
+                                    </div>
+
+                                </div>
+                                <div class="col-4">
+                                    <div class="form-group">
+                                        <label>Date<span class="text-danger">*</span></label>
+                                        <input type="date" name="m_voucher_date" id="m_voucher_date" class="form-control" required="" value="<?= date('Y-m-d') ?>">
+                                    </div>
+                                </div>
 
 
                             </div>

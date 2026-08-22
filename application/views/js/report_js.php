@@ -315,6 +315,29 @@
                                         ?>
         `);
 
+      } else if ($(this).val() == 12) {
+        $('.ledger_btn_submit').addClass('d-none');
+        $('#branchledgerbtn').removeClass('d-none');
+        $('#branchoutstandingbtn').removeClass('d-none');
+
+        // Branch Ledger needs one branch; Branch Outstanding lists them all
+        // and opts out of the picker with data-noaccount.
+        $('#selet_label').html('Branch <span class="text-danger">*</span>');
+        $('#account_name_select').empty().html(`
+        <option value="">--Select--</option>
+        <?php
+        if (!empty($branch_list)) {
+          foreach ($branch_list as $calue) {
+        ?>
+                                            <option value="<?php echo $calue->m_user_id; ?>">
+                                                <?php echo $calue->m_user_name . ' | ' . $calue->m_user_mobile ?>
+                                            </option>
+                                        <?php
+                                      }
+                                    }
+
+                                        ?>
+        `);
       } else if ($(this).val() == 11) {
         $('.ledger_btn_submit').addClass('d-none');
         $('#transferledgerbtn').removeClass('d-none');
