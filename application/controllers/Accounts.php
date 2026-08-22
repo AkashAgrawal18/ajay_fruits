@@ -191,7 +191,8 @@ class Accounts extends CI_Controller
     }
   }
 
-  // Superadmin-only: decrypt and reveal a staff/branch account's password.
+  // Superadmin-only: reveal the login id and decrypted password of a
+  // staff/branch account.
   public function view_password()
   {
     if ($this->ajax_login() === false) {
@@ -202,7 +203,8 @@ class Accounts extends CI_Controller
       return;
     }
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
-      $row = $this->Main_model->get_user_password_enc($this->input->post('id'));
+      $row = $this->Main_model->get_user_login_credentials($this->input->post('id'));
+      $loginid  = !empty($row) ? $row->m_user_loginid : '';
       $password = !empty($row) ? decrypt_password_for_admin($row->m_user_password_enc) : '';
 
       if ($password === '') {
@@ -212,7 +214,11 @@ class Accounts extends CI_Controller
         ));
         return;
       }
-      echo json_encode(array('status' => 'success', 'password' => $password));
+      echo json_encode(array(
+        'status'   => 'success',
+        'loginid'  => $loginid,
+        'password' => $password,
+      ));
     }
   }
 

@@ -152,7 +152,10 @@
         success: function(data) {
           clkbtn.prop('disabled', false);
           if (data.status == 'success') {
-            swal("Password", data.password, "info");
+            swalCredentials("Login Details", [
+              ['Login ID', data.loginid],
+              ['Password', data.password]
+            ]);
           } else {
             swal(data.message, {
               icon: "error",

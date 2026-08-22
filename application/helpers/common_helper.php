@@ -122,6 +122,21 @@ if (! function_exists('decrypt_password_for_admin')) {
   }
 }
 
+// A field off a single-row lookup that may have returned null.
+//
+// Ledgers and reports read the display name / opening balance straight off a
+// get_*_dtl() result. Those return null whenever the id is blank (the "All"
+// option), is Head Office (which has no master_users_tbl row of its own), or
+// belongs to another branch - and the bare read then prints "Attempt to read
+// property on null" across the top of the report, as Branch Ledger did.
+if (! function_exists('row_val')) {
+
+  function row_val($row, $field, $fallback = '')
+  {
+    return (is_object($row) && isset($row->$field)) ? $row->$field : $fallback;
+  }
+}
+
 if (! function_exists('money2')) {
 
   /**

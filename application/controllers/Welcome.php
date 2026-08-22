@@ -36,6 +36,31 @@ class Welcome extends CI_Controller
     $this->load->view('application_setting', $data);
   }
 
+  // Superadmin-only: reveal the current date-lock password.
+  public function view_date_lock_password()
+  {
+    if ($this->ajax_login() === false) {
+      return;
+    }
+    if ($this->session->userdata('user_type') != 8) {
+      echo json_encode(array('status' => 'error', 'message' => 'Access Denied'));
+      return;
+    }
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+      $row = $this->Main_model->get_date_lock_password_enc();
+      $password = !empty($row) ? decrypt_password_for_admin($row->date_lock_password_enc) : '';
+
+      if ($password === '') {
+        echo json_encode(array(
+          'status'  => 'error',
+          'message' => 'Password not available. It becomes viewable again after the date password is next changed.',
+        ));
+        return;
+      }
+      echo json_encode(array('status' => 'success', 'password' => $password));
+    }
+  }
+
   public function update_application_settings()
   {
     if ($this->ajax_login() === false) {

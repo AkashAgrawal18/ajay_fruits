@@ -288,3 +288,18 @@ ALTER TABLE `master_voucher_tbl`
 -- ALTER TABLE `master_recieved_tbl` MODIFY `m_recvd_amount`   decimal(12,2) NOT NULL DEFAULT 0.00;
 -- ALTER TABLE `master_voucher_tbl`  MODIFY `m_voucher_amount` decimal(12,2) NOT NULL DEFAULT 0.00;
 -- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- Superadmin "view password" feature, date-lock half. The date-lock password
+-- stays bcrypt-hashed in `date_lock_password` for Login::* verification
+-- (unchanged). This column carries a second, reversibly-encrypted copy
+-- (AES-256-CBC, key in application/config/integrations.php:password_enc_key)
+-- that only superadmin can decrypt, via Welcome::view_date_lock_password().
+--
+-- Mirrors master_users_tbl.m_user_password_enc above. The existing row has
+-- NULL here until the date password is next changed - there is no plaintext
+-- left anywhere to backfill from.
+--
+-- APPLIED to the local dev DB (ajayfruits_db) on 2026-08-22.
+-- ---------------------------------------------------------------------------
+ALTER TABLE `application_settings` ADD COLUMN `date_lock_password_enc` VARCHAR(255) NULL AFTER `date_lock_password`;

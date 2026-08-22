@@ -56,19 +56,29 @@
             <div class="col-md-3">
               <div class="form-group">
                 <label class="control-label">Application Login Id</label>
-                <input value="<?php echo $login_detail->m_user_login_id  ?>" type="text" name="m_admin_login_id" placeholder="App Login Id" class="form-control">
+                <input value="<?php echo $login_detail->m_user_loginid  ?>" type="text" name="m_admin_login_id" placeholder="App Login Id" class="form-control">
               </div>
             </div>
             <div class="col-md-2">
               <div class="form-group">
                 <label class="control-label">Login Password</label>
-                <input type="text" name="m_admin_pass" placeholder="Leave blank to keep current password" class="form-control">
+                <div class="input-group">
+                  <input type="text" name="m_admin_pass" placeholder="Leave blank to keep current password" class="form-control">
+                  <?php if ($this->session->userdata('user_type') == 8 && !empty($login_detail->m_user_password)) { ?>
+                    <button type="button" id="view-admin-password" class="btn btn-secondary" title="View Current Password"><i class="bi bi-eye"></i></button>
+                  <?php } ?>
+                </div>
               </div>
             </div>
             <div class="col-md-2">
               <div class="form-group">
                 <label class="control-label">Date Password</label>
-                <input type="text" name="date_lock_password" placeholder="Leave blank to keep current password" class="form-control">
+                <div class="input-group">
+                  <input type="text" name="date_lock_password" placeholder="Leave blank to keep current password" class="form-control">
+                  <?php if ($this->session->userdata('user_type') == 8) { ?>
+                    <button type="button" id="view-date-password" class="btn btn-secondary" title="View Current Date Password"><i class="bi bi-eye"></i></button>
+                  <?php } ?>
+                </div>
               </div>
             </div>
             <div class="col-md-2">

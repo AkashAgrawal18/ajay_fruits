@@ -146,8 +146,15 @@ if ($pgtype == 1) {
                                         <td class="wd-30">
                                             <div class="d-flex">
                                                 <a href="<?php echo base_url('Accounts/add_user?type=' . $pgtype . '&id=') . $value->m_user_id; ?>" class="btn btn-info btn-sm p-1 me-1" title="Edit" data-toggle="tooltip"><i class="bi bi-pencil-square"></i></a>
-                                                <?php if (($pgtype == 1 || $pgtype == 9) && $this->session->userdata('user_type') == 8) { ?>
-                                                <button class="btn btn-secondary btn-sm view-password p-1 me-1" data-value="<?php echo $value->m_user_id; ?>" title="View Password" data-toggle="tooltip"><i class="bi bi-eye"></i></button>
+                                                <?php
+                                                // Superadmin-only, and only where the account can actually log
+                                                // in and has a password stored to reveal.
+                                                $can_view_password = ($pgtype == 1 || $pgtype == 9)
+                                                    && $this->session->userdata('user_type') == 8
+                                                    && $value->m_user_login_allow == 1
+                                                    && !empty($value->m_user_password);
+                                                if ($can_view_password) { ?>
+                                                <button class="btn btn-secondary btn-sm view-password p-1 me-1" data-value="<?php echo $value->m_user_id; ?>" title="View Login Details" data-toggle="tooltip"><i class="bi bi-eye"></i></button>
                                                 <?php } ?>
                                                  <button class="btn btn-danger btn-sm delete-user p-1" data-value="<?php echo $value->m_user_id; ?>" title="Delete" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
                                             </div>

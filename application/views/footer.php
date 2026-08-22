@@ -279,6 +279,42 @@
         };
     })(jQuery);
 </script>
+<script type="text/javascript">
+    // Shared reveal popup behind the superadmin "view password" buttons (staff
+    // list, branch list, application settings). swal() puts `text` through
+    // textContent with no pre-wrap, so newlines in it collapse into one run-on
+    // line - the labelled rows have to be built as a node instead.
+    //
+    // Values go in via textContent, so nothing stored in a login id or
+    // password can inject markup here.
+    window.swalCredentials = function(title, pairs) {
+        var box = document.createElement('div');
+        box.style.textAlign = 'left';
+
+        pairs.forEach(function(pair) {
+            var row = document.createElement('div'),
+                lbl = document.createElement('span'),
+                val = document.createElement('strong');
+
+            row.style.marginBottom = '6px';
+            lbl.textContent = pair[0] + ': ';
+            lbl.style.color = '#797979';
+            val.textContent = pair[1] || '-';
+            val.style.fontFamily = 'monospace';
+            val.style.fontSize = '17px';
+
+            row.appendChild(lbl);
+            row.appendChild(val);
+            box.appendChild(row);
+        });
+
+        swal({
+            title: title,
+            content: box,
+            icon: "info"
+        });
+    };
+</script>
 </body>
 
 </html>
