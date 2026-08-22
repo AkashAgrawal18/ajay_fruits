@@ -2731,9 +2731,20 @@ class Reports extends CI_Controller
             $branch_id = $this->session->userdata('user_id');
             $branch_name = $this->session->userdata('user_name'); // ya DB se le lo agar session me nahi hai
         } else {
-            // Super Admin -> sab dikhega
-            $branch_id = null;
-            $branch_name = 'All Branches';
+            // Super Admin -> every branch, unless the Ledger page's Branch
+            // filter picked one. '0' is Head Office and is a real choice, so
+            // test against '' rather than using empty().
+            $posted_branch = $this->input->post('branch_id');
+            if ($posted_branch !== null && $posted_branch !== '') {
+                $branch_id   = (int) $posted_branch;
+                $branch_row  = $branch_id === 0 ? null : $this->Main_model->get_user_dtl($branch_id);
+                $branch_name = $branch_id === 0
+                    ? 'Head Office'
+                    : (!empty($branch_row) ? $branch_row->m_user_name : 'Branch ' . $branch_id);
+            } else {
+                $branch_id   = null;
+                $branch_name = 'All Branches';
+            }
         }
 
         $data['subhead'] = '<div class="col-6">

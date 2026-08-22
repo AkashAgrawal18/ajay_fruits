@@ -1902,7 +1902,9 @@ class Report_model extends CI_model
 
     // Super admin (branch_id null) => sab dikhega
     // Branch user => uski branch se related dono taraf (bheja gaya + mila hua)
-    if (!empty($branch_id)) {
+    // empty() here swallowed branch 0, which is Head Office - the end every
+    // transfer starts from - so filtering to it silently showed everything.
+    if ($branch_id !== null && $branch_id !== '') {
       $this->db->group_start();
       $this->db->where('mp.m_purcs_branch', $branch_id);
       $this->db->or_where('mp.m_purcs_from_branch', $branch_id);

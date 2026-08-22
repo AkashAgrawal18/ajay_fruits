@@ -13,7 +13,11 @@
       var link = $(this).data('link');
       $('#frm-ledger-list').attr('action', link);
 
-      if ($('#account_name_select').val() != '') {
+      // Most of these ledgers are about one account, so the submit waits for
+      // the picker. The transfer ledger is not - it lists every Head Office
+      // -> branch movement in the range - so it opts out with data-noaccount
+      // rather than being blocked by a picker it never uses.
+      if ($(this).data('noaccount') == 1 || $('#account_name_select').val() != '') {
         $('#frm-ledger-list').submit();
       }
 
@@ -99,6 +103,13 @@
 
 
     $('#account_type').on('change', function() {
+      // Back to the default shape first - a visible, required picker - then
+      // let each type below change what it needs. Without this the "not
+      // required" set by the voucher and transfer types leaked into whichever
+      // type was picked afterwards.
+      $('#cust_div').removeClass('d-none');
+      $('#account_name_select').prop('required', true);
+
       if ($(this).val() == 1) {
         $('.ledger_btn_submit').addClass('d-none');
         $('#custcashbtn').removeClass('d-none');
@@ -304,6 +315,15 @@
                                         ?>
         `);
 
+      } else if ($(this).val() == 11) {
+        $('.ledger_btn_submit').addClass('d-none');
+        $('#transferledgerbtn').removeClass('d-none');
+
+        // Scoped by date range and branch, not by one account, so the picker
+        // has nothing to offer here - hide it rather than show an empty
+        // required field the user cannot satisfy.
+        $('#cust_div').addClass('d-none');
+        $('#account_name_select').prop('required', false).empty();
       }
 
     });

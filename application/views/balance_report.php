@@ -475,6 +475,7 @@ if ($is_cust_in == false) {
                                             <option value="4">Cash</option>
                                             <option value="5">Bank</option>
                                             <option value="10">Discount Ledger</option>
+                                            <option value="11">Transfer</option>
                                         <?php } ?>
                                     </select>
                                 </div>
@@ -578,6 +579,7 @@ if ($is_cust_in == false) {
                                     <button class="btn btn-primary rounded-pill px-5 ledger_btn_submit d-none" id="bankledgerbtn" data-link="<?= base_url('Reports/cash_ledger/2') ?>" type="submit">Bank Ledger</button>
                                     <button class="btn btn-primary rounded-pill px-5 ledger_btn_submit d-none" id="voucherdebitbtn" data-link="<?= base_url('Reports/voucher_ledger/2') ?>" type="submit">Debit Voucher</button>
                                     <button class="btn btn-primary rounded-pill px-5 ledger_btn_submit d-none" id="vouchercreditbtn" data-link="<?= base_url('Reports/voucher_ledger/1') ?>" type="submit">Credit Voucher</button>
+                                    <button class="btn btn-primary rounded-pill px-5 ledger_btn_submit d-none" id="transferledgerbtn" data-link="<?= base_url('Reports/transfer_ledger') ?>" data-noaccount="1" type="submit">Transfer Ledger</button>
                                 <?php } ?>
                             </div>
                         </div>
