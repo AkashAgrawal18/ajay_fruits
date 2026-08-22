@@ -58,12 +58,6 @@
 
                 <form action="<?= base_url('Reports/lotwise_item') ?>" method="POST" class="row align-items-center mb-3">
 
-                    <!-- <div class="col-2">
-                        <div class="form-group">
-                            <label for="">From date</label>
-                            <input type="date" name="from_date" id="from_date" class="form-control" value="<?= $from_date ?>">
-                        </div>
-                    </div> -->
                     <div class="col-2">
                         <div class="form-group">
                             <label for="">To date</label>

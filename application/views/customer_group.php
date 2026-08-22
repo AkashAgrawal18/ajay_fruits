@@ -26,18 +26,6 @@
             <div class="col-12">
                 <form action="<?= base_url('Accounts/custgrp_list') ?>" method="POST" class="row align-items-center">
 
-                    <!-- <div class="col-2">
-                        <div class="form-group">
-                            <label for="">From date</label>
-                            <input type="date" name="from_date" id="from_date" class="form-control" value="<?= $from_date ?>">
-                        </div>
-                    </div>
-                    <div class="col-2">
-                        <div class="form-group">
-                            <label for="">To date</label>
-                            <input type="date" name="to_date" id="to_date" class="form-control" value="<?= $to_date ?>">
-                        </div>
-                    </div> -->
                     <?php if ($this->session->userdata('user_type') == 8) { ?>
                     <div class="col-2">
                         <div class="form-group">
@@ -112,7 +100,6 @@
                                         <td><?php echo implode(',', $user_name); ?></td>
                                         <td><?php echo implode(',', $user_mobile); ?></td>
 
-                                        <!-- <td><?php echo $new_date; ?></td> -->
 
                                         <!-- <td class="wd-30">
                                             <div class="d-flex">
