@@ -117,6 +117,7 @@
                             <label for="">Branch</label>
                             <select name="branchs_id" id="branchs_id" class="form-select select2">
                                 <option value="">All Branches</option>
+                                <option value="0" <?= (isset($branchs_id) && (string) $branchs_id === '0') ? 'selected' : '' ?>>Head Office</option>
                                 <?php if (!empty($branch_list)) {
                                     foreach ($branch_list as $branch) {
                                         $selected = ($branchs_id == $branch->m_user_id) ? 'selected' : '';

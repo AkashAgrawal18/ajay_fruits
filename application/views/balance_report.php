@@ -168,6 +168,7 @@ if ($is_cust_in == false) {
                                 <div class="col-10">
                                     <select name="branch_id" id="branch_id" class="form-select select2">
                                         <option value="">All Branches</option>
+                                        <option value="0" <?= (isset($branch_id) && (string) $branch_id === '0') ? 'selected' : '' ?>>Head Office</option>
                                         <?php if (!empty($branch_list)) {
                                             foreach ($branch_list as $branch) {
                                                 $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
@@ -298,6 +299,7 @@ if ($is_cust_in == false) {
                             <div class="col-10">
                                 <select name="branch_id" id="branch_id" class="form-select select2">
                                     <option value="">All Branches</option>
+                                    <option value="0" <?= (isset($branch_id) && (string) $branch_id === '0') ? 'selected' : '' ?>>Head Office</option>
                                     <?php if (!empty($branch_list)) {
                                         foreach ($branch_list as $branch) {
                                     ?>
@@ -503,6 +505,7 @@ if ($is_cust_in == false) {
                                     <div class="col-10">
                                         <select name="branch_id" id="branch_id" class="form-select select2">
                                             <option value="">All Branches</option>
+                                            <option value="0" <?= (isset($branch_id) && (string) $branch_id === '0') ? 'selected' : '' ?>>Head Office</option>
                                             <?php if (!empty($branch_list)) {
                                                 foreach ($branch_list as $branch) {
                                                     $selected = ($branch_id == $branch->m_user_id) ? 'selected' : '';
