@@ -16,19 +16,21 @@ class Master extends CI_Controller
 	//
 	// Deliberately takes list_types[] (plural) and answers them all in ONE
 	// response. It used to be one request per dropdown, which broke on the
-	// second branch change: csrf_regenerate=TRUE rotates the CSRF token on
-	// every accepted POST, so three parallel requests produced three
-	// different new tokens and the client could not know which one the
-	// browser's cookie ended up holding - the next change then failed the
-	// CSRF check with a 403 and silently updated nothing (BUG-027).
-	// One request == one rotation == one unambiguous token, and it's a
-	// single round trip instead of three.
+	// second branch change: csrf_regenerate was TRUE at the time, rotating
+	// the CSRF token on every accepted POST, so three parallel requests
+	// produced three different new tokens and the client could not know
+	// which one the browser's cookie ended up holding - the next change then
+	// failed the CSRF check with a 403 and silently updated nothing
+	// (BUG-027). csrf_regenerate is FALSE now, so that race is gone either
+	// way, but one round trip still beats three.
 	public function branch_scoped_options()
 	{
-		// Resolved after csrf_verify() has already rotated them during
-		// bootstrap, so this is the token the browser's new cookie holds.
-		// Always returned - including on the not-logged-in path below - so
-		// the client is never left holding a stale token it can't recover from.
+		// The token the browser's cookie holds, resolved after csrf_verify()
+		// has run during bootstrap. Still returned on every path - including
+		// the not-logged-in one below - so the client is never left holding a
+		// stale token it can't recover from. Since csrf_regenerate went FALSE
+		// this is belt-and-braces; application/views/csrf.php now picks the
+		// token up from the X-CSRF-Token-* headers on every response anyway.
 		$response = array(
 			'csrf_token_name'  => $this->security->get_csrf_token_name(),
 			'csrf_token_value' => $this->security->get_csrf_hash(),

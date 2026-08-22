@@ -464,7 +464,15 @@ $config['csrf_protection'] = TRUE;
 $config['csrf_token_name'] = 'csrf_test_name';
 $config['csrf_cookie_name'] = 'csrf_cookie_name';
 $config['csrf_expire'] = 7200;
-$config['csrf_regenerate'] = TRUE;
+// Rotating the token on every accepted POST is what made the app 403 with
+// "not allowed" / "Access Denied" on the first attempt and then work after a
+// back-and-retry (see application/core/MY_Security.php). CI hands the rotated
+// value back only in an HttpOnly cookie, so any page that POSTs more than once
+// without reloading - which is most of them, and nearly all of the superadmin
+// screens - sent a dead token on its 2nd POST and was rejected before the
+// controller ever ran. A stable per-session token removes the race entirely;
+// the token is still unguessable and still verified on every POST.
+$config['csrf_regenerate'] = FALSE;
 $config['csrf_exclude_uris'] = array('api_controller/.*');
 
 /*
