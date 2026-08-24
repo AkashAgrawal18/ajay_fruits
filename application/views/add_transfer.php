@@ -17,7 +17,7 @@
                 </h6>
             </div>
             <div class="col-6 text-end">
-                <a href="<?php echo site_url('Sales/purchase_list') ?>" class="btn btn-sm btn-primary">Purchase List</a>
+                <a href="<?php echo site_url('Reports/transfer_ledger') ?>" class="btn btn-sm btn-primary">Transfer Ledger</a>
                 <button onclick="history.back()" class="btn btn-danger btn-sm">
                     <i class="bi bi-box-arrow-left me-2"></i>Exit
                 </button>

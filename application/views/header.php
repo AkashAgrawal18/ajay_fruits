@@ -355,43 +355,37 @@
                 <!--line -->
 
                 <div class="d-inline-flex justify-content-start px-2 gap-1">
-                    <a href="<?= base_url('Sales/add_sales') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'add_sales') echo 'active' ?>">
+                    <?php // Sales List already has its own button on this page (see
+                    // add_sales.php's "Sales List" link), so it no longer needs its
+                    // own tile here - one merged entry reaches both. ?>
+                    <a href="<?= base_url('Sales/add_sales') ?>" class="d-block text-dark py-1 main-link <?php if (in_array($this->uri->segment(2), ['add_sales', 'sales_list'])) echo 'active' ?>">
                         <img src="<?= base_url('assets/icons/statistics.png') ?>" alt="" class="w-50 mx-auto" />
                         <p class="m-0 mt-1">
-                            Add Sale
+                            Sales
                         </p>
                     </a>
-                    <a href="<?= base_url('Sales/sales_list') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'sales_list') echo 'active' ?>">
-                        <img src="<?= base_url('assets/icons/proceed.png') ?>" alt="" class="w-50 mx-auto" />
-                        <p class="m-0 mt-1">
-                            Sale List
-                        </p>
-                    </a>
-                    <a href="<?= base_url('Sales/add_issue_item') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'add_issue_item') echo 'active' ?>">
+                    <?php // Issue List's own "Cancel" button on the add form already reaches
+                    // it, so it no longer needs its own tile - one merged entry does. ?>
+                    <a href="<?= base_url('Sales/add_issue_item') ?>" class="d-block text-dark py-1 main-link <?php if (in_array($this->uri->segment(2), ['add_issue_item', 'issue_item_list'])) echo 'active' ?>">
                         <img src="<?= base_url('assets/icons/loading.png') ?>" alt="" class="w-50 mx-auto" />
 
                         <p class="m-0 mt-1">
-                            Add Issue
+                            Issue
                         </p>
                     </a>
-                    <a href="<?= base_url('Sales/issue_item_list') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'issue_item_list') echo 'active' ?>">
-                        <img src="<?= base_url('assets/icons/purchase.png') ?>" alt="" class="w-50 mx-auto" />
+                    <?php
+                    // Add Purchase is superadmin-only (Sales::add_purchase 403s a branch
+                    // user) but Purchase List is open to both - unlike Sales/Issue, this
+                    // pair can't merge onto one fixed destination without stranding branch
+                    // users. Superadmin lands on the add form (which has its own "Purchase
+                    // List" button, same as Sales/Issue); a branch user goes straight to
+                    // the list, since add_purchase isn't reachable for them either way.
+                    $purchase_tile_href = ($this->session->userdata('user_type') == 8) ? 'Sales/add_purchase' : 'Sales/purchase_list';
+                    ?>
+                    <a href="<?= base_url($purchase_tile_href) ?>" class="d-block text-dark py-1 main-link <?php if (in_array($this->uri->segment(2), ['add_purchase', 'purchase_list'])) echo 'active' ?>">
+                        <img src="<?= base_url('assets/icons/ledger1.png') ?>" alt="" class="w-50 mx-auto " />
                         <p class="m-0 mt-1">
-                            Issue List
-                        </p>
-                    </a>
-                    <?php if ($this->session->userdata('user_type') == 8) { ?>
-                        <a href="<?= base_url('Sales/add_purchase') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'add_purchase') echo 'active' ?>">
-                            <img src="<?= base_url('assets/icons/ledger1.png') ?>" alt="" class="w-50 mx-auto " />
-                            <p class="m-0 mt-1">
-                                Add Purchase
-                            </p>
-                        </a>
-                    <?php } ?>
-                    <a href="<?= base_url('Sales/purchase_list') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'purchase_list') echo 'active' ?>">
-                        <img src="<?= base_url('assets/icons/plist.png') ?>" alt="" class="w-50 mx-auto" />
-                        <p class="m-0 mt-1">
-                            Purchase List
+                            Purchase
                         </p>
                     </a>
                     <?php if ($this->session->userdata('user_type') == 8) { ?>
