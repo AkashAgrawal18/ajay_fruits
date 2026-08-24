@@ -283,6 +283,19 @@
                     to_date: toDate,
                 };
 
+                // This form is built from scratch here, so it carries no CSRF
+                // field of its own - the global "inject into every form" pass
+                // in footer.php only runs once, at DOMContentLoaded, before
+                // this form exists. Without this, every search hit the 403
+                // page instead of the report. Read the current token from the
+                // same <meta> tags head.php renders and views/csrf.php keeps
+                // in sync on every response.
+                const csrfNameTag = document.querySelector('meta[name="csrf-token-name"]');
+                const csrfValueTag = document.querySelector('meta[name="csrf-token-value"]');
+                if (csrfNameTag && csrfValueTag) {
+                    fields[csrfNameTag.getAttribute('content')] = csrfValueTag.getAttribute('content');
+                }
+
                 Object.keys(fields).forEach(function(key) {
                     const input = document.createElement('input');
                     input.type = 'hidden';
