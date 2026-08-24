@@ -12,6 +12,39 @@ class Master_model extends CI_model
   }
 
   /** The reason for the last failure, then clears it. */
+  /**
+   * Replaces null with '' in an insert/update payload.
+   *
+   * Almost every column in this schema is NOT NULL with no default, while
+   * input->post() yields null for a field that was not submitted. Sending that
+   * null through produced "A Database Error Occurred" with the statement on
+   * screen; '' stores as '' for text and 0 for numerics (sql_mode is not
+   * strict), which is what the forms send for a blank field anyway.
+   *
+   * The few columns that are genuinely nullable are left alone.
+   */
+  protected function no_nulls($data)
+  {
+    if (!is_array($data)) {
+      return $data;
+    }
+
+    static $keep_null = array(
+      'm_purcs_from_branch',
+      'm_purcs_ref_lot',
+      'm_purcs_type',
+      'm_user_password_enc',
+    );
+
+    foreach ($data as $k => $v) {
+      if ($v === null && !in_array($k, $keep_null, true)) {
+        $data[$k] = '';
+      }
+    }
+
+    return $data;
+  }
+
   public function last_error()
   {
     $msg = $this->last_error;
@@ -97,7 +130,13 @@ class Master_model extends CI_model
   public function insert_itemgroup()
   {
     $machineid   = $this->input->post('m_itgrp_id');
-    $machinename = $this->input->post('m_itgrp_title');
+    $machinename = trim((string) $this->input->post('m_itgrp_title'));
+
+    // The form marks this required; the model did not, so a direct post
+    // created a blank entry that then appeared in every dropdown.
+    if ($machinename === '') {
+      return 'Enter a name before saving.';
+    }
     $branch = $this->branch_id($this->input->post('m_itgrp_branch'));
 
     // Item groups, units and crate sizes are three separate screens sharing
@@ -125,11 +164,11 @@ class Master_model extends CI_model
     );
 
     if (!empty($machineid)) {
-      $this->db->where('m_itgrp_id', $machineid)->update('master_itemgroup_tbl', $insert_data);
+      $this->db->where('m_itgrp_id', $machineid)->update('master_itemgroup_tbl', $this->no_nulls($insert_data));
       return 2;
     } else {
       $insert_data['m_itgrp_branch'] = $branch ?? 0;
-      $this->db->insert('master_itemgroup_tbl', $insert_data);
+      $this->db->insert('master_itemgroup_tbl', $this->no_nulls($insert_data));
       return 1;
     }
   }
@@ -143,7 +182,21 @@ class Master_model extends CI_model
 
   public function delete_itemgroup($branch_id = null)
   {
-    $this->db->where('m_itgrp_id', $this->input->post('delete_id'));
+    $id = $this->input->post('delete_id');
+
+    // Same as delete_item: an item pointing at a deleted group/unit/crate
+    // shows blanks in every list and report that joins them.
+    $n = $this->db->group_start()
+      ->where('m_item_group', $id)
+      ->or_where('m_item_unit', $id)
+      ->or_where('m_item_crate', $id)
+      ->group_end()
+      ->count_all_results('master_item_tbl');
+    if ($n > 0) {
+      return $this->fail('That entry cannot be deleted - ' . $n . ' item(s) still use it. Change those items first, or mark this inactive.');
+    }
+
+    $this->db->where('m_itgrp_id', $id);
     $this->db->delete('master_itemgroup_tbl');
 
     // a delete that matched no rows is still a successful query
@@ -172,11 +225,27 @@ class Master_model extends CI_model
 
   public function insert_item()
   {
-    $itemid = $this->input->post('m_item_id');
-    $branch = $this->branch_id($this->input->post('m_item_branch'));
+    $itemid   = $this->input->post('m_item_id');
+    $branch   = $this->branch_id($this->input->post('m_item_branch'));
+    $itemname = trim((string) $this->input->post('m_item_name'));
+
+    // insert_itemgroup() has always refused a blank name and a duplicate;
+    // this one refused neither, so the item list filled with blanks and
+    // repeats. Items are shared across branches, so the name has to be
+    // unique outright.
+    if ($itemname === '') {
+      return 'Enter an item name before saving.';
+    }
+
+    $clash = $this->db->select('m_item_id')
+      ->where('m_item_name', $itemname)
+      ->get('master_item_tbl')->row();
+    if (!empty($clash) && (empty($itemid) || (int) $clash->m_item_id !== (int) $itemid)) {
+      return 'An item named "' . $itemname . '" already exists. Use a different name, or edit the existing one.';
+    }
 
     $insert_data = array(
-      "m_item_name"    => $this->input->post('m_item_name'),
+      "m_item_name"    => $itemname,
       "m_item_group"   => $this->input->post('m_item_group'),
       "m_item_crate"   => $this->input->post('m_item_crate'),
       "m_item_unit"    => $this->input->post('m_item_unit'),
@@ -188,11 +257,11 @@ class Master_model extends CI_model
     );
 
     if (!empty($itemid)) {
-      $this->db->where('m_item_id', $itemid)->update('master_item_tbl', $insert_data);
+      $this->db->where('m_item_id', $itemid)->update('master_item_tbl', $this->no_nulls($insert_data));
       return 2;
     } else {
       $insert_data['m_item_branch'] = $branch ?? 0;
-      $this->db->insert('master_item_tbl', $insert_data);
+      $this->db->insert('master_item_tbl', $this->no_nulls($insert_data));
       return 1;
     }
   }
@@ -209,7 +278,23 @@ class Master_model extends CI_model
 
   public function delete_item($branch_id = null)
   {
-    $this->db->where('m_item_id', $this->input->post('delete_id'));
+    $id = $this->input->post('delete_id');
+
+    // Nothing used to stop this. Deleting an item that bills point at leaves
+    // every one of them showing a blank item name, and the delete reported
+    // success - 508 purchase rows were orphaned by one click in testing.
+    $used = array(
+      'purchase'   => $this->db->where('m_purcs_item', $id)->count_all_results('master_purchase_tbl'),
+      'sale'       => $this->db->where('m_sale_item', $id)->count_all_results('master_sales_tbl'),
+      'item issue' => $this->db->where('si_issue_item', $id)->count_all_results('staff_itemissue_tbl'),
+    );
+    foreach ($used as $what => $n) {
+      if ($n > 0) {
+        return $this->fail('That item cannot be deleted - ' . $n . ' ' . $what . ' record(s) still refer to it. Mark it inactive instead so the history keeps its name.');
+      }
+    }
+
+    $this->db->where('m_item_id', $id);
     $this->db->delete('master_item_tbl');
 
     if ($this->db->affected_rows() < 1) {
@@ -293,11 +378,11 @@ class Master_model extends CI_model
     $id = $this->input->post('m_group_id');
     if (!empty($id)) {
       $this->where_branch('m_group_branch', $branch);
-      $this->db->where('m_group_id', $id)->update('master_group_tbl', $s_data);
+      $this->db->where('m_group_id', $id)->update('master_group_tbl', $this->no_nulls($s_data));
       return 2;
     } else {
       $s_data['m_group_branch'] = $branch ?? 0;
-      $this->db->insert('master_group_tbl', $s_data);
+      $this->db->insert('master_group_tbl', $this->no_nulls($s_data));
       return 1;
     }
   }
@@ -353,10 +438,10 @@ class Master_model extends CI_model
     );
     $id = $this->input->post('m_state_id');
     if (!empty($id)) {
-      $this->db->where('m_state_id', $id)->update('master_state_tbl', $s_data);
+      $this->db->where('m_state_id', $id)->update('master_state_tbl', $this->no_nulls($s_data));
       return 2;
     } else {
-      $this->db->insert('master_state_tbl', $s_data);
+      $this->db->insert('master_state_tbl', $this->no_nulls($s_data));
       return 1;
     }
   }
@@ -396,10 +481,10 @@ class Master_model extends CI_model
     );
     $id = $this->input->post('m_city_id');
     if (!empty($id)) {
-      $this->db->where('m_city_id', $id)->update('master_city_tbl', $s_data);
+      $this->db->where('m_city_id', $id)->update('master_city_tbl', $this->no_nulls($s_data));
       return 2;
     } else {
-      $this->db->insert('master_city_tbl', $s_data);
+      $this->db->insert('master_city_tbl', $this->no_nulls($s_data));
       return 1;
     }
   }

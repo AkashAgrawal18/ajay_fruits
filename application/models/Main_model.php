@@ -31,6 +31,39 @@ class Main_model extends CI_model
    * an earlier call in the same request can never be reported against a later
    * one. Returns '' when the failure had no recorded reason.
    */
+  /**
+   * Replaces null with '' in an insert/update payload.
+   *
+   * Almost every column in this schema is NOT NULL with no default, while
+   * input->post() yields null for a field that was not submitted. Sending that
+   * null through produced "A Database Error Occurred" with the statement on
+   * screen; '' stores as '' for text and 0 for numerics (sql_mode is not
+   * strict), which is what the forms send for a blank field anyway.
+   *
+   * The few columns that are genuinely nullable are left alone.
+   */
+  protected function no_nulls($data)
+  {
+    if (!is_array($data)) {
+      return $data;
+    }
+
+    static $keep_null = array(
+      'm_purcs_from_branch',
+      'm_purcs_ref_lot',
+      'm_purcs_type',
+      'm_user_password_enc',
+    );
+
+    foreach ($data as $k => $v) {
+      if ($v === null && !in_array($k, $keep_null, true)) {
+        $data[$k] = '';
+      }
+    }
+
+    return $data;
+  }
+
   public function last_error()
   {
     $msg = $this->last_error;
@@ -419,7 +452,7 @@ class Main_model extends CI_model
       $data['m_user_updated_on'] = date('Y-m-d H:i:s');
       $this->db->where('m_user_id', $userid);
       $this->where_branch('m_user_branch', $branch);
-      $this->db->update('master_users_tbl', $data);
+      $this->db->update('master_users_tbl', $this->no_nulls($data));
       return 2;
     } else {
       // Honour the branch the form actually selected. branch_id() already
@@ -430,7 +463,7 @@ class Main_model extends CI_model
       $data['m_user_branch']   = $branch ?? 0;
       $data['m_user_added_by'] = $this->session->userdata('user_id');
       $data['m_user_added_on'] = date('Y-m-d H:i:s');
-      $this->db->insert('master_users_tbl', $data);
+      $this->db->insert('master_users_tbl', $this->no_nulls($data));
       return 1;
     }
   }
@@ -885,6 +918,25 @@ class Main_model extends CI_model
 
   public function insert_cust()
   {
+    // Browser-only validation until now: a direct post created blank
+    // customers and unlimited exact duplicates.
+    $cust_id   = $this->input->post('m_cust_id');
+    $cust_name = trim((string) $this->input->post('m_cust_name'));
+    $cust_mob  = trim((string) $this->input->post('m_cust_mobile'));
+
+    if ($cust_name === '') {
+      return $this->fail('Enter a customer name before saving.');
+    }
+
+    if (empty($cust_id)) {
+      $this->db->where('m_cust_name', $cust_name);
+      $this->db->where('m_cust_mobile', $cust_mob);
+      $this->where_branch('m_cust_branch', $this->input->post('m_cust_branch'));
+      if ($this->db->count_all_results('master_customer_tbl') > 0) {
+        return $this->fail('A customer named "' . $cust_name . '" with that mobile number already exists. Edit the existing record instead.');
+      }
+    }
+
     $custid = $this->input->post('m_cust_id');
     $branch = $this->branch_id($this->input->post('m_cust_branch'));
 
@@ -951,13 +1003,13 @@ class Main_model extends CI_model
       $data['m_cust_updated_on'] = date('Y-m-d H:i:s');
       $this->db->where('m_cust_id', $custid);
       $this->where_branch('m_cust_branch', $branch);
-      $this->db->update('master_customer_tbl', $data);
+      $this->db->update('master_customer_tbl', $this->no_nulls($data));
       return 2;
     } else {
       $data['m_cust_branch']   = $branch ?? 0;
       $data['m_cust_added_by'] = $this->session->userdata('user_id');
       $data['m_cust_added_on'] = date('Y-m-d H:i:s');
-      $this->db->insert('master_customer_tbl', $data);
+      $this->db->insert('master_customer_tbl', $this->no_nulls($data));
       return 1;
     }
   }
@@ -1011,7 +1063,7 @@ class Main_model extends CI_model
       if (!empty($custgrp_id[$key])) {
         $this->db->where('m_custgrp_id', $custgrp_id[$key]);
         $this->where_branch('m_custgrp_branch', $branch);
-        $this->db->update('master_custgroup_tbl', $insert_data);
+        $this->db->update('master_custgroup_tbl', $this->no_nulls($insert_data));
         $res = 2;
       } else {
         if (empty($check)) {
@@ -1019,7 +1071,7 @@ class Main_model extends CI_model
           $insert_data['m_custgrp_addedby']  = $this->session->userdata('user_id');
           $insert_data['m_custgrp_code']     = date('dmi') . $this->input->post('m_custgrp_user');
           $insert_data['m_custgrp_added_on'] = date('Y-m-d H:i:s');
-          $this->db->insert('master_custgroup_tbl', $insert_data);
+          $this->db->insert('master_custgroup_tbl', $this->no_nulls($insert_data));
           $res = 1;
         }
       }
@@ -1136,9 +1188,9 @@ class Main_model extends CI_model
       )->row();
 
       $next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 1;
-      $issue_spo    = $next_counter . '/' . date('dm', strtotime($post['si_issue_date']));
+      $issue_spo    = $next_counter . '/' . date('dm', strtotime($post['si_issue_date'] ?? ''));
     } else {
-      $issue_spo = $post['si_issue_spo'];
+      $issue_spo = ($post['si_issue_spo'] ?? '');
     }
 
     foreach ($issue_item as $key => $item) {
@@ -1155,10 +1207,10 @@ class Main_model extends CI_model
       }
 
       $data = [
-        "si_issue_date"    => $post['si_issue_date'],
-        "si_issue_trackno" => $post['si_issue_trackno'],
-        "si_issue_type"    => $post['si_issue_type'],
-        "si_issue_user"    => $post['si_issue_user'],
+        "si_issue_date"    => ($post['si_issue_date'] ?? ''),
+        "si_issue_trackno" => ($post['si_issue_trackno'] ?? ''),
+        "si_issue_type"    => ($post['si_issue_type'] ?? ''),
+        "si_issue_user"    => ($post['si_issue_user'] ?? ''),
         "si_issue_item"    => $item,
         "si_issue_qty"     => $qty,
         "si_issue_lotno"   => $lot,
@@ -1171,7 +1223,7 @@ class Main_model extends CI_model
       if (!empty($issue_id[$key])) {
         $this->db->where('si_issue_id', $issue_id[$key]);
         $this->where_branch('si_issue_branch', $branch);
-        $this->db->update('staff_itemissue_tbl', $data);
+        $this->db->update('staff_itemissue_tbl', $this->no_nulls($data));
         $this->update_cust_balance(null, null, ($qty - $pre), $item, $lot);
         $res = 2;
       } else {
@@ -1180,7 +1232,7 @@ class Main_model extends CI_model
         $data['si_issue_status']   = 1;
         $data['si_issue_added_by'] = $this->session->userdata('user_id');
         $data['si_issue_added_on'] = date('Y-m-d H:i');
-        $this->db->insert('staff_itemissue_tbl', $data);
+        $this->db->insert('staff_itemissue_tbl', $this->no_nulls($data));
         $this->update_cust_balance(null, null, $qty, $item, $lot);
         $res = 1;
       }
@@ -1244,7 +1296,7 @@ class Main_model extends CI_model
         "si_issue_added_on" => date('Y-m-d H:i'),
       );
 
-      $res = $this->db->insert('staff_itemissue_tbl', $insert_data);
+      $res = $this->db->insert('staff_itemissue_tbl', $this->no_nulls($insert_data));
       $this->update_cust_balance(null, null, $issue_qty[$key], $issue_item[$key], $issue_lotno[$key]);
     }
 
@@ -1412,9 +1464,9 @@ class Main_model extends CI_model
       )->row();
 
       $next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 1;
-      $sale_spo = $next_counter . '/' . date('dm', strtotime($post['m_sale_date']));
+      $sale_spo = $next_counter . '/' . date('dm', strtotime($post['m_sale_date'] ?? ''));
     } else {
-      $sale_spo = $post['m_sale_spo'];
+      $sale_spo = ($post['m_sale_spo'] ?? '');
     }
 
     $saleTotalAmt = 0;
@@ -1430,7 +1482,7 @@ class Main_model extends CI_model
       if (empty($issue_id[$key]) && $qty > $available_qty) {
         $this->db->trans_rollback();
         return ['status' => 'error', 'message' => "Stock not available for item {$item} in lot {$lot}"];
-      } else if ($qty > ((int)$pre_qty[$key] + (int)$available_qty)) {
+      } else if ($qty > ((int)($pre_qty[$key] ?? 0) + (int)$available_qty)) {
         $this->db->trans_rollback();
         return ['status' => 'error', 'message' => "Stock not available for item {$item} in lot {$lot}"];
       }
@@ -1454,8 +1506,8 @@ class Main_model extends CI_model
       // customer was billed for a row that was never written (BUG-011).
       if (empty($issue_id[$key])) {
         $this->db->where([
-          'm_sale_date'     => $post['m_sale_date'],
-          'm_sale_customer' => $post['m_sale_customer'],
+          'm_sale_date'     => ($post['m_sale_date'] ?? ''),
+          'm_sale_customer' => ($post['m_sale_customer'] ?? ''),
           'm_sale_item'     => $item,
           'm_sale_lot'      => $lot,
           'm_sale_qty'      => $qty,
@@ -1469,16 +1521,16 @@ class Main_model extends CI_model
       $saleTotalAmt += $sale_total;
 
       $data = [
-        "m_sale_date"     => $post['m_sale_date'],
-        "m_sale_trackno"  => $post['m_sale_trackno'],
-        "m_sale_customer" => $post['m_sale_customer'],
-        "m_sale_voucher"  => $post['m_sale_voucher'],
-        "m_sale_comrate"  => $post['m_sale_comrate'],
-        "m_sale_comm"     => $post['m_sale_comm'],
-        "m_sale_fright"   => $post['m_sale_fright'],
-        "m_sale_hamali"   => $post['m_sale_hamali'],
-        "m_sale_others"   => $post['m_sale_others'],
-        "m_sale_note"     => $post['m_sale_note'],
+        "m_sale_date"     => ($post['m_sale_date'] ?? ''),
+        "m_sale_trackno"  => ($post['m_sale_trackno'] ?? ''),
+        "m_sale_customer" => ($post['m_sale_customer'] ?? ''),
+        "m_sale_voucher"  => ($post['m_sale_voucher'] ?? ''),
+        "m_sale_comrate"  => ($post['m_sale_comrate'] ?? ''),
+        "m_sale_comm"     => ($post['m_sale_comm'] ?? ''),
+        "m_sale_fright"   => ($post['m_sale_fright'] ?? ''),
+        "m_sale_hamali"   => ($post['m_sale_hamali'] ?? ''),
+        "m_sale_others"   => ($post['m_sale_others'] ?? ''),
+        "m_sale_note"     => ($post['m_sale_note'] ?? ''),
         "m_sale_user"     => $post['m_sale_user'] ?? '',
         "m_sale_item"     => $item,
         "m_sale_qty"      => $qty,
@@ -1494,13 +1546,13 @@ class Main_model extends CI_model
         $data['m_sale_updatedon'] = date('Y-m-d H:i');
         $this->db->where('m_sale_id', $issue_id[$key]);
         $this->where_branch('m_sale_branch', $branch);
-        $this->db->update('master_sales_tbl', $data);
-        $new_qty = (($pre_qty[$key] - $qty) * -1);
-        if ($post['m_sale_customer'] == $post['precust']) {
-          $this->update_cust_balance($post['m_sale_customer'], null, $new_qty, $item, $lot);
+        $this->db->update('master_sales_tbl', $this->no_nulls($data));
+        $new_qty = ((($pre_qty[$key] ?? 0) - $qty) * -1);
+        if (($post['m_sale_customer'] ?? '') == ($post['precust'] ?? '')) {
+          $this->update_cust_balance(($post['m_sale_customer'] ?? ''), null, $new_qty, $item, $lot);
         } else {
-          $this->update_cust_balance($post['m_sale_customer'], null, $qty, $item, $lot);
-          $this->update_cust_balance($post['precust'], null, -$pre_qty[$key], $item, $lot);
+          $this->update_cust_balance(($post['m_sale_customer'] ?? ''), null, $qty, $item, $lot);
+          $this->update_cust_balance(($post['precust'] ?? ''), null, -$pre_qty[$key], $item, $lot);
         }
         $res = 2;
       } else {
@@ -1508,24 +1560,24 @@ class Main_model extends CI_model
         $data['m_sale_spo']      = $sale_spo;
         $data['m_sale_added_by'] = $this->session->userdata('user_id');
         $data['m_sale_added_on'] = date('Y-m-d H:i');
-        $this->db->insert('master_sales_tbl', $data);
-        $this->update_cust_balance($post['m_sale_customer'], null, $qty, $item, $lot);
+        $this->db->insert('master_sales_tbl', $this->no_nulls($data));
+        $this->update_cust_balance(($post['m_sale_customer'] ?? ''), null, $qty, $item, $lot);
         $res = 1;
       }
     }
 
-    $extra = (float)$post['m_sale_comm'] + (float)$post['m_sale_fright'] + (float)$post['m_sale_hamali'] + (float)$post['m_sale_others'];
+    $extra = (float)($post['m_sale_comm'] ?? '') + (float)($post['m_sale_fright'] ?? '') + (float)($post['m_sale_hamali'] ?? '') + (float)($post['m_sale_others'] ?? '');
     $saleTotalAmt += $extra;
 
     if (empty($post['m_sale_spo'])) {
-      $this->update_cust_balance($post['m_sale_customer'], $saleTotalAmt);
+      $this->update_cust_balance(($post['m_sale_customer'] ?? ''), $saleTotalAmt);
     } else {
-      $new_amt = $saleTotalAmt - (float)$post['pre_grand_total'];
-      if ($post['m_sale_customer'] == $post['precust']) {
-        $this->update_cust_balance($post['m_sale_customer'], $new_amt);
+      $new_amt = $saleTotalAmt - (float)($post['pre_grand_total'] ?? '');
+      if (($post['m_sale_customer'] ?? '') == ($post['precust'] ?? '')) {
+        $this->update_cust_balance(($post['m_sale_customer'] ?? ''), $new_amt);
       } else {
-        $this->update_cust_balance($post['m_sale_customer'], $saleTotalAmt);
-        $this->update_cust_balance($post['precust'], -$post['pre_grand_total']);
+        $this->update_cust_balance(($post['m_sale_customer'] ?? ''), $saleTotalAmt);
+        $this->update_cust_balance(($post['precust'] ?? ''), -($post['pre_grand_total'] ?? ''));
       }
     }
 
@@ -1607,7 +1659,7 @@ class Main_model extends CI_model
         "m_sale_added_on" => date('Y-m-d H:i'),
       );
 
-      $res = $this->db->insert('master_sales_tbl', $insert_data);
+      $res = $this->db->insert('master_sales_tbl', $this->no_nulls($insert_data));
       $saleTotalAmt = ((float)$sale_total + (float)$sale_fright[$key]);
       $this->update_cust_balance($cau, $saleTotalAmt, $sale_qty[$key], $sale_item[$key], $sale_lot[$key]);
     }
@@ -1787,6 +1839,23 @@ class Main_model extends CI_model
     $purcs_spo    = $supp_tm->m_user_trademark . '/' . $next_counter . '/' . date('d/m', strtotime($this->input->post('m_purcs_date')));
     $res = 0;
     $purTotalAmt = 0;
+    // A negative line saved happily and left m_purcs_available negative -
+    // stock that cannot exist, feeding every stock report and lot balance
+    // from then on. Reject the whole bill rather than storing part of it.
+    foreach ($purchase as $chk_key => $chk_item) {
+      $chk_qty    = (float) ($issue_qty[$chk_key] ?? 0);
+      $chk_weight = (float) ($issue_weight[$chk_key] ?? 0);
+      $chk_price  = (float) ($issue_price[$chk_key] ?? 0);
+      if ($chk_qty < 0 || $chk_weight < 0 || $chk_price < 0) {
+        $this->db->trans_rollback();
+        return $this->fail('Quantity, weight and rate cannot be negative. Check the line for item ' . $chk_item . ' and save again.');
+      }
+      if ($chk_qty == 0) {
+        $this->db->trans_rollback();
+        return $this->fail('Enter a quantity greater than 0 for item ' . $chk_item . '.');
+      }
+    }
+
     foreach ($purchase as $key => $cau) {
       $insert_data = array(
         "m_purcs_date"      => $this->input->post('m_purcs_date'),
@@ -1824,7 +1893,7 @@ class Main_model extends CI_model
         $purcs_spo  = $purase_dtl->m_purcs_spo;
         $this->db->where('m_purcs_id', $issue_id[$key]);
         $this->where_branch('m_purcs_branch', $branch);
-        $this->db->update('master_purchase_tbl', $insert_data);
+        $this->db->update('master_purchase_tbl', $this->no_nulls($insert_data));
         $new_qty = $issue_qty[$key] - $pre_qty[$key];
         if ($this->input->post('m_purcs_suplier') == $this->input->post('precust')) {
           $this->update_userbalance($this->input->post('m_purcs_suplier'), null, $new_qty, $cau);
@@ -1838,7 +1907,7 @@ class Main_model extends CI_model
         $insert_data['m_purcs_spo']      = !empty($this->input->post('m_purcs_spo')) ? $this->input->post('m_purcs_spo') : $purcs_spo;
         $insert_data['m_purcs_added_by'] = $this->session->userdata('user_id');
         $insert_data['m_purcs_added_on'] = date('Y-m-d H:i');
-        $this->db->insert('master_purchase_tbl', $insert_data);
+        $this->db->insert('master_purchase_tbl', $this->no_nulls($insert_data));
         $this->update_userbalance($this->input->post('m_purcs_suplier'), null, $issue_qty[$key], $cau);
         $res = 1;
       }
@@ -1882,12 +1951,12 @@ class Main_model extends CI_model
         if (!empty($m_exp_id[$cou])) {
           $this->db->where('m_exp_id', $m_exp_id[$cou]);
           $this->where_branch('m_exp_branch', $branch);
-          $this->db->update('master_expenses_tbl', $insertt_data);
+          $this->db->update('master_expenses_tbl', $this->no_nulls($insertt_data));
         } else {
           $insertt_data['m_exp_branch']   = $branch ?? 0;
           $insertt_data['m_exp_added_by'] = $this->session->userdata('user_id');
           $insertt_data['m_exp_added_on'] = date('Y-m-d H:i');
-          $this->db->insert('master_expenses_tbl', $insertt_data);
+          $this->db->insert('master_expenses_tbl', $this->no_nulls($insertt_data));
         }
       }
     }
@@ -2035,7 +2104,7 @@ class Main_model extends CI_model
         'm_purcs_added_by'    => $this->session->userdata('user_id'),
         'm_purcs_added_on'    => date('Y-m-d H:i'),
       ];
-      $this->db->insert('master_purchase_tbl', $insert);
+      $this->db->insert('master_purchase_tbl', $this->no_nulls($insert));
     }
 
     // branch now owes HO the issued value (mirrors insert_purchase()'s +amount on supplier balance)
@@ -2194,7 +2263,7 @@ class Main_model extends CI_model
             "m_recvd_added_by" => $user_id,
             "m_recvd_added_on" => date('Y-m-d H:i'),
           ];
-          $this->db->insert('master_recieved_tbl', $data);
+          $this->db->insert('master_recieved_tbl', $this->no_nulls($data));
           $inserted++;
 
           if ($m_recvd_account == 4 && (int) $customer === 0) {
@@ -2248,7 +2317,7 @@ class Main_model extends CI_model
             "m_recvd_added_by" => $user_id,
             "m_recvd_added_on" => date('Y-m-d H:i'),
           ];
-          $this->db->insert('master_recieved_tbl', $data);
+          $this->db->insert('master_recieved_tbl', $this->no_nulls($data));
           $inserted++;
 
           if (isset($crate_mapping[$crate_type])) {
@@ -2312,7 +2381,7 @@ class Main_model extends CI_model
 
     $this->db->where('m_recvd_id', $postData['m_recvd_id']);
     $this->where_branch('m_recvd_branch', $branch);
-    $this->db->update('master_recieved_tbl', $insert_data);
+    $this->db->update('master_recieved_tbl', $this->no_nulls($insert_data));
 
     $isSameCustomer = ($postData['m_recvd_customer'] == $postData['precust']);
 
@@ -2542,7 +2611,7 @@ class Main_model extends CI_model
             "m_payment_added_by" => $this->session->userdata('user_id'),
             "m_payment_added_on" => date('Y-m-d H:i'),
           ];
-          $res = $this->db->insert('master_payment_tbl', $insert_data);
+          $res = $this->db->insert('master_payment_tbl', $this->no_nulls($insert_data));
           if ($m_payment_account == 8) {
             // Head Office paying a branch: the branch received money, so it
             // owes Head Office MORE. Reverse of a supplier payment, because a
@@ -2588,7 +2657,7 @@ class Main_model extends CI_model
             "m_payment_added_by" => $this->session->userdata('user_id'),
             "m_payment_added_on" => date('Y-m-d H:i'),
           ];
-          $res = $this->db->insert('master_payment_tbl', $insert_data);
+          $res = $this->db->insert('master_payment_tbl', $this->no_nulls($insert_data));
           if (isset($crate_mapping[$crate])) {
             $this->db->set($crate_mapping[$crate], "{$crate_mapping[$crate]} - {$m_payment_qty[$supplier .$uniqut[$cau]][$cou]}", FALSE)
               ->where('m_user_id', $supplier)->update('master_users_tbl');
@@ -2648,7 +2717,7 @@ class Main_model extends CI_model
 
     $this->db->where('m_payment_id', $postData['m_payment_id']);
     $this->where_branch('m_payment_branch', $branch);
-    $this->db->update('master_payment_tbl', $insert_data);
+    $this->db->update('master_payment_tbl', $this->no_nulls($insert_data));
 
     $isBalanceUpdateRequired = !in_array($postData['m_payment_account'], [2, 7]);
     $isSameCustomer          = ($postData['m_payment_supplier'] == $postData['precust']);
@@ -2871,7 +2940,7 @@ class Main_model extends CI_model
       }
     }
     if (!empty($insertBatch)) {
-      $this->db->insert_batch('master_voucher_tbl', $insertBatch);
+      $this->db->insert_batch('master_voucher_tbl', $this->no_nulls($insertBatch));
       return true;
     }
     return $this->fail('Nothing was saved - every line had an amount of 0. Enter an amount against at least one line and save again.');
@@ -2915,7 +2984,7 @@ class Main_model extends CI_model
 
     $this->db->where('m_voucher_id', $postData['m_voucher_id']);
     $this->where_branch('m_voucher_branch', $branch);
-    $this->db->update('master_voucher_tbl', $updateData);
+    $this->db->update('master_voucher_tbl', $this->no_nulls($updateData));
 
     $isSameCustomer = ($postData['m_voucher_accountid'] == $postData['precust']);
     $balanceChange  = $postData['m_voucher_amount'] - $postData['preamount'];
@@ -3399,7 +3468,7 @@ class Main_model extends CI_model
     }
 
     $this->db->where('m_user_id', $this->session->userdata('user_id'));
-    return $this->db->update('master_users_tbl', $update_data);
+    return $this->db->update('master_users_tbl', $this->no_nulls($update_data));
   }
 
   public function get_application_settings()
@@ -3457,7 +3526,7 @@ class Main_model extends CI_model
       $data['date_lock_password_enc'] = encrypt_password_for_admin($newLockPassword);
     }
 
-    $this->db->update('application_settings', $data);
+    $this->db->update('application_settings', $this->no_nulls($data));
 
     $update_data = array(
       "m_user_loginid" => $this->input->post('m_admin_login_id'),
@@ -3471,7 +3540,7 @@ class Main_model extends CI_model
       $update_data['m_user_password_enc'] = encrypt_password_for_admin($newAdminPass);
     }
 
-    $this->db->where('m_user_id', $this->session->userdata('user_id'))->update('master_users_tbl', $update_data);
+    $this->db->where('m_user_id', $this->session->userdata('user_id'))->update('master_users_tbl', $this->no_nulls($update_data));
     return true;
   }
 
