@@ -2043,7 +2043,20 @@ class Main_model extends CI_model
     $this->db->trans_start();
 
     $transfer_date = !empty($transfer_date) ? $transfer_date : date('Y-m-d');
-    $spo         = 'TRF/' . date('dmY') . '/' . $to_branch . '/' . substr((string) time(), -5) . rand(100, 999);
+
+    // SPO generation: highest counter ever issued (locked FOR UPDATE), not the
+    // last inserted row - deleting an older transfer can leave a stale spo on
+    // the newest row and cause the next number to be reused. Same pattern as
+    // m_sale_spo/si_issue_spo/m_purcs_billno elsewhere in this model, scoped
+    // to type = 2 so it's a short, independent sequence from those. The
+    // REGEXP excludes old long-form spo values (TRF/ddmmyyyy/branch/random)
+    // from earlier - without it MAX() would inherit their random 8-digit
+    // tail forever instead of starting the new short counter at 100000.
+    $maxSpo = $this->db->query(
+      "SELECT MAX(CAST(SUBSTRING_INDEX(m_purcs_spo, '/', -1) AS UNSIGNED)) AS max_counter FROM master_purchase_tbl WHERE m_purcs_type = 2 AND m_purcs_spo REGEXP '^TRF/[0-9]+$' FOR UPDATE"
+    )->row();
+    $next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 100000;
+    $spo         = 'TRF/' . $next_counter;
     $total_value = 0;
 
     foreach ($items as $it) {
@@ -2181,7 +2194,15 @@ class Main_model extends CI_model
     $this->db->trans_start();
 
     $return_date = !empty($return_date) ? $return_date : date('Y-m-d');
-    $spo         = 'RTN/' . date('dmY') . '/' . $branch_id . '/' . substr((string) time(), -5) . rand(100, 999);
+
+    // SPO generation: same MAX-counter-locked pattern as insert_transfer()
+    // above, scoped to type = 3 so it's a short, independent sequence. Same
+    // REGEXP guard against old long-form spo values (RTN/ddmmyyyy/branch/random).
+    $maxSpo = $this->db->query(
+      "SELECT MAX(CAST(SUBSTRING_INDEX(m_purcs_spo, '/', -1) AS UNSIGNED)) AS max_counter FROM master_purchase_tbl WHERE m_purcs_type = 3 AND m_purcs_spo REGEXP '^RTN/[0-9]+$' FOR UPDATE"
+    )->row();
+    $next_counter = (!empty($maxSpo) && $maxSpo->max_counter !== null) ? ((int) $maxSpo->max_counter + 1) : 100000;
+    $spo         = 'RTN/' . $next_counter;
     $total_value = 0;
 
     foreach ($items as $it) {
