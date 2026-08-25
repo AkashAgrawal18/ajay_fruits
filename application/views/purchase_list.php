@@ -263,17 +263,21 @@
                                                                         <div class="card p-3">
                                                                             <div class="row " style="margin: 0px;">
                                                                                 <div class="col-md-6 pd-5">
+                                                                                    Bill No : <b><?php echo $value->m_purcs_billno; ?></b>
+                                                                                </div>
+
+                                                                                <div class="col-md-6 pd-5 text-end">
                                                                                     Voucher No : <b><?php echo $value->m_purcs_spo; ?></b>
                                                                                 </div>
 
-                                                                                <div class="col-md-6 pd-5 text-end">
+                                                                                <div class="col-md-6 pd-5">
                                                                                     Truck Number : <b><?php echo $value->m_purcs_truckno; ?></b>
                                                                                 </div>
 
-                                                                                <div class="col-md-6 pd-5 ">
+                                                                                <div class="col-md-6 pd-5 text-end">
                                                                                     Purchase Date : <b><?php echo date('d-m-Y', strtotime($value->m_purcs_date)); ?></b>
                                                                                 </div>
-                                                                                <div class="col-md-6 pd-5 text-end">
+                                                                                <div class="col-md-6 pd-5">
                                                                                     Recieved BY : <b><?php echo $value->m_user_name ?: 'Admin'; ?></b>
                                                                                 </div>
 
