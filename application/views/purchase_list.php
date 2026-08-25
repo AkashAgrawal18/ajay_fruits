@@ -92,10 +92,20 @@
                         </div>
                     </div>
 
+                    <?php // Unlike every other list filter, this one used to render for a
+                    // branch user too - just disabled, with their own branch name greyed
+                    // out in it (branch_locked, set by Sales::purchase_list() for
+                    // user_type 9). The dropdown can't do anything for them either way -
+                    // the controller pins $data['branch_id'] to their session id
+                    // regardless of what's posted - so showing it was dead UI. Gated the
+                    // same as every other filter now; branch_locked can no longer be
+                    // true here, so the disabled/hidden-field handling it existed for
+                    // goes with it. ?>
+                    <?php if ($this->session->userdata('user_type') == 8) { ?>
                     <div class="col-2">
                         <div class="form-group">
                             <label for="">Branch</label>
-                            <select name="branch_id" id="branch_id" class="form-select select2" <?= (!empty($branch_locked)) ? 'disabled' : '' ?>>
+                            <select name="branch_id" id="branch_id" class="form-select select2">
                                 <option value="">All Branches</option>
                                 <option value="0" <?= (isset($branch_id) && (string) $branch_id === '0') ? 'selected' : '' ?>>Head Office</option>
                                 <?php if (!empty($branch_list)) {
@@ -106,12 +116,9 @@
                                 <?php }
                                 } ?>
                             </select>
-                            <?php if (!empty($branch_locked)) { ?>
-                                <!-- disabled select POST me value nahi bhejta, isliye hidden field zaroori -->
-                                <input type="hidden" name="branch_id" value="<?= $branch_id ?>">
-                            <?php } ?>
                         </div>
                     </div>
+                    <?php } ?>
                     <div class="col-2">
                         <div class="form-group">
                             <label for="">Supplier </label>
@@ -146,6 +153,7 @@
                                     <option value="">All</option>
                                     <option value="1" <?= ($type_pur == 1) ? 'selected' : '' ?>>Purchase</option>
                                     <option value="2" <?= ($type_pur == 2) ? 'selected' : '' ?>>Transfer</option>
+                                    <option value="3" <?= ($type_pur == 3) ? 'selected' : '' ?>>Return</option>
                                 </select>
                             </div>
                         </div>
@@ -429,11 +437,13 @@
 
                                                 <?php if ($this->session->userdata('user_type') == 8) { ?>
                                                     <!-- view modal end -->
-                                                    <?php if ($value->m_purcs_type != 2) { ?>
+                                                    <?php if ($value->m_purcs_type == 2) { ?>
+                                                        <button class="btn btn-danger btn-sm delete-transfer p-1" data-value="<?php echo $value->m_purcs_spo; ?>" title="Delete Transfer" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
+                                                    <?php } else if ($value->m_purcs_type == 3) { ?>
+                                                        <button class="btn btn-danger btn-sm delete-return p-1" data-value="<?php echo $value->m_purcs_spo; ?>" title="Delete Return" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
+                                                    <?php } else { ?>
                                                         <a href="<?php echo base_url('Sales/add_purchase?id=') . $value->m_purcs_spo; ?>" class="btn btn-info btn-sm p-1 me-1" title="Edit" data-toggle="tooltip"><i class="bi bi-pencil-square"></i></a>
                                                         <button class="btn btn-danger btn-sm delete-purchase p-1" data-value="<?php echo $value->m_purcs_spo; ?>" title="Delete" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
-                                                    <?php } else { ?>
-                                                        <button class="btn btn-danger btn-sm delete-transfer p-1" data-value="<?php echo $value->m_purcs_spo; ?>" title="Delete Transfer" data-toggle="tooltip"><i class="bi bi-trash"></i></button>
                                                     <?php } ?>
                                                 <?php } ?>
                                             </div>
@@ -484,6 +494,49 @@
                     $.ajax({
                         type: "POST",
                         url: "<?php echo site_url('Transfer/delete_transfer'); ?>",
+                        data: {
+                            delete_id: dlt_id
+                        },
+                        dataType: "JSON",
+                        success: function(data) {
+                            if (data.status == 'success') {
+                                swal(data.message, {
+                                    icon: "success",
+                                    timer: 1000
+                                });
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 1000);
+                            } else {
+                                clkbtn.prop('disabled', false);
+                                swal(data.message, {
+                                    icon: "error"
+                                });
+                            }
+                        }
+                    });
+                } else {
+                    clkbtn.prop('disabled', false);
+                }
+            });
+        });
+
+        $("#purchase_tbl").on("click", ".delete-return", function() {
+            var clkbtn = $(this);
+            clkbtn.prop('disabled', true);
+            var dlt_id = $(this).data('value');
+
+            swal({
+                title: "Are you sure?",
+                text: "Once deleted, the stock will go back to the branch and Head Office's stock/the branch balance will be reversed!",
+                icon: "warning",
+                buttons: true,
+                dangerMode: true,
+            }).then((willDelete) => {
+                if (willDelete) {
+                    $.ajax({
+                        type: "POST",
+                        url: "<?php echo site_url('Transfer/delete_return'); ?>",
                         data: {
                             delete_id: dlt_id
                         },

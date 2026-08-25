@@ -408,6 +408,12 @@
                                 Transfer
                             </p>
                         </a>
+                        <a href="<?= base_url('Transfer/return_stock') ?>" class="d-block text-dark py-1 main-link <?php if ($this->uri->segment(2) == 'return_stock') echo 'active' ?>">
+                            <img src="<?= base_url('assets/icons/proceed.png') ?>" alt="" class="w-50 mx-auto" />
+                            <p class="m-0 mt-1">
+                                Return Stock
+                            </p>
+                        </a>
                     <?php } ?>
                 </div>
 

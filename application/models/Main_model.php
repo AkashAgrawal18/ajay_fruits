@@ -2147,6 +2147,168 @@ class Main_model extends CI_model
     return true;
   }
 
+  // A branch's own currently-held transfer stock - the mirror of
+  // get_ho_stock_list(), scoped to one branch instead of HO. Feeds
+  // Transfer::return_stock()'s lot picker once a branch is chosen.
+  public function get_branch_stock_list($branch_id)
+  {
+    $this->db->select('m_purcs_id, m_purcs_available, m_purcs_price, m_purcs_lot, m_purcs_spo, mit.m_item_name');
+    $this->db->join('master_item_tbl mit', 'mit.m_item_id = master_purchase_tbl.m_purcs_item', 'left');
+    $this->db->where('master_purchase_tbl.m_purcs_branch', $branch_id);
+    $this->db->where('master_purchase_tbl.m_purcs_type', 2);
+    $this->db->where('master_purchase_tbl.m_purcs_available >', 0);
+    $this->db->order_by('mit.m_item_name');
+    return $this->db->get('master_purchase_tbl')->result();
+  }
+
+  /**
+   * A branch sending part (or all) of its still-unsold transferred stock back
+   * to Head Office - the reverse of insert_transfer().
+   *
+   * items: array of ['lot_id' => the BRANCH's own held row's m_purcs_id, 'qty'
+   * => how much of it is coming back]. The rate is never re-entered - a
+   * return reverses part of an existing charge, so its value is the rate the
+   * branch was actually charged (that row's own m_purcs_price).
+   *
+   * No new row is created at Head Office: the returned qty is credited
+   * straight back onto the ORIGINAL lot (found via the held row's own
+   * m_purcs_ref_lot), the same reversal delete_transfer() already performs
+   * for a full undo. get_ho_stock_list() therefore reflects a return with no
+   * change of its own - it already just reads that lot's m_purcs_available.
+   */
+  public function insert_return($items, $branch_id, $return_date = null)
+  {
+    $this->db->trans_start();
+
+    $return_date = !empty($return_date) ? $return_date : date('Y-m-d');
+    $spo         = 'RTN/' . date('dmY') . '/' . $branch_id . '/' . substr((string) time(), -5) . rand(100, 999);
+    $total_value = 0;
+
+    foreach ($items as $it) {
+      $branch_lot_id = $it['lot_id'];
+      $qty           = (float) $it['qty'];
+
+      // Scoped to this branch and to a transfer-in row, not just any
+      // m_purcs_id - refuses a lot that isn't actually this branch's to
+      // return, the same way insert_transfer() refuses an unknown lot.
+      $src = $this->db->where('m_purcs_id', $branch_lot_id)
+        ->where('m_purcs_branch', $branch_id)
+        ->where('m_purcs_type', 2)
+        ->get('master_purchase_tbl')->row();
+
+      if (!$src) {
+        $this->db->trans_rollback();
+        return $this->fail('Lot "' . $branch_lot_id . '" is not stock this branch currently holds from a transfer. Nothing was returned.');
+      }
+      if ($qty <= 0) {
+        $this->db->trans_rollback();
+        return $this->fail('Quantity for lot "' . $branch_lot_id . '" must be more than 0. Nothing was returned.');
+      }
+      if ($qty > $src->m_purcs_available) {
+        $this->db->trans_rollback();
+        return $this->fail('Lot "' . $branch_lot_id . '" - the branch only holds ' . $src->m_purcs_available
+          . ' but ' . $qty . ' was requested. Nothing was returned.');
+      }
+
+      // reduce the branch's held stock
+      $this->db->where('m_purcs_id', $branch_lot_id)
+        ->set('m_purcs_available', 'm_purcs_available - ' . $qty, false)
+        ->update('master_purchase_tbl');
+
+      // credit it back onto the original Head Office lot, if this row still
+      // points at one (every row insert_transfer() writes does)
+      if (!empty($src->m_purcs_ref_lot)) {
+        $this->db->where('m_purcs_id', $src->m_purcs_ref_lot)
+          ->set('m_purcs_available', 'm_purcs_available + ' . $qty, false)
+          ->update('master_purchase_tbl');
+      }
+
+      $line_total   = round($qty * $src->m_purcs_price, 2);
+      $total_value += $line_total;
+
+      $insert = [
+        'm_purcs_date'        => $return_date,
+        'm_purcs_suplier'     => $src->m_purcs_suplier,
+        'm_purcs_item'        => $src->m_purcs_item,
+        'm_purcs_qty'         => $qty,
+        // Nothing further is ever sold or transferred from a return row - it
+        // is a closed, historical entry, not held stock - so there is
+        // nothing left on it to be available.
+        'm_purcs_available'   => 0,
+        'm_purcs_price'       => $src->m_purcs_price,
+        'm_purcs_total'       => $line_total,
+        'm_purcs_lot'         => $src->m_purcs_lot,
+        'm_purcs_truckno'     => $src->m_purcs_truckno,
+        'm_purcs_spo'         => $spo,
+        'm_purcs_branch'      => 0,
+        'm_purcs_from_branch' => $branch_id,
+        'm_purcs_type'        => 3,
+        'm_purcs_status'      => 1,
+        'm_purcs_ref_lot'     => $branch_lot_id,
+        'm_purcs_added_by'    => $this->session->userdata('user_id'),
+        'm_purcs_added_on'    => date('Y-m-d H:i'),
+      ];
+      $this->db->insert('master_purchase_tbl', $this->no_nulls($insert));
+    }
+
+    // branch now owes HO less by the returned value (mirrors
+    // insert_transfer()'s own +amount, reversed)
+    if ($total_value > 0) {
+      $this->update_userbalance($branch_id, $total_value * -1);
+    }
+
+    $this->db->trans_complete();
+    return $this->db->trans_status();
+  }
+
+  public function delete_return($spo, $branch_id = null)
+  {
+    $this->db->where('m_purcs_spo', $spo)->where('m_purcs_type', 3);
+    if (!empty($branch_id)) {
+      $this->db->where('m_purcs_from_branch', $branch_id);
+    }
+    $rows = $this->db->get('master_purchase_tbl')->result();
+
+    if (empty($rows)) return false;
+
+    $total_value  = 0;
+    $return_branch = $rows[0]->m_purcs_from_branch;
+
+    foreach ($rows as $row) {
+      // give the qty back to the branch's held row...
+      if (!empty($row->m_purcs_ref_lot)) {
+        $this->db->where('m_purcs_id', $row->m_purcs_ref_lot)
+          ->set('m_purcs_available', 'm_purcs_available + ' . (float) $row->m_purcs_qty, false)
+          ->update('master_purchase_tbl');
+
+        // ...and take it back off the original Head Office lot the branch's
+        // row itself points at (one hop further than the return row's own
+        // ref_lot, which stops at the branch's row).
+        $branch_row = $this->db->select('m_purcs_ref_lot')
+          ->where('m_purcs_id', $row->m_purcs_ref_lot)
+          ->get('master_purchase_tbl')->row();
+        if (!empty($branch_row->m_purcs_ref_lot)) {
+          $this->db->where('m_purcs_id', $branch_row->m_purcs_ref_lot)
+            ->set('m_purcs_available', 'm_purcs_available - ' . (float) $row->m_purcs_qty, false)
+            ->update('master_purchase_tbl');
+        }
+      }
+      $total_value += (float) $row->m_purcs_total;
+    }
+
+    if ($total_value > 0) {
+      $this->update_userbalance($return_branch, $total_value);
+    }
+
+    $this->db->where('m_purcs_spo', $spo)->where('m_purcs_type', 3);
+    if (!empty($branch_id)) {
+      $this->db->where('m_purcs_from_branch', $branch_id);
+    }
+    $this->db->delete('master_purchase_tbl');
+
+    return true;
+  }
+
   // ===================== received payment/crate =======================//
 
   public function get_received_list($type, $from_date, $to_date, $scustomer = '', $account = '', $method = '', $group = '', $search_in = '', $order_by = '', $branch_id = null)

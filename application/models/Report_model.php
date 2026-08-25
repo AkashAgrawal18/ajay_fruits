@@ -1942,7 +1942,12 @@ class Report_model extends CI_model
     $this->db->join('master_users_tbl frombr', 'frombr.m_user_id = mp.m_purcs_from_branch', 'left');
     $this->db->join('master_users_tbl addedby', 'addedby.m_user_id = mp.m_purcs_added_by', 'left');
 
-    $this->db->where('mp.m_purcs_type', 2); // sirf transfer records
+    // type 2 = Head Office -> branch transfer, 3 = branch -> Head Office
+    // return; both are stock movements over the same lot lineage, so they
+    // belong on the one ledger. FROM/TO already read correctly for a return
+    // with no change - m_purcs_branch is 0 (Main) and m_purcs_from_branch is
+    // the returning branch, exactly reversed from a transfer row.
+    $this->db->where_in('mp.m_purcs_type', [2, 3]);
 
     if (!empty($from_date)) $this->db->where('mp.m_purcs_date >=', $from_date);
     if (!empty($todate))    $this->db->where('mp.m_purcs_date <=', $todate);
@@ -1971,6 +1976,16 @@ class Report_model extends CI_model
     $bill_total = $this->db->select_sum('m_purcs_total')
       ->where('m_purcs_branch', $branch_id)
       ->where('m_purcs_type', 2)
+      ->where('m_purcs_date <', $before_date)
+      ->get('master_purchase_tbl')->row();
+
+    // Stock the branch has sent back - a credit, the reverse of the transfer
+    // bill above. Keyed on m_purcs_from_branch, not m_purcs_branch: a return
+    // row's m_purcs_branch is 0 (it's back at Head Office), same reasoning
+    // as transfer_ledger_data().
+    $return_total = $this->db->select_sum('m_purcs_total')
+      ->where('m_purcs_from_branch', $branch_id)
+      ->where('m_purcs_type', 3)
       ->where('m_purcs_date <', $before_date)
       ->get('master_purchase_tbl')->row();
 
@@ -2031,6 +2046,7 @@ class Report_model extends CI_model
       ->get('master_voucher_tbl')->result();
 
     $bills   = !empty($bill_total->m_purcs_total) ? (float) $bill_total->m_purcs_total : 0;
+    $returns = !empty($return_total->m_purcs_total) ? (float) $return_total->m_purcs_total : 0;
     $paid    = !empty($paid_total->m_recvd_amount) ? (float) $paid_total->m_recvd_amount : 0;
     $ho_paid = !empty($ho_paid_total->m_payment_amount) ? (float) $ho_paid_total->m_payment_amount : 0;
     $ho_rcvd = !empty($ho_rcvd_total->m_recvd_amount) ? (float) $ho_rcvd_total->m_recvd_amount : 0;
@@ -2043,7 +2059,7 @@ class Report_model extends CI_model
       $voucher_net += ($v->m_voucher_type == 1) ? (float) $v->tamount : -(float) $v->tamount;
     }
 
-    return $bills - $paid - $ho_paid + $ho_rcvd + $ho_gave + $voucher_net;
+    return $bills - $returns - $paid - $ho_paid + $ho_rcvd + $ho_gave + $voucher_net;
   }
 
   public function branch_ledger_bills($branch_id, $from_date = '', $todate = '')
@@ -2176,6 +2192,24 @@ class Report_model extends CI_model
           . (!empty($r->m_voucher_remark) ? ' (' . $r->m_voucher_remark . ')' : ''),
         'debit'      => $is_credit_voucher ? (float) $r->m_voucher_amount : 0,
         'credit'     => $is_credit_voucher ? 0 : (float) $r->m_voucher_amount,
+      ];
+    }
+
+    // 7. Stock this branch sent back to Head Office - a credit, the reverse
+    // of the transfer bills branch_ledger_bills() lists. Keyed on
+    // m_purcs_from_branch - see get_branch_opening_balance()'s own note.
+    $this->db->select('m_purcs_spo, m_purcs_date, SUM(m_purcs_qty) as tqty, SUM(m_purcs_total) as tamount')
+      ->where('m_purcs_from_branch', $branch_id)
+      ->where('m_purcs_type', 3);
+    if (!empty($from_date)) $this->db->where('m_purcs_date >=', $from_date);
+    if (!empty($todate))    $this->db->where('m_purcs_date <=', $todate);
+    $this->db->group_by('m_purcs_spo');
+    foreach ($this->db->order_by('m_purcs_date')->get('master_purchase_tbl')->result() as $r) {
+      $rows[] = [
+        'date'       => $r->m_purcs_date,
+        'particular' => 'Return to Head Office No. ' . $r->m_purcs_spo . ' (Qty: ' . $r->tqty . ')',
+        'debit'      => 0,
+        'credit'     => (float) $r->tamount,
       ];
     }
 
