@@ -45,14 +45,39 @@ class Api_Controller extends CI_Controller
    */
   protected function _api_context()
   {
-    $user_id = $this->input->post('user_id') ?: $this->input->get('user_id');
+    // Deliberately not ?: here - that treats a posted "0" as absent, and
+    // absent means unscoped, so "user_id=0" was a way to ask for every
+    // branch's data. Only a genuinely missing or blank value falls through.
+    $user_id = $this->input->post('user_id');
+    if ($user_id === null || $user_id === '') {
+      $user_id = $this->input->get('user_id');
+    }
 
-    if (empty($user_id)) {
+    if ($user_id === null || $user_id === '') {
       $this->Api_Model->set_branch_context(null);
       return null;
     }
 
     $this->Api_Model->set_branch_context($user_id);
+
+    // A user_id that resolves to no account used to leave the request
+    // unscoped, i.e. able to read every branch. Refuse it instead. The reply
+    // carries every container key the endpoints use, so an existing client
+    // parses it as an ordinary error on whichever one it reads - no app
+    // change is needed for this.
+    if ($this->Api_Model->identity_unknown()) {
+      echo json_encode(array(
+        'response' => 'error',
+        'message'  => 'Your login is no longer valid. Please log in again.',
+        'list'     => array(),
+        'details'  => array(),
+        'user'     => array(),
+        'customer' => array(),
+        'link'     => '',
+      ));
+      exit;
+    }
+
     return $user_id;
   }
 
@@ -535,13 +560,42 @@ class Api_Controller extends CI_Controller
     }
   }
 
+  /**
+   * A signed print link is a standing pass to one document, so minting one has
+   * to be gated as tightly as reading that document through the API.
+   *
+   * Two checks, both of which were missing when the signing was introduced:
+   * the caller has to have identified itself at all (an absent user_id leaves
+   * the request unscoped, which is fine for the lookup lists but must not buy
+   * a pass to a customer's bill), and the document has to be inside that
+   * caller's branch.
+   */
+  private function _deny_link()
+  {
+    echo json_encode(array(
+      'response' => 'error',
+      'message'  => 'That document is not available on this login.',
+      'link'     => array(),
+    ));
+  }
+
   public function get_bill_link()
   {
-    $this->_api_context();
+    $user_id = $this->_api_context();
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
+      $spo = $this->input->post("m_sale_spo");
+
+      if (empty($user_id) || !$this->Api_Model->sale_visible($spo)) {
+        $this->_deny_link();
+        return;
+      }
+
       $info = array(
         'response' => 'success',
-        'link' => base_url('Sales/bill_print?id=') . $this->input->post("m_sale_spo"),
+        // Signed so the app's webview can open the bill without a web session -
+        // see bill_link_token() in common_helper.php.
+        'link' => base_url('Sales/bill_print?id=') . $spo
+          . '&k=' . bill_link_token('sale', $spo),
       );
     } else {
       $info = array(
@@ -554,11 +608,20 @@ class Api_Controller extends CI_Controller
 
   public function get_cratebill_link()
   {
-    $this->_api_context();
+    $user_id = $this->_api_context();
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
+      $voucher = $this->input->post("m_recvd_voucher");
+
+      // Receipt type 2 is the crate receipt - see Sales::crate_bill_print().
+      if (empty($user_id) || !$this->Api_Model->receipt_visible($voucher, 2)) {
+        $this->_deny_link();
+        return;
+      }
+
       $info = array(
         'response' => 'success',
-        'link' => base_url('Sales/crate_bill_print/') . $this->input->post("m_recvd_voucher"),
+        'link' => base_url('Sales/crate_bill_print/') . $voucher
+          . '?k=' . bill_link_token('crate', $voucher),
       );
     } else {
       $info = array(
@@ -571,11 +634,20 @@ class Api_Controller extends CI_Controller
 
   public function get_paymentbill_link()
   {
-    $this->_api_context();
+    $user_id = $this->_api_context();
     if ($_SERVER["REQUEST_METHOD"] == "POST") {
+      $voucher = $this->input->post("m_recvd_voucher");
+
+      // Receipt type 1 is the payment receipt - see Sales::payment_bill_print().
+      if (empty($user_id) || !$this->Api_Model->receipt_visible($voucher, 1)) {
+        $this->_deny_link();
+        return;
+      }
+
       $info = array(
         'response' => 'success',
-        'link' => base_url('Sales/payment_bill_print/') . $this->input->post("m_recvd_voucher"),
+        'link' => base_url('Sales/payment_bill_print/') . $voucher
+          . '?k=' . bill_link_token('payment', $voucher),
       );
     } else {
       $info = array(

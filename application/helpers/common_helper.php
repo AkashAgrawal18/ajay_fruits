@@ -296,6 +296,64 @@ if (! function_exists('get_sms_balance')) {
 
 // ------------------------------------------------------------------------
 
+if (!function_exists('bill_link_key')) {
+  /**
+   * Per-install secret used to sign the print links the mobile API hands out.
+   *
+   * Kept in application_settings rather than in config.php so it never lands
+   * in the repo, and minted on first use so there is nothing to configure by
+   * hand after a deploy. CI's own encryption_key is empty in this install, or
+   * that would have done.
+   */
+  function bill_link_key()
+  {
+    $CI = &get_instance();
+
+    $key = get_settings('api_link_key');
+    if (!empty($key)) {
+      return $key;
+    }
+
+    $key = bin2hex(random_bytes(32));
+    $CI->db->update('application_settings', array('api_link_key' => $key));
+
+    return $key;
+  }
+}
+
+if (!function_exists('bill_link_token')) {
+  /**
+   * Signs one printable document for one id.
+   *
+   * The three print pages the mobile app links to (sales bill, crate receipt,
+   * payment receipt) need a login, because they render customer balances and
+   * their ids run in sequence - anyone could walk them. The app's webview has
+   * no web session, so it was getting the login page instead of the bill.
+   *
+   * A token binds the link to exactly one document: it opens that bill and
+   * nothing else, and it grants no access to the rest of the app. Browser
+   * users are unaffected - they still reach these pages by being logged in.
+   */
+  function bill_link_token($resource, $id)
+  {
+    return substr(hash_hmac('sha256', $resource . '|' . $id, bill_link_key()), 0, 32);
+  }
+}
+
+if (!function_exists('bill_link_token_valid')) {
+  /** Constant-time check of a token produced by bill_link_token(). */
+  function bill_link_token_valid($resource, $id, $token)
+  {
+    if (empty($token) || empty($id)) {
+      return false;
+    }
+
+    return hash_equals(bill_link_token($resource, $id), (string) $token);
+  }
+}
+
+// ------------------------------------------------------------------------
+
 /* End of file user_helper.php */
 
 /* Location: ./system/helpers/common.php */

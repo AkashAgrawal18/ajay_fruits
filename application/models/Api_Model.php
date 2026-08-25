@@ -36,6 +36,9 @@ class Api_Model extends CI_model
 	/** Resolved branch for this request. null == all branches (unscoped). */
 	private $api_branch = null;
 
+	/** True when a user_id was supplied but matched no account. */
+	private $api_identity_unknown = false;
+
 	/**
 	 * Resolves and stores the branch for this request.
 	 *
@@ -47,8 +50,12 @@ class Api_Model extends CI_model
 	public function set_branch_context($user_id)
 	{
 		$this->api_branch = null;
+		$this->api_identity_unknown = false;
 
-		if (empty($user_id)) {
+		// Blank means "not supplied" - unscoped, which the lookup endpoints
+		// rely on. "0" is not blank: it is a supplied id that matches no
+		// account, so it falls through to the lookup below and is refused.
+		if ($user_id === null || $user_id === '') {
 			return null;
 		}
 
@@ -57,6 +64,12 @@ class Api_Model extends CI_model
 			->get('master_users_tbl')->row();
 
 		if (empty($row)) {
+			// Used to leave the branch as null, which means "no filter" - so a
+			// user_id that matched nothing (junk, or a deleted account) saw
+			// every branch instead of nothing. Failing open on the identity
+			// that decides scoping is backwards; flag it and let
+			// Api_Controller::_api_context() refuse the request.
+			$this->api_identity_unknown = true;
 			return null;
 		}
 
@@ -75,6 +88,48 @@ class Api_Model extends CI_model
 	public function branch_id()
 	{
 		return $this->api_branch;
+	}
+
+	/** True when a user_id was supplied but no such account exists. */
+	public function identity_unknown()
+	{
+		return $this->api_identity_unknown;
+	}
+
+	/**
+	 * Is this sale one the current caller is allowed to see?
+	 *
+	 * Used before signing a print link. Minting a link is handing out a
+	 * standing pass to that document, so it has to be gated at least as
+	 * tightly as reading the document through the API - otherwise a branch
+	 * could mint a pass to a bill get_sale_details() would refuse it.
+	 */
+	public function sale_visible($spo)
+	{
+		if ($spo === null || $spo === '') {
+			return false;
+		}
+
+		$this->db->where('m_sale_spo', $spo);
+		$this->where_branch('master_sales_tbl.m_sale_branch');
+
+		return $this->db->count_all_results('master_sales_tbl') > 0;
+	}
+
+	/**
+	 * As sale_visible(), for a receipt voucher.
+	 * $type is 1 for a payment receipt, 2 for a crate receipt.
+	 */
+	public function receipt_visible($voucher, $type)
+	{
+		if ($voucher === null || $voucher === '') {
+			return false;
+		}
+
+		$this->db->where('m_recvd_voucher', $voucher)->where('m_recvd_type', $type);
+		$this->where_branch('master_recieved_tbl.m_recvd_branch');
+
+		return $this->db->count_all_results('master_recieved_tbl') > 0;
 	}
 
 	/** Adds the branch predicate to the pending query when one is resolved. */
@@ -276,6 +331,11 @@ class Api_Model extends CI_model
 
 	public function get_sale_details()
 	{
+		// Every sibling method here initialises this; this one did not, so an
+		// spo that matched nothing returned an "Undefined variable $result"
+		// warning ahead of the JSON. Branch scoping made that easy to hit -
+		// another branch's spo now lands on exactly this empty path.
+		$result = array();
 
 		$this->db->select('m_sale_spo,m_sale_trackno,sum(m_sale_qty) as total_qty,sum(m_sale_total) as sub_total,m_sale_date,sum(m_sale_weight) as total_weight,sum(m_sale_crate) as total_crate,m_sale_comrate,m_sale_comm,m_sale_fright,m_sale_hamali,m_sale_others,(m_sale_comm + m_sale_fright + m_sale_hamali + m_sale_others) as total_expense,m_sale_note,m_sale_user,m_sale_customer,m_cust_name,m_cust_hndiname,m_cust_mobile,m_cust_address,m_group_name');
 		$this->db->join('master_customer_tbl mct', 'mct.m_cust_id = master_sales_tbl.m_sale_customer', 'left');
@@ -339,6 +399,9 @@ class Api_Model extends CI_model
 		$this->db->join('master_city_tbl', 'master_city_tbl.m_city_id = master_customer_tbl.m_cust_city', 'left');
 		$this->db->join('master_group_tbl', 'master_group_tbl.m_group_id = master_customer_tbl.m_cust_group');
 		$this->db->where("m_cust_id", $cust_id);
+		// Fetching by primary key is still a branch-scoped read - without this
+		// any branch could pull another branch's customer just by id.
+		$this->where_branch('master_customer_tbl.m_cust_branch');
 		$sql = $this->db->get("master_customer_tbl");
 		return $sql->result();
 	}
@@ -857,9 +920,16 @@ class Api_Model extends CI_model
 
 	public function get_crate_ledger($crate_id, $cust_id)
 	{
-		$crategiven = $this->db->select('sum(m_sale_crate) as tcrate,m_itgrp_title')->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')->where('m_sale_customer', $cust_id)->where('m_item_crate', $crate_id)->group_by('m_item_crate')->get('master_sales_tbl')->result();
+		// Both halves are keyed on a customer id the caller supplies, so both
+		// need the branch predicate - otherwise a branch could read another
+		// branch's whole crate ledger just by passing its customer id.
+		$this->db->select('sum(m_sale_crate) as tcrate,m_itgrp_title')->join('master_item_tbl mit', 'mit.m_item_id = master_sales_tbl.m_sale_item', 'left')->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = mit.m_item_crate', 'left')->where('m_sale_customer', $cust_id)->where('m_item_crate', $crate_id)->group_by('m_item_crate');
+		$this->where_branch('master_sales_tbl.m_sale_branch');
+		$crategiven = $this->db->get('master_sales_tbl')->result();
 
-		$cratercvdquery = $this->db->select('sum(m_recvd_qty) as tcrateqty,m_itgrp_title')->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate', 'left')->where('m_recvd_customer', $cust_id)->where('m_recvd_type', 2)->where('m_recvd_crate', $crate_id)->group_by('m_recvd_crate')->get('master_recieved_tbl')->result();
+		$this->db->select('sum(m_recvd_qty) as tcrateqty,m_itgrp_title')->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate', 'left')->where('m_recvd_customer', $cust_id)->where('m_recvd_type', 2)->where('m_recvd_crate', $crate_id)->group_by('m_recvd_crate');
+		$this->where_branch('master_recieved_tbl.m_recvd_branch');
+		$cratercvdquery = $this->db->get('master_recieved_tbl')->result();
 		$result = array(
 			"crate_rcvd" => $cratercvdquery ? $cratercvdquery[0]->tcrateqty : 0,
 			"crate_given" => $crategiven ? $crategiven[0]->tcrate : 0,
@@ -1103,6 +1173,13 @@ class Api_Model extends CI_model
 
 	public function insert_customer()
 	{
+		// m_cust_added_by is NOT NULL and comes straight from the posted
+		// user_id. Without this the insert died as a CodeIgniter database
+		// error page - an HTML 500 carrying the whole INSERT statement and the
+		// server path, which no client can parse.
+		if (!$this->input->post('user_id')) {
+			return $this->fail('Could not tell who is adding this customer. Please log in again and retry.');
+		}
 
 		$data = array(
 
@@ -1213,10 +1290,13 @@ class Api_Model extends CI_model
 
         if ($qty > $available_qty) {
             $this->db->trans_rollback();
-            return [
-                'status' => false,
-                'msg' => "Insufficient stock for item {$item} (Lot: {$lot})"
-            ];
+            // Was returning an array here. The controller tests the return with
+            // a plain if(), and a non-empty array is truthy, so a rejected
+            // issue answered "Item Issued Successfully" while writing nothing -
+            // the staff user was told stock had gone out when it had not.
+            // fail() returns false and parks the message for last_error(),
+            // which the controller already reads.
+            return $this->fail("Only {$available_qty} left in lot {$lot} for this item, so {$qty} could not be issued. Nothing was issued.");
         }
 
         /** -------- DUPLICATE CHECK -------- **/
@@ -1263,7 +1343,14 @@ class Api_Model extends CI_model
     // 🔒 END TRANSACTION
     $this->db->trans_complete();
 
-    return $res ?? 0;
+    if (empty($res)) {
+        // Nothing was written because every line matched an existing issue.
+        // Still a failure for the caller, but say why - the generic
+        // "that did not go through" sends people looking for a fault.
+        return $this->fail('This issue is already recorded, so nothing was issued again.');
+    }
+
+    return $res;
 }
 
 	public function insert_purchase()
@@ -1427,6 +1514,10 @@ class Api_Model extends CI_model
 		$this->db->join('master_users_tbl mut', 'mut.m_user_id = master_purchase_tbl.m_purcs_suplier', 'left')
 			->join('master_users_tbl', 'master_users_tbl.m_user_id = master_purchase_tbl.m_purcs_user', 'left');
 		$this->db->where('m_purcs_spo', $id);
+		// Same reasoning as customer_details(): an spo is not a licence to read
+		// another branch's purchase. The line items below are only fetched when
+		// this header query returns something, so they are covered by it.
+		$this->where_branch('master_purchase_tbl.m_purcs_branch');
 		$this->db->group_by('m_purcs_spo');
 		$purchse_detail = $this->db->get('master_purchase_tbl')->result();
 		if (!empty($purchse_detail)) {
@@ -1477,6 +1568,8 @@ class Api_Model extends CI_model
 		$this->db->join('master_users_tbl', 'master_users_tbl.m_user_id = staff_itemissue_tbl.si_issue_user', 'left');
 		$this->db->where('si_issue_spo', $id);
 		$this->db->where('si_issue_status', 1);
+		// As in get_purchase_detail() - the line items ride on this query.
+		$this->where_branch('staff_itemissue_tbl.si_issue_branch');
 		$this->db->group_by('si_issue_spo');
 		$issue_detail = $this->db->get('staff_itemissue_tbl')->result();
 		if (!empty($issue_detail)) {
@@ -1892,7 +1985,10 @@ class Api_Model extends CI_model
 
 		$mobile = $cust_detail['cust_mobile'];
 
-		$longURL = base_url('Sales/bill_print?id=' . $m_sale_spo);
+		// Tokenised for the same reason as the app links: bill_print()
+		// requires a login, and the customer receiving this SMS has none.
+		$longURL = base_url('Sales/bill_print?id=' . $m_sale_spo)
+			. '&k=' . bill_link_token('sale', $m_sale_spo);
 
 		$shortURL = $this->shorten_url($longURL);
 		if (!empty($shortURL)) {
@@ -1909,23 +2005,44 @@ class Api_Model extends CI_model
 	public function get_agents_performance($date)
 	{
 		$data = array();
+		// Nothing in this report was branch-scoped: a branch account saw every
+		// other branch's agents and their whole day - sales, collections,
+		// discounts, expenses and crates. The agent list is gated here and each
+		// of the seven per-agent aggregates below is gated on its own table,
+		// because an agent's rows are not necessarily all in one branch.
+		$this->where_branch('master_users_tbl.m_user_branch');
 		$all_agents = $this->db->select('m_user_id,m_user_name,m_user_mobile,m_user_group')->where('m_user_type', 1)->where('m_user_design', 1)->get('master_users_tbl')->result();
 
 		if (!empty($all_agents)) {
 			foreach ($all_agents as $key) {
-				$today_issue = $this->db->select('sum(si_issue_qty) as total_issue,group_concat(si_issue_item) as issue_items,group_concat(si_issue_qty) as issue_qty,group_concat(si_issue_lotno) as issue_lot,si_issue_user')->where('si_issue_date', $date)->where('si_issue_type', 1)->where('si_issue_status', 1)->where('si_issue_user', $key->m_user_id)->get('staff_itemissue_tbl')->row();
-				$today_return = $this->db->select('sum(si_issue_qty) as total_return,group_concat(si_issue_item) as return_items,group_concat(si_issue_qty) as return_qty,group_concat(si_issue_lotno) as return_lot,si_issue_user')->where('si_issue_date', $date)->where('si_issue_type', 2)->where('si_issue_user', $key->m_user_id)->where('si_issue_status', 1)->get('staff_itemissue_tbl')->row();
+				$this->db->select('sum(si_issue_qty) as total_issue,group_concat(si_issue_item) as issue_items,group_concat(si_issue_qty) as issue_qty,group_concat(si_issue_lotno) as issue_lot,si_issue_user')->where('si_issue_date', $date)->where('si_issue_type', 1)->where('si_issue_status', 1)->where('si_issue_user', $key->m_user_id);
+				$this->where_branch('staff_itemissue_tbl.si_issue_branch');
+				$today_issue = $this->db->get('staff_itemissue_tbl')->row();
 
-				$today_sale = $this->db->select('sum(m_sale_qty) as total_sale,group_concat(m_sale_item) as sale_items,group_concat(m_sale_qty) as sale_qty,group_concat(m_sale_lot) as sale_lot,m_sale_user')->where('m_sale_date', $date)->where('m_sale_user', $key->m_user_id)->get('master_sales_tbl')->row();
+				$this->db->select('sum(si_issue_qty) as total_return,group_concat(si_issue_item) as return_items,group_concat(si_issue_qty) as return_qty,group_concat(si_issue_lotno) as return_lot,si_issue_user')->where('si_issue_date', $date)->where('si_issue_type', 2)->where('si_issue_user', $key->m_user_id)->where('si_issue_status', 1);
+				$this->where_branch('staff_itemissue_tbl.si_issue_branch');
+				$today_return = $this->db->get('staff_itemissue_tbl')->row();
 
+				$this->db->select('sum(m_sale_qty) as total_sale,group_concat(m_sale_item) as sale_items,group_concat(m_sale_qty) as sale_qty,group_concat(m_sale_lot) as sale_lot,m_sale_user')->where('m_sale_date', $date)->where('m_sale_user', $key->m_user_id);
+				$this->where_branch('master_sales_tbl.m_sale_branch');
+				$today_sale = $this->db->get('master_sales_tbl')->row();
 
-				$today_collection = $this->db->select('sum(m_recvd_amount) as total_collection')->where('m_recvd_user', $key->m_user_id)->where('m_recvd_type', 1)->where('m_recvd_account', 1)->where('m_recvd_date', $date)->get('master_recieved_tbl')->row();
+				$this->db->select('sum(m_recvd_amount) as total_collection')->where('m_recvd_user', $key->m_user_id)->where('m_recvd_type', 1)->where('m_recvd_account', 1)->where('m_recvd_date', $date);
+				$this->where_branch('master_recieved_tbl.m_recvd_branch');
+				$today_collection = $this->db->get('master_recieved_tbl')->row();
 
-				$today_discount = $this->db->select('sum(m_voucher_amount) as total_discount')->where('m_voucher_added_by', $key->m_user_id)->where('m_voucher_type', 1)->where('m_voucher_account', 1)->where('m_voucher_date', $date)->get('master_voucher_tbl')->row();
+				$this->db->select('sum(m_voucher_amount) as total_discount')->where('m_voucher_added_by', $key->m_user_id)->where('m_voucher_type', 1)->where('m_voucher_account', 1)->where('m_voucher_date', $date);
+				$this->where_branch('master_voucher_tbl.m_voucher_branch');
+				$today_discount = $this->db->get('master_voucher_tbl')->row();
 
-				$today_exp = $this->db->select('m_exp_amount')->where('m_exp_user', $key->m_user_id)->where('m_exp_added_by', $key->m_user_id)->where('m_exp_date', $date)->where('m_exp_name', 83)->get('master_expenses_tbl')->row();
+				$this->db->select('m_exp_amount')->where('m_exp_user', $key->m_user_id)->where('m_exp_added_by', $key->m_user_id)->where('m_exp_date', $date)->where('m_exp_name', 83);
+				$this->where_branch('master_expenses_tbl.m_exp_branch');
+				$today_exp = $this->db->get('master_expenses_tbl')->row();
 				$total_expense = isset($today_exp) ? $today_exp->m_exp_amount : 0;
-				$today_crate_collection = $this->db->select('sum(m_recvd_qty) as total_crate,m_recvd_crate,crate.m_itgrp_title as cratetype')->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate', 'left')->where('m_recvd_user', $key->m_user_id)->where('m_recvd_type', 2)->where('m_recvd_date', $date)->group_by('m_recvd_crate')->get('master_recieved_tbl')->result();
+
+				$this->db->select('sum(m_recvd_qty) as total_crate,m_recvd_crate,crate.m_itgrp_title as cratetype')->join('master_itemgroup_tbl as crate', 'crate.m_itgrp_id = master_recieved_tbl.m_recvd_crate', 'left')->where('m_recvd_user', $key->m_user_id)->where('m_recvd_type', 2)->where('m_recvd_date', $date)->group_by('m_recvd_crate');
+				$this->where_branch('master_recieved_tbl.m_recvd_branch');
+				$today_crate_collection = $this->db->get('master_recieved_tbl')->result();
 
 				$res = (object)array(
 					"m_user_id" => $key->m_user_id,
@@ -1967,7 +2084,9 @@ class Api_Model extends CI_model
 	{
 		$cust_detail = $this->Main_model->get_opening_balance($cust_id, date('Y-m-d'));
 
-		$longURL = base_url('Sales/crate_bill_print/' . $voucher_no);
+		// See send_sale_sms() - the customer has no login either.
+		$longURL = base_url('Sales/crate_bill_print/' . $voucher_no)
+			. '?k=' . bill_link_token('crate', $voucher_no);
 
 		$shortURL = $this->shorten_url($longURL);
 
@@ -1984,7 +2103,9 @@ class Api_Model extends CI_model
 	{
 		$cust_detail = $this->Main_model->get_opening_balance($cust_id, date('Y-m-d'));
 
-		$longURL = base_url('Sales/payment_bill_print/' . $voucher_no);
+		// See send_sale_sms() - the customer has no login either.
+		$longURL = base_url('Sales/payment_bill_print/' . $voucher_no)
+			. '?k=' . bill_link_token('payment', $voucher_no);
 
 		$shortURL = $this->shorten_url($longURL);
 

@@ -331,7 +331,12 @@ class Sales extends CI_Controller
 
   public function bill_print()
   {
-    $this->require_login();
+    // The mobile app links straight here and has no web session, so a signed
+    // link for this one bill stands in for the login. Everyone else still
+    // needs to be logged in - see bill_link_token() in common_helper.php.
+    if (!bill_link_token_valid('sale', $this->input->get('id'), $this->input->get('k'))) {
+      $this->require_login();
+    }
 
     $data['id'] = $this->input->get('id');
     $data['pgtype'] = 2;
@@ -343,7 +348,10 @@ class Sales extends CI_Controller
 
   public function crate_bill_print($id)
   {
-    $this->require_login();
+    // As in bill_print() - a signed link for this one receipt, or a login.
+    if (!bill_link_token_valid('crate', $id, $this->input->get('k'))) {
+      $this->require_login();
+    }
 
     $data['id'] = $id;
     $data['type'] = 2;
@@ -357,7 +365,10 @@ class Sales extends CI_Controller
 
   public function payment_bill_print($id)
   {
-    $this->require_login();
+    // As in bill_print() - a signed link for this one receipt, or a login.
+    if (!bill_link_token_valid('payment', $id, $this->input->get('k'))) {
+      $this->require_login();
+    }
 
     $data['id'] = $id;
     $data['type'] = 1;

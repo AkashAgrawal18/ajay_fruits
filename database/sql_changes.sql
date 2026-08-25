@@ -338,3 +338,15 @@ ALTER TABLE `application_settings` ADD COLUMN `date_lock_password_enc` VARCHAR(2
 -- ---------------------------------------------------------------------------
 -- UPDATE `master_users_tbl` SET `m_user_balance` = `m_user_balance` - 116340 WHERE `m_user_id` = 140 AND `m_user_type` = 2;
 -- UPDATE `master_users_tbl` SET `m_user_balance` = `m_user_balance` + 116340 WHERE `m_user_id` = 141 AND `m_user_type` = 9;
+
+-- ---------------------------------------------------------------------------
+-- 2026-08-25 - signing key for the mobile app's print links (BUG-A01)
+--
+-- The three print pages the app links to (Sales/bill_print,
+-- Sales/crate_bill_print, Sales/payment_bill_print) require a login, and the
+-- app's webview has no web session - so "view bill" in the app was showing the
+-- login page. The links now carry an HMAC token bound to that one document.
+-- This column holds the per-install secret; common_helper.php mints it on
+-- first use, so nothing needs to be set by hand.
+-- ---------------------------------------------------------------------------
+ALTER TABLE `application_settings` ADD COLUMN `api_link_key` VARCHAR(64) NULL DEFAULT NULL;
